@@ -14,23 +14,8 @@ import random
 
 class Schedule(Enum):
     MONTHLY = 12
-    QUATERLY = 4
+    QUARTERLY = 4
     CUSTOM = 0
-
-
-employer_json = {
-    'start_count': '100',
-    'pool_inception': '2023-05-21',
-    'alcohol_percent': .1,
-    'drug_percent': .5,
-    # The rest can all be junk, as it gets overwritten in initialize
-    'alcohol_administered': 0,
-    'drug_administered': 0,
-    'year': 2000,
-    'employee_count': {'2023-01-01': 100},
-    'period_start_dates': ['2023-01-01']
-
-}
 
 
 class Employer(BaseModel):
@@ -38,12 +23,14 @@ class Employer(BaseModel):
     pool_inception: date
     alcohol_percent: float
     drug_percent: float
+    schedule: Schedule = Schedule.QUARTERLY
+
+    # These get auto filled:
     alcohol_administered: int
     drug_administered: int
     year: Optional[int]
     employee_count: Optional[dict]
     period_start_dates: Optional[list[date]]
-    schedule: Schedule = Schedule.QUATERLY
 
     def initialize(self, custom_period_start_dates=[]):
         self.year = self.pool_inception.year
@@ -67,7 +54,7 @@ class Employer(BaseModel):
                     continue
                 self.period_start_dates.append(date)
 
-        elif self.schedule == Schedule.QUATERLY:
+        elif self.schedule == Schedule.QUARTERLY:
             self.period_start_dates = []
             for m in range(4):
                 month = 3*m+1
@@ -75,11 +62,27 @@ class Employer(BaseModel):
                 date = self.pool_inception.replace(month=month, day=1)
                 if date < self.pool_inception:
                     continue
+                # If the pool inception is in th emiddle of a period, we need to get
+                #  that as the start of the 1st period
+                if date > self.pool_inception and len(self.period_start_dates) == 0:
+                    self.period_start_dates.append(self.pool_inception)
                 self.period_start_dates.append(date)
-            self.period_start_dates.append(self.pool_inception.replace(month=12, day=1))
+
+            # Not sure if I wan this "special" date added or not....
+            # self.period_start_dates.append(self.pool_inception.replace(month=12, day=1))
 
         else:
             self.period_start_dates = custom_period_start_dates
+
+        print(f'{self.days_in_year()=}')
+        for c, d in enumerate(self.period_start_dates):
+            print(f'{c}->{d}')
+        print('And Now:')
+        for d in self.employee_count:
+            period_index = self.get_current_period_index(d)
+            # print(f'{d} -> period {period_index}')
+            print(f'{d} -> period {period_index} starting {self.period_start_dates[period_index]} is on {self.period_bounds(d)} and has {self.days_in_current_period(d)}')
+        exit(0)
 
     @staticmethod
     def get_count_change(d, mu, sigma):
@@ -105,14 +108,45 @@ class Employer(BaseModel):
                 print('')
             if d in self.period_start_dates:
                 print(f'##### {d} #####')
-            print(f'  {d}->{self.employee_count[d]}')
+            print(f'  {d}->{self.employee_count[d]} in period {self.period_bounds(d)}')
 
     def year_end(self):
-        return
+        return self.pool_inception.replace(month=12, day=31)
 
-    # calculate year_end -
     def days_in_year(self):
-        pass
+        return (self.year_end() - self.pool_inception).days + 1
+
+    def get_current_period_index(self, curr_date):
+        if curr_date.year != self.year:
+            return -1
+        for c, d in enumerate(self.period_start_dates):
+            if c == len(self.period_start_dates)-1:
+                return c
+            if curr_date >= d and curr_date < self.period_start_dates[c+1]:
+                return c
+        return -2
+
+    def period_end_date(self, period_index):
+        if period_index == len(self.period_start_dates)-1:
+            return self.year_end()
+        return (self.period_start_dates[period_index+1]-timedelta(days=1))
+
+    def days_in_current_period(self, curr_date):
+        period_index = self.get_current_period_index(curr_date)
+        return 1+(self.period_end_date(period_index)-self.period_start_dates[period_index]).days
+
+    def period_bounds(self, given_day):
+        if given_day < self.period_start_dates[0]:
+            return (date(year=self.year-1, month=1, day=1), date(year=self.year-1, month=12, day=31))
+        if given_day.year > self.year:
+            return (date(year=self.year+1, month=1, day=1), date(year=self.year+1, month=12, day=31))
+        stop = len(self.period_start_dates)-1
+        i = 0
+        while i < stop:
+            if given_day < self.period_start_dates[i+1]:
+                return (self.period_start_dates[i], self.period_end_date(i))
+            i += 1
+        return (self.period_start_dates[-1], self.year_end())
 
     def apriori_projections(self):
         pass
