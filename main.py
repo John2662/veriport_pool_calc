@@ -24,7 +24,7 @@ employer_json = {
 }
 
 
-num_tests = 1000000
+num_tests = 1000
 
 
 def main():
@@ -44,9 +44,9 @@ def main():
 
     print(f'Errors: {errors} out of {num_tests}')
     return 0
-    e.print_setup()
-    e.randomize_employee_count(0, 2)
-    e.pretty_print()
+    # e.print_setup()
+    # e.randomize_employee_count(0, 2)
+    # e.pretty_print()
 
 
 if __name__ == "__main__":

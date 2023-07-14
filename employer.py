@@ -33,32 +33,56 @@ class Employer(BaseModel):
     employee_count: Optional[dict]
     period_start_dates: Optional[list[date]]
 
+    @property
+    def num_periods(self):
+        return len(self.period_start_dates)
+
+    @property
+    def final_period(self):
+        return len(self.period_start_dates)-1
+
+    @property
+    def last_day_of_year(self):
+        return self.pool_inception.replace(month=12, day=31)
+
+    @property
+    def total_days_in_year(self):
+        return calendar.isleap(self.year) + 365
+
+    @property
+    def fraction_of_year(self):
+        return float((self.last_day_of_year-self.pool_inception).days) / float(self.total_days_in_year)
+
+    @staticmethod
+    def order_correctly(start, end):
+        if start > end:
+            tmp = end
+            end = start
+            start = tmp
+        return start, end
+
     def initialize_monthly_periods(self):
+        self.period_start_dates.append(self.pool_inception)
         for m in range(12):
             month = m+1
-            # day = calendar.monthrange(self.year, month)[1]
             date = self.pool_inception.replace(month=month, day=1)
-            if date < self.pool_inception:
+            if date <= self.pool_inception:
                 continue
             self.period_start_dates.append(date)
 
     def initialize_quarterly_periods(self):
+        self.period_start_dates.append(self.pool_inception)
         for m in range(4):
             month = 3*m+1
-            # day = calendar.monthrange(self.year, month)[1]
             date = self.pool_inception.replace(month=month, day=1)
-            # If the pool inception is in the middle of a period, we need to get
-            #  that as the start of the 1st period
-            # print(f'test {date=}')
-            # print(f'{self.pool_inception=}')
-            # print(f'{len(self.period_start_dates)=}')
-            if date > self.pool_inception and len(self.period_start_dates) == 0:
-                self.period_start_dates.append(self.pool_inception)
-            if date < self.pool_inception and m < 3:
+            if date <= self.pool_inception:
                 continue
             self.period_start_dates.append(date)
-        # Not sure if I wan this "special" date added or not....
-        # self.period_start_dates.append(self.pool_inception.replace(month=12, day=1))
+
+        # Not sure if I want this "special" date added or not....
+        dec_1 = self.pool_inception.replace(month=12, day=1)
+        if self.pool_inception < dec_1:
+            self.period_start_dates.append(dec_1)
 
     def initialize_custom_periods(self, custom_period_start_dates):
         self.period_start_dates = custom_period_start_dates
@@ -90,65 +114,10 @@ class Employer(BaseModel):
         self.period_start_dates = []
         self.initialize_periods(custom_period_start_dates)
 
-    def final_period(self, period_index):
-        return period_index == len(self.period_start_dates)-1
-
-    def year_end(self):
-        return self.pool_inception.replace(month=12, day=31)
-
-    def days_in_year(self):
-        return calendar.isleap(self.year) + 365
-
-    def days_in_pool_year(self):
-        return (self.year_end() - self.pool_inception).days + 1
-
-    def get_current_period_index(self, curr_date):
-        if curr_date.year != self.year:
-            return -1
-        for c, d in enumerate(self.period_start_dates):
-            if c == len(self.period_start_dates)-1:
-                return c
-            if curr_date >= d and curr_date < self.period_start_dates[c+1]:
-                return c
-        return -2
-
     def period_end_date(self, period_index):
         if period_index == len(self.period_start_dates)-1:
-            return self.year_end()
+            return self.last_day_of_year
         return (self.period_start_dates[period_index+1]-timedelta(days=1))
-
-    def days_in_current_period(self, curr_date):
-        period_index = self.get_current_period_index(curr_date)
-        return 1+(self.period_end_date(period_index)-self.period_start_dates[period_index]).days
-
-    def days_in_pool_year(self):
-        return 1+(self.year_end()-self.period_start_dates[0]).days
-
-    def cummulative_days_in_pool_year(self, current_day):
-        if current_day <= self.pool_inception:
-            return 0
-        return 1+(current_day-self.pool_inception).days
-
-    def period_bounds(self, given_day):
-        if given_day < self.period_start_dates[0]:
-            return (date(year=self.year-1, month=1, day=1), date(year=self.year-1, month=12, day=31))
-        if given_day.year > self.year:
-            return (date(year=self.year+1, month=1, day=1), date(year=self.year+1, month=12, day=31))
-        stop = len(self.period_start_dates)-1
-        i = 0
-        while i < stop:
-            if given_day < self.period_start_dates[i+1]:
-                return (self.period_start_dates[i], self.period_end_date(i))
-            i += 1
-        return (self.period_start_dates[-1], self.year_end())
-
-    @staticmethod
-    def order_correctly(start, end):
-        if start > end:
-            tmp = end
-            end = start
-            start = tmp
-        return start, end
 
     def average_employee_count_over_interval(self, start, end):
         start, end = Employer.order_correctly(start, end)
@@ -164,48 +133,50 @@ class Employer(BaseModel):
             return self.average_employee_count_over_interval(self.pool_inception, self.period_end_date(period_index))
         return self.average_employee_count_over_interval(self.period_start_dates[period_index], self.period_end_date(period_index))
 
+    def is_final_period(self, period_index):
+        return period_index == len(self.period_start_dates)-1
+
+    def cummulative_days_in_pool_year_to_given_day(self, current_day):
+        if current_day <= self.pool_inception:
+            return 0
+        return 1+(current_day-self.pool_inception).days
+
+    def calculate_intermediate_period_values(self, period_index):
+        avg_cumm_employee_count = self.average_employee_count_till_end_of_period(period_index)
+        cummulative_num_days = self.cummulative_days_in_pool_year_to_given_day(self.period_end_date(period_index))
+        cumm_fraction_of_year = float(cummulative_num_days)/float(self.total_days_in_year)
+        alcohol = ceil(avg_cumm_employee_count * cumm_fraction_of_year * self.alcohol_percent - self.alcohol_administered)
+        drug = ceil(avg_cumm_employee_count * cumm_fraction_of_year * self.drug_percent - self.drug_administered)
+        return drug, alcohol
+
+    def calculate_final_period_values(self):
+        return self.calculate_intermediate_period_values(self.final_period)
+
     def apriori_projections(self, period_index):
         period_bound = len(self.period_start_dates)
         if period_index < 0 or period_index >= period_bound:
             print(f'Attempting to calculate period {period_index} which is not in (0,...{period_bound})')
             exit(0)
-        # cummulative_num_days = self.cummulative_days_in_pool_year(self.period_end_date(period_index))
-        # fraction_of_year = float(cummulative_num_days)/float(self.days_in_pool_year())
-        # num_employees = fraction_of_year * float(self.employee_count[self.period_start_dates[period_index]])
 
-        avg_cumm_employee_count = self.average_employee_count_till_end_of_period(period_index)
-        cummulative_num_days = self.cummulative_days_in_pool_year(self.period_end_date(period_index))
-        fraction_of_year = float(cummulative_num_days)/float(self.days_in_year())
-
-        alcohol = ceil(avg_cumm_employee_count * fraction_of_year * self.alcohol_percent - self.alcohol_administered)
-        drug = ceil(avg_cumm_employee_count * fraction_of_year * self.drug_percent - self.drug_administered)
-
-        if self.final_period(period_index):
-            pass # fix it up
+        if self.is_final_period(period_index):
+            drug, alcohol = self.calculate_final_period_values()
+        else:
+            drug, alcohol = self.calculate_intermediate_period_values(period_index)
 
         self.alcohol_administered += alcohol
         self.drug_administered += drug
 
-        s = '**' if self.final_period(period_index) else 'In'
+        s = '**' if self.is_final_period(period_index) else 'In'
         return f'{s} period {period_index} D: {drug}; A: {alcohol}'
 
-    def fraction_of_year(self):
-        # print(f'{self.year_end()=}')
-        # print(f'{self.pool_inception=}')
-        # print(f'{self.days_in_year()=}')
-        return float((self.year_end()-self.pool_inception).days) / float(self.days_in_year())
-
     def total_administered(self, projections):
-        fraction_of_year = self.fraction_of_year()
-        num_drug = ceil(self.start_count * self.drug_percent * fraction_of_year)
-        num_alco = ceil(self.start_count * self.alcohol_percent * fraction_of_year)
+        num_drug = ceil(self.start_count * self.drug_percent * self.fraction_of_year)
+        num_alco = ceil(self.start_count * self.alcohol_percent * self.fraction_of_year)
 
         if num_drug != self.drug_administered or num_alco != self.alcohol_administered:
             if abs(num_drug - self.drug_administered) > 1 or abs(num_alco - self.alcohol_administered) > 1:
                 print('\n########################################')
                 self.base_print()
-                # self.print_setup()
-                # self.pretty_print()
                 for p in projections:
                     print(p)
                 print(f'In total    D: {self.drug_administered}; A: {self.alcohol_administered}')
@@ -225,11 +196,20 @@ class Employer(BaseModel):
     def base_print(self):
         print(f'Num employees  : {self.start_count}')
         print(f'Inception date : {self.pool_inception}')
-        print(f'Fractional year: {self.fraction_of_year()}')
+        print(f'Fractional year: {self.fraction_of_year}')
         print('')
 
     def aposteriori_corrections(self):
         pass
+
+    def run_test_scenario(self, mu=0, sigma=2):
+        self.initialize()
+
+        projections = []
+        for period_index in range(len(self.period_start_dates)):
+            projections.append(self.apriori_projections(period_index))
+            self.randomize_employee_count(period_index, mu, sigma)
+        return self.total_administered(projections)
 
     # These methods are just used for testing
     def measure_accuracy(self):
@@ -251,14 +231,19 @@ class Employer(BaseModel):
             self.employee_count[d] = curr_count
             weight = Employer.get_count_change(d, mu, sigma)
 
-    def run_test_scenario(self, mu=0, sigma=2):
-        self.initialize()
-
-        projections = []
-        for period_index in range(len(self.period_start_dates)):
-            projections.append(self.apriori_projections(period_index))
-            self.randomize_employee_count(period_index, mu, sigma)
-        return self.total_administered(projections)
+    # THESE METHODS ARE NOT REALLY NEEDED
+    def period_bounds(self, given_day):
+        if given_day < self.period_start_dates[0]:
+            return (date(year=self.year-1, month=1, day=1), date(year=self.year-1, month=12, day=31))
+        if given_day.year > self.year:
+            return (date(year=self.year+1, month=1, day=1), date(year=self.year+1, month=12, day=31))
+        stop = len(self.period_start_dates)-1
+        i = 0
+        while i < stop:
+            if given_day < self.period_start_dates[i+1]:
+                return (self.period_start_dates[i], self.period_end_date(i))
+            i += 1
+        return (self.period_start_dates[-1], self.last_day_of_year)
 
     def pretty_print(self):
         print(f'start count = {self.start_count}')
@@ -272,12 +257,29 @@ class Employer(BaseModel):
                 print(f'##### {d} #####')
             print(f'  {d}->{self.employee_count[d]} in period {self.period_bounds(d)}')
 
+    # def total_days_in_pool_year(self):
+    #     return (self.last_day_of_year - self.pool_inception).days + 1
+
+    def period_index_for_given_day(self, curr_date):
+        if curr_date.year != self.year:
+            return -1
+        for c, d in enumerate(self.period_start_dates):
+            if c == len(self.period_start_dates)-1:
+                return c
+            if curr_date >= d and curr_date < self.period_start_dates[c+1]:
+                return c
+        return -2
+
+    def days_in_current_period(self, curr_date):
+        period_index = self.period_index_for_given_day(curr_date)
+        return 1+(self.period_end_date(period_index)-self.period_start_dates[period_index]).days
+
     def print_setup(self):
-        print(f'{self.days_in_year()=}')
+        print(f'{self.total_days_in_year=}')
         for c, d in enumerate(self.period_start_dates):
             print(f'{c}->{d}')
         print('And Now:')
         for d in self.employee_count:
-            period_index = self.get_current_period_index(d)
+            period_index = self.period_index_for_given_day(d)
             # print(f'{d} -> period {period_index}')
             print(f'{d} -> period {period_index} starting {self.period_start_dates[period_index]} is on {self.period_bounds(d)} and has {self.days_in_current_period(d)}')
