@@ -20,16 +20,27 @@ employer_json = {
     'drug_administered': 0,
     'year': 2000,
     'employee_count': {'2023-01-01': 100},
-    'period_start_dates': ['2023-01-01']
+    'period_start_dates': ['2023-01-01'],
+    'period_alcohol_estimates': [0.0],
+    'period_drug_estimates': [0.0],
+    'period_alcohol_actual': [0.0],
+    'period_drug_actual': [0.0],
+    'period_alcohol_sample_size': [0],
+    'period_drug_sample_size': [0],
+    'accumulating_alcohol_error': [0.0],
+    'accumulating_drug_error': [0.0]
 }
 
 
-num_tests = 1000
+num_tests = 2000
+#num_tests = 1
 
 
 def main():
     i = 0
-    errors = 0.0
+    mild_errors = 0
+    big_errors = 0
+    huge_errors = 0
     while(i < num_tests):
         e = Employer(**employer_json)
         e.start_count = randint(1, 500)
@@ -37,17 +48,25 @@ def main():
         year = 2016 + randint(0, 10)
         year_start = date(year=year, month=1, day=1) + timedelta(days=days)
         e.pool_inception = year_start + timedelta(days=days)
+        #e.schedule = Schedule.MONTHLY
+
+        #lock it down for debug
+        #e.pool_inception = date(year=2017, month=6, day=18)
+        #e.start_count = 253
         e.initialize()
-        # e.base_print()
-        errors += e.run_test_scenario()
+        err = e.run_test_scenario2()
+        if err >= 3:
+            huge_errors += 1
+        elif err >= 2:
+            big_errors += 1
+        elif err == 1:
+            mild_errors += 1
         i += 1
 
-    print(f'Errors: {errors} out of {num_tests}')
+    print(f'Mild Errors: {mild_errors} out of {num_tests}')
+    print(f'Big Errors: {big_errors} out of {num_tests}')
+    print(f'Huge Errors: {huge_errors} out of {num_tests}')
     return 0
-    # e.print_setup()
-    # e.randomize_employee_count(0, 2)
-    # e.pretty_print()
-
 
 if __name__ == "__main__":
     main()
