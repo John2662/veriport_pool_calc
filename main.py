@@ -4,9 +4,13 @@
 # Written by John Read <john.read@colibri-software.com>, July 2023
 
 from employer import Employer, Schedule
+# import json
+from datetime import date, timedelta
+
+from random import randint
 
 employer_json = {
-    'start_count': '100',
+    'start_count': '7',
     'pool_inception': '2023-02-01',
     'alcohol_percent': .1,
     'drug_percent': .5,
@@ -20,9 +24,27 @@ employer_json = {
 }
 
 
+num_tests = 1000000
+
+
 def main():
-    e = Employer(**employer_json)
-    e.initialize()
+    i = 0
+    errors = 0.0
+    while(i < num_tests):
+        e = Employer(**employer_json)
+        e.start_count = randint(1, 500)
+        days = randint(0, 364)
+        year = 2016 + randint(0, 10)
+        year_start = date(year=year, month=1, day=1) + timedelta(days=days)
+        e.pool_inception = year_start + timedelta(days=days)
+        e.initialize()
+        # e.base_print()
+        errors += e.run_test_scenario()
+        i += 1
+
+    print(f'Errors: {errors} out of {num_tests}')
+    return 0
+    e.print_setup()
     e.randomize_employee_count(0, 2)
     e.pretty_print()
 
