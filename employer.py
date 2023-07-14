@@ -149,13 +149,36 @@ class Employer(BaseModel):
         drug = ceil(avg_cumm_employee_count * cumm_fraction_of_year * self.drug_percent - self.drug_administered)
         return drug, alcohol
 
+    def days_in_period(self, period_index):
+        return (self.period_end_date(period_index) - self.period_start_dates[period_index]).days + 1
+
     def calculate_final_period_values(self):
-        return self.calculate_intermediate_period_values(self.final_period)
+        if True or self.num_periods == 1:
+            period_index = self.final_period
+            avg_cumm_employee_count = self.average_employee_count_till_end_of_period(period_index)
+            cummulative_num_days = self.cummulative_days_in_pool_year_to_given_day(self.period_end_date(period_index))
+            cumm_fraction_of_year = float(cummulative_num_days)/float(self.total_days_in_year)
+            alcohol_for_period = ceil(avg_cumm_employee_count * cumm_fraction_of_year * self.alcohol_percent - self.alcohol_administered)
+            drug_for_period = ceil(avg_cumm_employee_count * cumm_fraction_of_year * self.drug_percent - self.drug_administered)
+        else:   # This is not working yet !!!!!!!!!!!
+            period_index = self.final_period - 1
+            avg_cumm_employee_count = self.average_employee_count_till_end_of_period(period_index)
+            cummulative_num_days = self.cummulative_days_in_pool_year_to_given_day(self.period_end_date(period_index))
+            cumm_fraction_of_year = float(cummulative_num_days)/float(self.total_days_in_year)
+            alcohol_for_period = ceil(avg_cumm_employee_count * cumm_fraction_of_year * self.alcohol_percent - self.alcohol_administered)
+            drug_for_period = ceil(avg_cumm_employee_count * cumm_fraction_of_year * self.drug_percent - self.drug_administered)
+
+            employee_cnt = self.employee_count[self.period_start_dates[self.final_period]]
+            weighted_cnt = float(employee_cnt)*float(self.days_in_period(self.final_period))/float(self.total_days_in_year)
+            alcohol_for_period += ceil(weighted_cnt*self.alcohol_percent)
+            drug_for_period += ceil(weighted_cnt*self.drug_percent)
+        return drug_for_period, alcohol_for_period
 
     def apriori_projections(self, period_index):
         period_bound = len(self.period_start_dates)
         if period_index < 0 or period_index >= period_bound:
             print(f'Attempting to calculate period {period_index} which is not in (0,...{period_bound})')
+            # TODO: replace this with a raise
             exit(0)
 
         if self.is_final_period(period_index):
