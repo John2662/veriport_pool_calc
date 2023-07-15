@@ -9,6 +9,7 @@ import calendar
 from enum import Enum
 from pydantic import BaseModel
 from typing import Optional
+import json
 
 import random
 
@@ -36,6 +37,32 @@ class Substance(BaseModel):
         self.period_actual = []
         self.period_sample_size = []
         self.accumulating_error = []
+
+    def __str__(self):
+        return f'{self.name=} and {self.percent=}'
+
+    @staticmethod
+    def generate_object(json_str):
+        d_dict = json.loads(json_str)
+        print(f'{d_dict=}')
+        d_dict['percent'] = float(d_dict['percent'])
+        d_dict['period_estimates'] = [0.0]
+        d_dict['period_actual'] = [0.0]
+        d_dict['period_sample_size'] = [0]
+        d_dict['accumulating_error'] = [0.0]
+        return Substance(**d_dict)
+
+    def print_stats(self):
+        print(f'{self.name} results:')
+        for p in range(len(self.period_sample_size)):
+            print(f'{p}: E: {self.period_estimates[p]}, A: {self.period_actual[p]}, S:{self.period_sample_size[p]}')
+
+        #print(f'Total alcohol tests   : {alcohol_tests_total}')
+        #print(f'Expected alcohol tests: {self.guess_at_alcohol}')
+        print(f'     {self.period_actual=} -> {sum(self.period_actual)}')
+        print(f'  {self.period_estimates=} -> {sum(self.period_estimates)}')
+        print(f'{self.period_sample_size=} -> {sum(self.period_sample_size)}')
+
 
 
 class Employer(BaseModel):
@@ -65,6 +92,9 @@ class Employer(BaseModel):
 
     accumulating_alcohol_error: Optional[list[float]]
     accumulating_drug_error: Optional[list[float]]
+
+    sub_d: str  # Optional[Substance]
+    sub_a: str  # Optional[Substance]
 
     @property
     def num_periods(self):
@@ -138,6 +168,12 @@ class Employer(BaseModel):
             self.initialize_quarterly_periods()
         else:
             self.initialize_custom_periods(custom_period_start_dates)
+
+        self._dr = Substance.generate_object(self.sub_d)
+        self._dr.initialize()
+        self._al = Substance.generate_object(self.sub_a)
+        self._al.initialize()
+
         self.period_alcohol_estimates = []
         self.period_drug_estimates = []
         self.period_alcohol_actual = []
@@ -228,7 +264,9 @@ class Employer(BaseModel):
         #print(f'{a_error=}')
 
         self.accumulating_drug_error.append(d_error)
+        self._dr.accumulating_error.append(d_error)
         self.accumulating_alcohol_error.append(a_error)
+        self._al.accumulating_error.append(a_error)
 
         #print(f'** {self.accumulating_alcohol_error=}')
         #print(f'** {self.accumulating_drug_error=}')
@@ -242,7 +280,9 @@ class Employer(BaseModel):
         period_alcohol_estimate = employee_density*self.alcohol_percent
 
         self.period_drug_estimates.append(period_drug_estimate)
+        self._dr.period_estimates.append(period_drug_estimate)
         self.period_alcohol_estimates.append(period_alcohol_estimate)
+        self._al.period_estimates.append(period_alcohol_estimate)
 
         # This is a hureistic!!!
         if self.employee_count[start] > 100:
@@ -288,7 +328,9 @@ class Employer(BaseModel):
         candidate_alcohol = ceil(candidate_alcohol)
 
         self.period_alcohol_sample_size.append(candidate_alcohol)
+        self._al.period_sample_size.append(candidate_alcohol)
         self.period_drug_sample_size.append(candidate_drug)
+        self._dr.period_sample_size.append(candidate_drug)
 
 
     def calculate_true_values(self, period_index, start, end):
@@ -304,7 +346,9 @@ class Employer(BaseModel):
         employee_density = fraction_of_year * (float(employee_average)/float(day_count))
 
         self.period_drug_actual.append(employee_density*self.drug_percent)
+        self._dr.period_actual.append(employee_density*self.drug_percent)
         self.period_alcohol_actual.append(employee_density*self.alcohol_percent)
+        self._al.period_actual.append(employee_density*self.alcohol_percent)
 
 
     def randomize_period(self, period_index, start, end, mu, sigma):
@@ -381,7 +425,7 @@ class Employer(BaseModel):
         return self.period_start_dates[period_index], self.period_end_date(period_index)
 
 
-    def run_test_scenario2(self, mu=0, sigma=2, randomize=False):
+    def run_test_scenario(self, mu=0, sigma=2, randomize=False):
 
         #print('######################')
         self.initialize()
@@ -401,57 +445,3 @@ class Employer(BaseModel):
             previous_end = end
         self.calculate_true_values(previous_period_index, previous_start, previous_end)
         return self.report_errors(previous_period_index, previous_start, previous_end)
-
-
-
-    # def period_bounds(self, given_day):
-    #     if given_day < self.period_start_dates[0]:
-    #         return (date(year=self.year-1, month=1, day=1), date(year=self.year-1, month=12, day=31))
-    #     if given_day.year > self.year:
-    #         return (date(year=self.year+1, month=1, day=1), date(year=self.year+1, month=12, day=31))
-    #     stop = len(self.period_start_dates)-1
-    #     i = 0
-    #     while i < stop:
-    #         if given_day < self.period_start_dates[i+1]:
-    #             return (self.period_start_dates[i], self.period_end_date(i))
-    #         i += 1
-    #     return (self.period_start_dates[-1], self.last_day_of_year)
-
-    # def pretty_print(self):
-    #     print(f'start count = {self.start_count}')
-    #     print(f'inception   = {self.pool_inception}')
-    #     print(f'year        = {self.year}')
-    #     print('Employee count:')
-    #     for d in self.employee_count:
-    #         if d.day == 1:
-    #             print('')
-    #         if d in self.period_start_dates:
-    #             print(f'##### {d} #####')
-    #         print(f'  {d}->{self.employee_count[d]} in period {self.period_bounds(d)}')
-
-    # # def total_days_in_pool_year(self):
-    # #     return (self.last_day_of_year - self.pool_inception).days + 1
-
-    # def period_index_for_given_day(self, curr_date):
-    #     if curr_date.year != self.year:
-    #         return -1
-    #     for c, d in enumerate(self.period_start_dates):
-    #         if c == len(self.period_start_dates)-1:
-    #             return c
-    #         if curr_date >= d and curr_date < self.period_start_dates[c+1]:
-    #             return c
-    #     return -2
-
-    # def days_in_current_period(self, curr_date):
-    #     period_index = self.period_index_for_given_day(curr_date)
-    #     return 1+(self.period_end_date(period_index)-self.period_start_dates[period_index]).days
-
-    # def print_setup(self):
-    #     print(f'{self.total_days_in_year=}')
-    #     for c, d in enumerate(self.period_start_dates):
-    #         print(f'{c}->{d}')
-    #     print('And Now:')
-    #     for d in self.employee_count:
-    #         period_index = self.period_index_for_given_day(d)
-    #         # print(f'{d} -> period {period_index}')
-    #         print(f'{d} -> period {period_index} starting {self.period_start_dates[period_index]} is on {self.period_bounds(d)} and has {self.days_in_current_period(d)}')
