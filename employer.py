@@ -4,14 +4,13 @@
 # Written by John Read <john.read@colibri-software.com>, July 2023
 
 from datetime import timedelta, date
-from math import ceil
-import calendar
-from enum import Enum
 from pydantic import BaseModel
 from typing import Optional
+from math import ceil
 import json
-
 import random
+import calendar
+from enum import Enum
 
 
 class Schedule(Enum):
@@ -93,6 +92,7 @@ class Substance(BaseModel):
 
 
 class Employer(BaseModel):
+    name: str
     start_count: int
     pool_inception: date
     schedule: Schedule = Schedule.QUARTERLY
@@ -245,6 +245,13 @@ class Employer(BaseModel):
             day += timedelta(days=1)
         return period_donor_count_list
 
+    def write_csv_report(self):
+        with open(f'{self.name}.csv', 'w') as f:
+            for d in self.employee_count:
+                if d in self.period_start_dates:
+                    f.write('\nPeriod start\n')
+                f.write(f'{d},{self.employee_count[d]}\n')
+
     def run_test_scenario(self, mu=0, sigma=2, randomize=False):
         self.initialize(mu, sigma, randomize)
         for period_index in range(len(self.period_start_dates)):
@@ -254,6 +261,9 @@ class Employer(BaseModel):
             period_donor_count_list = self.load_period_donors(start, end)
             self._al.accept_population_data(period_donor_count_list, self.total_days_in_year)
             self._dr.accept_population_data(period_donor_count_list, self.total_days_in_year)
+
+        self.write_csv_report()
+
         if self._dr.final_overcount() > 1 or self._al.final_overcount() > 1:
             self.base_print()
             print('\n*********************************************\n')

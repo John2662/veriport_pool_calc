@@ -10,6 +10,7 @@ from datetime import date, timedelta
 from random import randint
 
 employer_json = {
+    'name': 'company-name',
     'start_count': '7',
     'pool_inception': '2023-02-01',
     'schedule': Schedule.QUARTERLY,
@@ -23,7 +24,7 @@ employer_json = {
 }
 
 num_tests = 1000
-# num_tests = 1
+num_tests = 1
 
 
 def main():
