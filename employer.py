@@ -32,12 +32,6 @@ class Substance(BaseModel):
     # The ints are the values that are prescribed each period
     period_sample_size: Optional[list[int]]
 
-    def initialize(self):
-        self.period_estimates = []
-        self.period_actual = []
-        self.period_sample_size = []
-        self.accumulating_error = []
-
     def __str__(self):
         return f'{self.name=} and {self.percent=}'
 
@@ -45,20 +39,22 @@ class Substance(BaseModel):
     def generate_object(json_str):
         d_dict = json.loads(json_str)
         d_dict['percent'] = float(d_dict['percent'])
-        d_dict['period_estimates'] = [0.0]
-        d_dict['period_actual'] = [0.0]
-        d_dict['period_sample_size'] = [0]
-        d_dict['accumulating_error'] = [0.0]
+        d_dict['period_estimates'] = []
+        d_dict['period_actual'] = []
+        d_dict['period_sample_size'] = []
+        d_dict['accumulating_error'] = []
         return Substance(**d_dict)
 
     def print_stats(self, owner):
+        print('\n$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+        owner.base_print()
         tests_total = sum(self.period_sample_size)
         print(f'{self.name} results:')
         for p in range(len(self.period_sample_size)):
             print(f'{p}: E: {self.period_estimates[p]}, A: {self.period_actual[p]}, S:{self.period_sample_size[p]}')
 
         print(f'Total {self.name} tests   : {tests_total}')
-        #print(f'Expected alcohol tests: {self.guess_at_alcohol}')
+        print(f'Expected num tests: {owner.guess_for(self.name)}')
         print(f'     {self.period_actual=} -> {sum(self.period_actual)}')
         print(f'  {self.period_estimates=} -> {sum(self.period_estimates)}')
         print(f'{self.period_sample_size=} -> {sum(self.period_sample_size)}')
@@ -117,6 +113,11 @@ class Employer(BaseModel):
     def guess_at_drug(self):
         return ceil(self.fraction_of_year*self.start_count*self.drug_percent)
 
+    def guess_for(self, type):
+        if type is 'drug':
+            return self.guess_at_drug
+        return self.guess_at_alcohol
+
     @staticmethod
     def order_correctly(start, end):
         if start > end:
@@ -160,11 +161,6 @@ class Employer(BaseModel):
         else:
             self.initialize_custom_periods(custom_period_start_dates)
 
-        self._dr = Substance.generate_object(self.sub_d)
-        self._dr.initialize()
-        self._al = Substance.generate_object(self.sub_a)
-        self._al.initialize()
-
     def initialize_employee_count(self):
         start_date = self.pool_inception
         end_date = self.pool_inception.replace(month=12, day=31)
@@ -180,6 +176,9 @@ class Employer(BaseModel):
 
         self.period_start_dates = []
         self.initialize_periods(custom_period_start_dates)
+
+        self._dr = Substance.generate_object(self.sub_d)
+        self._al = Substance.generate_object(self.sub_a)
 
     def period_end_date(self, period_index):
         if period_index == len(self.period_start_dates)-1:
@@ -326,38 +325,6 @@ class Employer(BaseModel):
     def randomize_period(self, period_index, start, end, mu, sigma):
         pass
 
-    def print_alcohol_stats(self, period_index):
-        alcohol_tests_total = sum(self._al.period_sample_size)
-
-        print('\n$$$$$$$$$$$$$$$$$$$$$$$$$$$')
-        self.base_print()
-
-        print('\nAlcohol results:')
-        for p in range(period_index):
-            print(f'{p}: A-e: {self._al.period_estimates[p]}, A-a: {self._al.period_actual[p]}, A-s:{self._al.period_sample_size[p]}')
-
-        print(f'Total alcohol tests   : {alcohol_tests_total}')
-        print(f'Expected alcohol tests: {self.guess_at_alcohol}')
-        print(f'     {self._al.period_actual=} -> {sum(self._al.period_actual)}')
-        print(f'  {self._al.period_estimates=} -> {sum(self._al.period_estimates)}')
-        print(f'{self._al.period_sample_size=} -> {sum(self._al.period_sample_size)}')
-
-    def print_drug_stats(self, period_index):
-        drug_tests_total = sum(self._dr.period_sample_size)
-
-        print('\n$$$$$$$$$$$$$$$$$$$$$$$$$$$')
-        self.base_print()
-
-        print('Drug results:')
-        for p in range(period_index):
-            print(f'{p}: D-e: {self._dr.period_estimates[p]}, D-a: {self._dr.period_actual[p]}, D-s:{self._dr.period_sample_size[p]}')
-
-        print(f'Total drug tests   : {drug_tests_total}')
-        print(f'Expected drug tests: {self.guess_at_drug}')
-        print(f'        {self._dr.period_actual=} -> {sum(self._dr.period_actual)}')
-        print(f'     {self._dr.period_estimates=} -> {sum(self._dr.period_estimates)}')
-        print(f'   {self._dr.period_sample_size=} -> {sum(self._dr.period_sample_size)}')
-
     def report_errors(self, period_index, final_start, final_end):
         drug_tests_total = 0
         alcohol_tests_total = 0
@@ -370,23 +337,23 @@ class Employer(BaseModel):
 
         if d_error >= 3 or a_error >= 3:
             if d_error >= 3:
-                self.print_drug_stats(self.final_period)
+                self._dr.print_stats(self)
             if a_error >= 3:
-                self.print_alcohol_stats(self.final_period)
+                self._al.print_stats(self)
             return 3
 
         if d_error >= 2 or a_error >= 2:
             if d_error >= 2:
-                self.print_drug_stats(self.final_period)
+                self._dr.print_stats(self)
             if a_error >= 2:
-                self.print_alcohol_stats(self.final_period)
+                self._al.print_stats(self)
             return 2
 
         if d_error >= 1 or a_error >= 1:
             if d_error >= 1:
-                self.print_drug_stats(self.final_period)
+                self._dr.print_stats(self)
             if a_error >= 1:
-                self.print_alcohol_stats(self.final_period)
+                self._al.print_stats(self)
             return 1
 
         return 0
