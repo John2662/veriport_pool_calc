@@ -4,7 +4,7 @@
 # Written by John Read <john.read@colibri-software.com>, July 2023
 
 from datetime import timedelta, date
-from math import ceil, floor
+from math import ceil
 import calendar
 from enum import Enum
 from pydantic import BaseModel
@@ -71,7 +71,7 @@ class Substance(BaseModel):
         num_days = (end-start).days + 1
         apriori_estimate = float(num_days)*self.percent*float(initial_donor_count)/float(days_in_year)
         self.period_apriori_estimate.append(apriori_estimate)
-        previous_overcount_error = sum(self.period_overcount_error)  if len(self.period_overcount_error) > 0 else 0.0
+        previous_overcount_error = sum(self.period_overcount_error) if len(self.period_overcount_error) > 0 else 0.0
 
         # find the lagest over count that we can work off in the period
         account_for = min(apriori_estimate, previous_overcount_error)
@@ -83,13 +83,14 @@ class Substance(BaseModel):
     def accept_population_data(self, donor_count_list, days_in_year):
         average_donor_count_for_period = float(sum(donor_count_list))/float(len(donor_count_list))
         average_donor_count_for_year = average_donor_count_for_period * float(len(donor_count_list))/float(days_in_year)
-        aposteriori_truth =  average_donor_count_for_year*self.percent
+        aposteriori_truth = average_donor_count_for_year*self.percent
         self.period_aposteriori_truth.append(aposteriori_truth)
         tests_predicted = self.period_apriori_required_tests_predicted[-1]
         self.period_overcount_error.append(float(tests_predicted)-aposteriori_truth)
 
     def generate_final_report(self, owner):
         self.print_stats(owner)
+
 
 class Employer(BaseModel):
     start_count: int
@@ -107,9 +108,9 @@ class Employer(BaseModel):
     def num_periods(self):
         return len(self.period_start_dates)
 
-    #@property
-    #def final_period(self):
-    #    return len(self.period_start_dates)-1
+    # @property
+    # def final_period(self):
+    #     return len(self.period_start_dates)-1
 
     @property
     def last_day_of_year(self):
@@ -199,7 +200,6 @@ class Employer(BaseModel):
             return self.last_day_of_year
         return (self.period_start_dates[period_index+1]-timedelta(days=1))
 
-
     def base_print(self):
         print(f'Num employees  : {self.start_count}')
         print(f'Inception date : {self.pool_inception}')
@@ -208,7 +208,6 @@ class Employer(BaseModel):
             start = self.period_start_dates[p]
             end = self.period_end_date(p)
             days = (end-start).days+1
-            employ_weight = self.start_count * float(days)/float(self.total_days_in_year)
             print(f'{p}->[{start} to {end}] has {days} days')
         print(f'Expected drug    : {self.guess_for("drug")}')
         print(f'Expected alcoho  : {self.guess_for("alcohol")}')
@@ -220,7 +219,6 @@ class Employer(BaseModel):
             return int(random.gauss(mu, sigma))
         return 0
 
-    #  TODO: change to randomize next period
     def randomize_employee_count(self, period, mu, sigma):
         return
         curr_count = self.start_count
@@ -245,7 +243,6 @@ class Employer(BaseModel):
             period_donor_count_list.append(self.employee_count[day])
             day_count += 1
             day += timedelta(days=1)
-
         return period_donor_count_list
 
     def run_test_scenario(self, mu=0, sigma=2, randomize=False):

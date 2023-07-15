@@ -22,8 +22,9 @@ employer_json = {
     'period_start_dates': ['2023-01-01'],
 }
 
-num_tests = 100000
-#num_tests = 1
+num_tests = 1000
+# num_tests = 1
+
 
 def main():
     i = 0
@@ -37,11 +38,11 @@ def main():
         year = 2016 + randint(0, 10)
         year_start = date(year=year, month=1, day=1) + timedelta(days=days)
         e.pool_inception = year_start + timedelta(days=days)
-        #e.schedule = Schedule.MONTHLY
+        # e.schedule = Schedule.MONTHLY
 
-        #lock it down for debug
-        #e.pool_inception = date(year=2019, month=1, day=25)
-        #e.start_count = 200
+        # lock it down for debug
+        # e.pool_inception = date(year=2019, month=1, day=25)
+        # e.start_count = 200
         e.initialize()
         err = e.run_test_scenario()
         if err >= 3:
@@ -56,6 +57,7 @@ def main():
     print(f'Big Errors: {big_errors} out of {num_tests}')
     print(f'Huge Errors: {huge_errors} out of {num_tests}')
     return 0
+
 
 if __name__ == "__main__":
     main()
