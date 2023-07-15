@@ -27,10 +27,10 @@ class Substance(BaseModel):
     # These get auto filled in the initialize method
     period_estimates: Optional[list[float]]
     period_actual: Optional[list[float]]
-
-    # The ints are the ceiling values that are prescribed each period
-    period_sample_size: Optional[list[int]]
     accumulating_error: Optional[list[float]]
+
+    # The ints are the values that are prescribed each period
+    period_sample_size: Optional[list[int]]
 
     def initialize(self):
         self.period_estimates = []
@@ -51,12 +51,13 @@ class Substance(BaseModel):
         d_dict['accumulating_error'] = [0.0]
         return Substance(**d_dict)
 
-    def print_stats(self):
+    def print_stats(self, owner):
+        tests_total = sum(self.period_sample_size)
         print(f'{self.name} results:')
         for p in range(len(self.period_sample_size)):
             print(f'{p}: E: {self.period_estimates[p]}, A: {self.period_actual[p]}, S:{self.period_sample_size[p]}')
 
-        #print(f'Total alcohol tests   : {alcohol_tests_total}')
+        print(f'Total {self.name} tests   : {tests_total}')
         #print(f'Expected alcohol tests: {self.guess_at_alcohol}')
         print(f'     {self.period_actual=} -> {sum(self.period_actual)}')
         print(f'  {self.period_estimates=} -> {sum(self.period_estimates)}')
@@ -76,9 +77,6 @@ class Employer(BaseModel):
     year: Optional[int]
     employee_count: Optional[dict]
     period_start_dates: Optional[list[date]]
-
-    accumulating_alcohol_error: Optional[list[float]]
-    accumulating_drug_error: Optional[list[float]]
 
     @property
     def alcohol_percent(self):
@@ -177,9 +175,6 @@ class Employer(BaseModel):
 
     def initialize(self, custom_period_start_dates=[]):
         self.year = self.pool_inception.year
-        self.accumulating_alcohol_error = []
-        self.accumulating_drug_error = []
-
         self.employee_count = {}
         self.initialize_employee_count()
 
@@ -249,13 +244,11 @@ class Employer(BaseModel):
         #print(f'{d_error=}')
         #print(f'{a_error=}')
 
-        self.accumulating_drug_error.append(d_error)
         self._dr.accumulating_error.append(d_error)
-        self.accumulating_alcohol_error.append(a_error)
         self._al.accumulating_error.append(a_error)
 
-        #print(f'** {self.accumulating_alcohol_error=}')
-        #print(f'** {self.accumulating_drug_error=}')
+        #print(f'** {self._al.accumulating_error=}')
+        #print(f'** {self._dr.accumulating_error=}')
         return
 
     def calculate_estimates(self, period_index, start, end):
@@ -286,9 +279,8 @@ class Employer(BaseModel):
             self.record_previous_error(period_index-1)
 
         if period_index == self.final_period:
-            candidate_drug -= sum(self.accumulating_drug_error)
-            candidate_alcohol -= sum(self.accumulating_alcohol_error)
-            #print(f'\n\n{sum(self.accumulating_alcohol_error)=}')
+            candidate_drug -= sum(self._dr.accumulating_error)
+            candidate_alcohol -= sum(self._al.accumulating_error)
 
         # This is a hureistic!!!
         # start = self.period_start_dates[period_index]
