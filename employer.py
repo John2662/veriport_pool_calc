@@ -71,8 +71,12 @@ class Substance(BaseModel):
         num_days = (end-start).days + 1
         apriori_estimate = float(num_days)*self.percent*float(initial_donor_count)/float(days_in_year)
         self.period_apriori_estimate.append(apriori_estimate)
-        previous_overcount_error = self.period_overcount_error[-1] if len(self.period_overcount_error) > 0 else 0.0
-        tests_predicted = ceil(apriori_estimate - previous_overcount_error)
+        previous_overcount_error = sum(self.period_overcount_error)  if len(self.period_overcount_error) > 0 else 0.0
+
+        # find the lagest over count that we can work off in the period
+        account_for = min(apriori_estimate, previous_overcount_error)
+
+        tests_predicted = ceil(apriori_estimate - account_for)
         tests_predicted = max(tests_predicted, 0)
         self.period_apriori_required_tests_predicted.append(tests_predicted)
 

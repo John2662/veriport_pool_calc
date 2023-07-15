@@ -22,7 +22,7 @@ employer_json = {
     'period_start_dates': ['2023-01-01'],
 }
 
-num_tests = 1000
+num_tests = 100000
 #num_tests = 1
 
 def main():
@@ -40,8 +40,8 @@ def main():
         #e.schedule = Schedule.MONTHLY
 
         #lock it down for debug
-        #e.pool_inception = date(year=2018, month=2, day=14)
-        #e.start_count = 4
+        #e.pool_inception = date(year=2019, month=1, day=25)
+        #e.start_count = 200
         e.initialize()
         err = e.run_test_scenario()
         if err >= 3:
