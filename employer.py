@@ -93,9 +93,8 @@ class Employer(BaseModel):
     start_count: int
     pool_inception: date
     schedule: Schedule = Schedule.QUARTERLY
-
-    sub_d: str  # Optional[Substance]
-    sub_a: str  # Optional[Substance]
+    sub_d: str
+    sub_a: str
 
     # These get auto filled in the initialize method
     year: Optional[int]
@@ -128,9 +127,6 @@ class Employer(BaseModel):
 
     @property
     def fraction_of_year(self):
-        #print(f'{self.last_day_of_year=}')
-        #print(f'{self.pool_inception=}')
-        #print(1+(self.last_day_of_year-self.pool_inception).days)
         return float(1+(self.last_day_of_year-self.pool_inception).days) / float(self.total_days_in_year)
 
     @property
@@ -154,7 +150,6 @@ class Employer(BaseModel):
             start = tmp
         return start, end
 
-    # INITIALIZATION METHODS
     def initialize_monthly_periods(self):
         self.period_start_dates.append(self.pool_inception)
         for m in range(12):
@@ -173,7 +168,6 @@ class Employer(BaseModel):
                 continue
             self.period_start_dates.append(date)
 
-        # Not sure if I want this "special" date added or not....
         dec_1 = self.pool_inception.replace(month=12, day=1)
         if self.pool_inception < dec_1:
             self.period_start_dates.append(dec_1)
@@ -201,10 +195,8 @@ class Employer(BaseModel):
         self.year = self.pool_inception.year
         self.employee_count = {}
         self.initialize_employee_count(mu, sigma, randomize)
-
         self.period_start_dates = []
         self.initialize_periods(custom_period_start_dates)
-
         self._dr = Substance.generate_object(self.sub_d)
         self._al = Substance.generate_object(self.sub_a)
 
@@ -250,150 +242,6 @@ class Employer(BaseModel):
     def day_count(start, end):
         return (end-start).days + 1
 
-    def record_previous_error(self, period_index):
-        if period_index < 0:
-            print('ERROR 1')
-            exit(0)
-        if period_index > self.final_period:
-            print('ERROR 2')
-            exit(0)
-            period_index = self.final_period
-
-        drug_tests_asserted = self._dr.period_apriori_required_tests_predicted[period_index]
-        alcohol_tests_asserted = self._al.period_apriori_required_tests_predicted[period_index]
-
-        drug_tests_needed = self._dr.period_aposteriori_truth[period_index]
-        alcohol_tests_needed = self._al.period_aposteriori_truth[period_index]
-
-        d_error = float(drug_tests_asserted)-drug_tests_needed
-        a_error = float(alcohol_tests_asserted) - alcohol_tests_needed
-
-        #print(f'{d_error=}')
-        #print(f'{a_error=}')
-
-        self._dr.period_overcount_error.append(d_error)
-        self._al.period_overcount_error.append(a_error)
-
-        #print(f'** {self._al.period_overcount_error=}')
-        #print(f'** {self._dr.period_overcount_error=}')
-        return
-
-    def calculate_estimates(self, period_index, start, end):
-        #print(f'\nIN calculate_estimates: {period_index=}')
-        fraction_of_year = (float(Employer.day_count(start, end))/float(self.total_days_in_year))
-        employee_density = fraction_of_year * self.employee_count[start]
-        period_drug_estimate = employee_density*self.drug_percent
-        period_alcohol_estimate = employee_density*self.alcohol_percent
-
-        self._dr.period_apriori_estimate.append(period_drug_estimate)
-        self._al.period_apriori_estimate.append(period_alcohol_estimate)
-
-        # This is a hureistic!!!
-        if self.employee_count[start] > 100:
-            candidate_drug = ceil(period_drug_estimate)
-            candidate_alcohol = ceil(period_alcohol_estimate)
-        elif self.employee_count[start] > 30:
-            candidate_drug = round(period_drug_estimate)
-            candidate_alcohol = round(period_alcohol_estimate)
-        else:
-            candidate_drug = floor(period_drug_estimate)
-            candidate_alcohol = floor(period_alcohol_estimate)
-
-        return candidate_drug, candidate_alcohol
-
-    def fix_sample_size(self, period_index, candidate_drug, candidate_alcohol):
-        if period_index > 0:
-            self.record_previous_error(period_index-1)
-
-        if period_index == self.final_period:
-            candidate_drug -= sum(self._dr.period_overcount_error)
-            candidate_alcohol -= sum(self._al.period_overcount_error)
-
-        # This is a hureistic!!!
-        # start = self.period_start_dates[period_index]
-        # if self.employee_count[start] > 100:
-        #     candidate_drug = ceil(candidate_drug)
-        #     candidate_alcohol = ceil(candidate_alcohol)
-        # elif self.employee_count[start] > 30:
-        #     candidate_drug = round(candidate_drug)
-        #     candidate_alcohol = round(candidate_alcohol)
-        # else:
-        #     candidate_drug = floor(candidate_drug)
-        #     candidate_alcohol = floor(candidate_alcohol)
-
-        if candidate_drug < 0:
-            candidate_drug = 0
-
-        if candidate_alcohol < 0:
-            candidate_alcohol = 0
-
-        candidate_drug = ceil(candidate_drug)
-        candidate_alcohol = ceil(candidate_alcohol)
-
-        self._al.period_apriori_required_tests_predicted.append(candidate_alcohol)
-        self._dr.period_apriori_required_tests_predicted.append(candidate_drug)
-
-
-    def calculate_true_values(self, period_index, start, end):
-        fraction_of_year = (float(Employer.day_count(start, end))/float(self.total_days_in_year))
-        employee_average = 0
-        day = start
-        day_count = 0
-        while day <= end:
-            employee_average += self.employee_count[day]
-            day_count += 1
-            day += timedelta(days=1)
-
-        employee_density = fraction_of_year * (float(employee_average)/float(day_count))
-
-        self._dr.period_aposteriori_truth.append(employee_density*self.drug_percent)
-        self._al.period_aposteriori_truth.append(employee_density*self.alcohol_percent)
-
-
-    def randomize_period(self, period_index, start, end, mu, sigma):
-        pass
-
-    def report_errors(self, period_index, final_start, final_end):
-        drug_tests_total = 0
-        alcohol_tests_total = 0
-        for p in range(self.num_periods):
-            drug_tests_total += self._dr.period_apriori_required_tests_predicted[p]
-            alcohol_tests_total += self._al.period_apriori_required_tests_predicted[p]
-
-        d_error = abs(drug_tests_total - self.guess_at_drug)
-        a_error = abs(alcohol_tests_total - self.guess_at_alcohol)
-
-        self._al.print_stats(self)
-        self._dr.print_stats(self)
-        return 0
-
-        if d_error >= 3 or a_error >= 3:
-            if d_error >= 3:
-                self._dr.print_stats(self)
-            if a_error >= 3:
-                self._al.print_stats(self)
-            return 3
-
-        if d_error >= 2 or a_error >= 2:
-            if d_error >= 2:
-                self._dr.print_stats(self)
-            if a_error >= 2:
-                self._al.print_stats(self)
-            return 2
-
-        if d_error >= 1 or a_error >= 1:
-            if d_error >= 1:
-                self._dr.print_stats(self)
-            if a_error >= 1:
-                self._al.print_stats(self)
-            return 1
-
-        self._al.print_stats(self)
-        self._dr.print_stats(self)
-        return 0
-
-
-
     def period_start_end(self, period_index):
         return self.period_start_dates[period_index], self.period_end_date(period_index)
 
@@ -408,8 +256,7 @@ class Employer(BaseModel):
 
         return period_donor_count_list
 
-    def run_test_scenario2(self, mu=0, sigma=2, randomize=False):
-        #print('######################')
+    def run_test_scenario(self, mu=0, sigma=2, randomize=False):
         self.initialize(mu, sigma, randomize)
         previous_start = self.pool_inception
         previous_end = self.pool_inception
@@ -428,24 +275,3 @@ class Employer(BaseModel):
             self._dr.generate_final_report(self)
             return 1
         return 0
-
-
-    def run_test_scenario(self, mu=0, sigma=2, randomize=False):
-        #print('######################')
-        self.initialize(mu, sigma, randomize)
-        previous_start = self.pool_inception
-        previous_end = self.pool_inception
-        previous_period_index = 0
-        for period_index in range(len(self.period_start_dates)):
-            start, end = self.period_start_end(period_index)
-            candidate_drug, candidate_alcohol = self.calculate_estimates(period_index, start, end)
-            if period_index > 0:
-                self.calculate_true_values(previous_period_index, previous_start, previous_end)
-            self.fix_sample_size(period_index, candidate_drug, candidate_alcohol)
-            if randomize:
-                self.randomize_period(period_index, start, end, mu, sigma)
-            previous_period_index = period_index
-            previous_start = start
-            previous_end = end
-        self.calculate_true_values(previous_period_index, previous_start, previous_end)
-        return self.report_errors(previous_period_index, previous_start, previous_end)

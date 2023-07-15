@@ -43,8 +43,7 @@ def main():
         #e.pool_inception = date(year=2018, month=2, day=14)
         #e.start_count = 4
         e.initialize()
-        #err = e.run_test_scenario()
-        err = e.run_test_scenario2()
+        err = e.run_test_scenario()
         if err >= 3:
             huge_errors += 1
         elif err >= 2:
