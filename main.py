@@ -16,8 +16,6 @@ employer_json = {
     'drug_percent': .5,
     'schedule': Schedule.QUARTERLY,
     # The rest can all be junk, as it gets overwritten in initialize
-    'alcohol_administered': 0,
-    'drug_administered': 0,
     'year': 2000,
     'employee_count': {'2023-01-01': 100},
     'period_start_dates': ['2023-01-01'],
