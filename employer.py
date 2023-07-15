@@ -77,12 +77,6 @@ class Employer(BaseModel):
     employee_count: Optional[dict]
     period_start_dates: Optional[list[date]]
 
-
-    # These will give us the estimates (apriori) and the true values (aposteriori)
-    # The floats are the exact values
-    period_alcohol_actual: Optional[list[float]]
-    period_drug_actual: Optional[list[float]]
-
     # The ints are the ceiling values that are prescribed each period
     period_alcohol_sample_size: Optional[list[int]]
     period_drug_sample_size: Optional[list[int]]
@@ -177,8 +171,6 @@ class Employer(BaseModel):
         self._al = Substance.generate_object(self.sub_a)
         self._al.initialize()
 
-        self.period_alcohol_actual = []
-        self.period_drug_actual = []
         self.period_alcohol_sample_size = []
         self.period_drug_sample_size = []
 
@@ -254,8 +246,9 @@ class Employer(BaseModel):
 
         drug_tests_asserted = self.period_drug_sample_size[period_index]
         alcohol_tests_asserted = self.period_alcohol_sample_size[period_index]
-        drug_tests_needed = self.period_drug_actual[period_index]
-        alcohol_tests_needed = self.period_alcohol_actual[period_index]
+
+        drug_tests_needed = self._dr.period_actual[period_index]
+        alcohol_tests_needed = self._al.period_actual[period_index]
 
         d_error = float(drug_tests_asserted)-drug_tests_needed
         a_error = float(alcohol_tests_asserted) - alcohol_tests_needed
@@ -343,9 +336,7 @@ class Employer(BaseModel):
 
         employee_density = fraction_of_year * (float(employee_average)/float(day_count))
 
-        self.period_drug_actual.append(employee_density*self.drug_percent)
         self._dr.period_actual.append(employee_density*self.drug_percent)
-        self.period_alcohol_actual.append(employee_density*self.alcohol_percent)
         self._al.period_actual.append(employee_density*self.alcohol_percent)
 
 
@@ -360,11 +351,11 @@ class Employer(BaseModel):
 
         print('\nAlcohol results:')
         for p in range(period_index):
-            print(f'{p}: A-e: {self._al.period_estimates[p]}, A-a: {self.period_alcohol_actual[p]}, A-s:{self.period_alcohol_sample_size[p]}')
+            print(f'{p}: A-e: {self._al.period_estimates[p]}, A-a: {self._al.period_actual[p]}, A-s:{self.period_alcohol_sample_size[p]}')
 
         print(f'Total alcohol tests   : {alcohol_tests_total}')
         print(f'Expected alcohol tests: {self.guess_at_alcohol}')
-        print(f'     {self.period_alcohol_actual=} -> {sum(self.period_alcohol_actual)}')
+        print(f'     {self._al.period_actual=} -> {sum(self._al.period_actual)}')
         print(f'  {self._al.period_estimates=} -> {sum(self._al.period_estimates)}')
         print(f'{self.period_alcohol_sample_size=} -> {sum(self.period_alcohol_sample_size)}')
 
@@ -376,11 +367,11 @@ class Employer(BaseModel):
 
         print('Drug results:')
         for p in range(period_index):
-            print(f'{p}: D-e: {self._dr.period_estimates[p]}, D-a: {self.period_drug_actual[p]}, D-s:{self.period_drug_sample_size[p]}')
+            print(f'{p}: D-e: {self._dr.period_estimates[p]}, D-a: {self._dr.period_actual[p]}, D-s:{self.period_drug_sample_size[p]}')
 
         print(f'Total drug tests   : {drug_tests_total}')
         print(f'Expected drug tests: {self.guess_at_drug}')
-        print(f'        {self.period_drug_actual=} -> {sum(self.period_drug_actual)}')
+        print(f'        {self._dr.period_actual=} -> {sum(self._dr.period_actual)}')
         print(f'     {self._dr.period_estimates=} -> {sum(self._dr.period_estimates)}')
         print(f'   {self.period_drug_sample_size=} -> {sum(self.period_drug_sample_size)}')
 
