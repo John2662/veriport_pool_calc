@@ -77,10 +77,6 @@ class Employer(BaseModel):
     employee_count: Optional[dict]
     period_start_dates: Optional[list[date]]
 
-    # The ints are the ceiling values that are prescribed each period
-    period_alcohol_sample_size: Optional[list[int]]
-    period_drug_sample_size: Optional[list[int]]
-
     accumulating_alcohol_error: Optional[list[float]]
     accumulating_drug_error: Optional[list[float]]
 
@@ -171,9 +167,6 @@ class Employer(BaseModel):
         self._al = Substance.generate_object(self.sub_a)
         self._al.initialize()
 
-        self.period_alcohol_sample_size = []
-        self.period_drug_sample_size = []
-
     def initialize_employee_count(self):
         start_date = self.pool_inception
         end_date = self.pool_inception.replace(month=12, day=31)
@@ -244,8 +237,8 @@ class Employer(BaseModel):
             exit(0)
             period_index = self.final_period
 
-        drug_tests_asserted = self.period_drug_sample_size[period_index]
-        alcohol_tests_asserted = self.period_alcohol_sample_size[period_index]
+        drug_tests_asserted = self._dr.period_sample_size[period_index]
+        alcohol_tests_asserted = self._al.period_sample_size[period_index]
 
         drug_tests_needed = self._dr.period_actual[period_index]
         alcohol_tests_needed = self._al.period_actual[period_index]
@@ -318,9 +311,7 @@ class Employer(BaseModel):
         candidate_drug = ceil(candidate_drug)
         candidate_alcohol = ceil(candidate_alcohol)
 
-        self.period_alcohol_sample_size.append(candidate_alcohol)
         self._al.period_sample_size.append(candidate_alcohol)
-        self.period_drug_sample_size.append(candidate_drug)
         self._dr.period_sample_size.append(candidate_drug)
 
 
@@ -344,43 +335,43 @@ class Employer(BaseModel):
         pass
 
     def print_alcohol_stats(self, period_index):
-        alcohol_tests_total = sum(self.period_alcohol_sample_size)
+        alcohol_tests_total = sum(self._al.period_sample_size)
 
         print('\n$$$$$$$$$$$$$$$$$$$$$$$$$$$')
         self.base_print()
 
         print('\nAlcohol results:')
         for p in range(period_index):
-            print(f'{p}: A-e: {self._al.period_estimates[p]}, A-a: {self._al.period_actual[p]}, A-s:{self.period_alcohol_sample_size[p]}')
+            print(f'{p}: A-e: {self._al.period_estimates[p]}, A-a: {self._al.period_actual[p]}, A-s:{self._al.period_sample_size[p]}')
 
         print(f'Total alcohol tests   : {alcohol_tests_total}')
         print(f'Expected alcohol tests: {self.guess_at_alcohol}')
         print(f'     {self._al.period_actual=} -> {sum(self._al.period_actual)}')
         print(f'  {self._al.period_estimates=} -> {sum(self._al.period_estimates)}')
-        print(f'{self.period_alcohol_sample_size=} -> {sum(self.period_alcohol_sample_size)}')
+        print(f'{self._al.period_sample_size=} -> {sum(self._al.period_sample_size)}')
 
     def print_drug_stats(self, period_index):
-        drug_tests_total = sum(self.period_drug_sample_size)
+        drug_tests_total = sum(self._dr.period_sample_size)
 
         print('\n$$$$$$$$$$$$$$$$$$$$$$$$$$$')
         self.base_print()
 
         print('Drug results:')
         for p in range(period_index):
-            print(f'{p}: D-e: {self._dr.period_estimates[p]}, D-a: {self._dr.period_actual[p]}, D-s:{self.period_drug_sample_size[p]}')
+            print(f'{p}: D-e: {self._dr.period_estimates[p]}, D-a: {self._dr.period_actual[p]}, D-s:{self._dr.period_sample_size[p]}')
 
         print(f'Total drug tests   : {drug_tests_total}')
         print(f'Expected drug tests: {self.guess_at_drug}')
         print(f'        {self._dr.period_actual=} -> {sum(self._dr.period_actual)}')
         print(f'     {self._dr.period_estimates=} -> {sum(self._dr.period_estimates)}')
-        print(f'   {self.period_drug_sample_size=} -> {sum(self.period_drug_sample_size)}')
+        print(f'   {self._dr.period_sample_size=} -> {sum(self._dr.period_sample_size)}')
 
     def report_errors(self, period_index, final_start, final_end):
         drug_tests_total = 0
         alcohol_tests_total = 0
         for p in range(self.num_periods):
-            drug_tests_total += self.period_drug_sample_size[p]
-            alcohol_tests_total += self.period_alcohol_sample_size[p]
+            drug_tests_total += self._dr.period_sample_size[p]
+            alcohol_tests_total += self._al.period_sample_size[p]
 
         d_error = abs(drug_tests_total - self.guess_at_drug)
         a_error = abs(alcohol_tests_total - self.guess_at_alcohol)

@@ -21,8 +21,6 @@ employer_json = {
     'employee_count': {'2023-01-01': 100},
     'period_start_dates': ['2023-01-01'],
 
-    'period_alcohol_sample_size': [0],
-    'period_drug_sample_size': [0],
     'accumulating_alcohol_error': [0.0],
     'accumulating_drug_error': [0.0],
 }
