@@ -32,7 +32,7 @@ employer_json = {
 }
 
 
-num_tests = 2000
+num_tests = 10000
 #num_tests = 1
 
 
@@ -51,8 +51,8 @@ def main():
         #e.schedule = Schedule.MONTHLY
 
         #lock it down for debug
-        #e.pool_inception = date(year=2017, month=6, day=18)
-        #e.start_count = 253
+        #e.pool_inception = date(year=2018, month=2, day=14)
+        #e.start_count = 4
         e.initialize()
         err = e.run_test_scenario2()
         if err >= 3:

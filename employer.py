@@ -205,8 +205,14 @@ class Employer(BaseModel):
         drug_tests_needed = self.period_drug_actual[period_index]
         alcohol_tests_needed = self.period_alcohol_actual[period_index]
 
-        self.accumulating_drug_error.append(float(drug_tests_asserted)-drug_tests_needed)
-        self.accumulating_alcohol_error.append(float(alcohol_tests_asserted) - alcohol_tests_needed)
+        d_error = float(drug_tests_asserted)-drug_tests_needed
+        a_error = float(alcohol_tests_asserted) - alcohol_tests_needed
+
+        #print(f'{d_error=}')
+        #print(f'{a_error=}')
+
+        self.accumulating_drug_error.append(d_error)
+        self.accumulating_alcohol_error.append(a_error)
 
         #print(f'** {self.accumulating_alcohol_error=}')
         #print(f'** {self.accumulating_drug_error=}')
@@ -222,8 +228,17 @@ class Employer(BaseModel):
         self.period_drug_estimates.append(period_drug_estimate)
         self.period_alcohol_estimates.append(period_alcohol_estimate)
 
-        candidate_drug = ceil(period_drug_estimate)
-        candidate_alcohol = ceil(period_alcohol_estimate)
+        # This is a hureistic!!!
+        if self.employee_count[start] > 100:
+            candidate_drug = ceil(period_drug_estimate)
+            candidate_alcohol = ceil(period_alcohol_estimate)
+        elif self.employee_count[start] > 30:
+            candidate_drug = round(period_drug_estimate)
+            candidate_alcohol = round(period_alcohol_estimate)
+        else:
+            candidate_drug = floor(period_drug_estimate)
+            candidate_alcohol = floor(period_alcohol_estimate)
+
         return candidate_drug, candidate_alcohol
 
     def fix_sample_size(self, period_index, candidate_drug, candidate_alcohol):
@@ -235,8 +250,26 @@ class Employer(BaseModel):
             candidate_alcohol -= sum(self.accumulating_alcohol_error)
             #print(f'\n\n{sum(self.accumulating_alcohol_error)=}')
 
-            candidate_drug = ceil(candidate_drug)
-            candidate_alcohol = ceil(candidate_alcohol)
+        # This is a hureistic!!!
+        # start = self.period_start_dates[period_index]
+        # if self.employee_count[start] > 100:
+        #     candidate_drug = ceil(candidate_drug)
+        #     candidate_alcohol = ceil(candidate_alcohol)
+        # elif self.employee_count[start] > 30:
+        #     candidate_drug = round(candidate_drug)
+        #     candidate_alcohol = round(candidate_alcohol)
+        # else:
+        #     candidate_drug = floor(candidate_drug)
+        #     candidate_alcohol = floor(candidate_alcohol)
+
+        if candidate_drug < 0:
+            candidate_drug = 0
+
+        if candidate_alcohol < 0:
+            candidate_alcohol = 0
+
+        candidate_drug = ceil(candidate_drug)
+        candidate_alcohol = ceil(candidate_alcohol)
 
         self.period_alcohol_sample_size.append(candidate_alcohol)
         self.period_drug_sample_size.append(candidate_drug)
@@ -308,7 +341,6 @@ class Employer(BaseModel):
                 self.print_drug_stats(self.final_period)
             if a_error >= 3:
                 self.print_alcohol_stats(self.final_period)
-            exit(0)
             return 3
 
         if d_error >= 2 or a_error >= 2:
