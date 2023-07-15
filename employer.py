@@ -24,13 +24,17 @@ class Substance(BaseModel):
     name: str
     percent: float
 
-    # These get auto filled in the initialize method
-    period_estimates: Optional[list[float]]
-    period_actual: Optional[list[float]]
-    accumulating_error: Optional[list[float]]
+    # This is a period based set of data
+    # The inital estimates for a period about to start are calculated and stored here:
+    period_apriori_estimate: Optional[list[float]]
+
+    # After the fact we can get the actual required number of tests:
+    period_aposteriori_truth: Optional[list[float]]
+
+    period_overcount_error: Optional[list[float]]
 
     # The ints are the values that are prescribed each period
-    period_sample_size: Optional[list[int]]
+    period_apriori_required_tests_predicted: Optional[list[int]]
 
     def __str__(self):
         return f'{self.name=} and {self.percent=}'
@@ -39,27 +43,34 @@ class Substance(BaseModel):
     def generate_object(json_str):
         d_dict = json.loads(json_str)
         d_dict['percent'] = float(d_dict['percent'])
-        d_dict['period_estimates'] = []
-        d_dict['period_actual'] = []
-        d_dict['period_sample_size'] = []
-        d_dict['accumulating_error'] = []
+        d_dict['period_apriori_estimate'] = []
+        d_dict['period_aposteriori_truth'] = []
+        d_dict['period_apriori_required_tests_predicted'] = []
+        d_dict['period_overcount_error'] = []
         return Substance(**d_dict)
 
     def print_stats(self, owner):
         print('\n$$$$$$$$$$$$$$$$$$$$$$$$$$$')
         owner.base_print()
-        tests_total = sum(self.period_sample_size)
+        tests_total = sum(self.period_apriori_required_tests_predicted)
         print(f'{self.name} results:')
-        for p in range(len(self.period_sample_size)):
-            print(f'{p}: E: {self.period_estimates[p]}, A: {self.period_actual[p]}, S:{self.period_sample_size[p]}')
+        for p in range(len(self.period_apriori_required_tests_predicted)):
+            print(f'{p}: E: {self.period_apriori_estimate[p]}, A: {self.period_aposteriori_truth[p]}, S:{self.period_apriori_required_tests_predicted[p]}')
 
         print(f'Total {self.name} tests   : {tests_total}')
         print(f'Expected num tests: {owner.guess_for(self.name)}')
-        print(f'     {self.period_actual=} -> {sum(self.period_actual)}')
-        print(f'  {self.period_estimates=} -> {sum(self.period_estimates)}')
-        print(f'{self.period_sample_size=} -> {sum(self.period_sample_size)}')
+        print(f'     {self.period_aposteriori_truth=} -> {sum(self.period_aposteriori_truth)}')
+        print(f'  {self.period_apriori_estimate=} -> {sum(self.period_apriori_estimate)}')
+        print(f'{self.period_apriori_required_tests_predicted=} -> {sum(self.period_apriori_required_tests_predicted)}')
 
+    def make_predictions(self):
+        pass
 
+    def accept_populations_data(self, donor_count_list):
+        pass
+
+    def generate_final_report(self):
+        pass
 
 class Employer(BaseModel):
     start_count: int
@@ -231,11 +242,11 @@ class Employer(BaseModel):
             exit(0)
             period_index = self.final_period
 
-        drug_tests_asserted = self._dr.period_sample_size[period_index]
-        alcohol_tests_asserted = self._al.period_sample_size[period_index]
+        drug_tests_asserted = self._dr.period_apriori_required_tests_predicted[period_index]
+        alcohol_tests_asserted = self._al.period_apriori_required_tests_predicted[period_index]
 
-        drug_tests_needed = self._dr.period_actual[period_index]
-        alcohol_tests_needed = self._al.period_actual[period_index]
+        drug_tests_needed = self._dr.period_aposteriori_truth[period_index]
+        alcohol_tests_needed = self._al.period_aposteriori_truth[period_index]
 
         d_error = float(drug_tests_asserted)-drug_tests_needed
         a_error = float(alcohol_tests_asserted) - alcohol_tests_needed
@@ -243,11 +254,11 @@ class Employer(BaseModel):
         #print(f'{d_error=}')
         #print(f'{a_error=}')
 
-        self._dr.accumulating_error.append(d_error)
-        self._al.accumulating_error.append(a_error)
+        self._dr.period_overcount_error.append(d_error)
+        self._al.period_overcount_error.append(a_error)
 
-        #print(f'** {self._al.accumulating_error=}')
-        #print(f'** {self._dr.accumulating_error=}')
+        #print(f'** {self._al.period_overcount_error=}')
+        #print(f'** {self._dr.period_overcount_error=}')
         return
 
     def calculate_estimates(self, period_index, start, end):
@@ -257,8 +268,8 @@ class Employer(BaseModel):
         period_drug_estimate = employee_density*self.drug_percent
         period_alcohol_estimate = employee_density*self.alcohol_percent
 
-        self._dr.period_estimates.append(period_drug_estimate)
-        self._al.period_estimates.append(period_alcohol_estimate)
+        self._dr.period_apriori_estimate.append(period_drug_estimate)
+        self._al.period_apriori_estimate.append(period_alcohol_estimate)
 
         # This is a hureistic!!!
         if self.employee_count[start] > 100:
@@ -278,8 +289,8 @@ class Employer(BaseModel):
             self.record_previous_error(period_index-1)
 
         if period_index == self.final_period:
-            candidate_drug -= sum(self._dr.accumulating_error)
-            candidate_alcohol -= sum(self._al.accumulating_error)
+            candidate_drug -= sum(self._dr.period_overcount_error)
+            candidate_alcohol -= sum(self._al.period_overcount_error)
 
         # This is a hureistic!!!
         # start = self.period_start_dates[period_index]
@@ -302,8 +313,8 @@ class Employer(BaseModel):
         candidate_drug = ceil(candidate_drug)
         candidate_alcohol = ceil(candidate_alcohol)
 
-        self._al.period_sample_size.append(candidate_alcohol)
-        self._dr.period_sample_size.append(candidate_drug)
+        self._al.period_apriori_required_tests_predicted.append(candidate_alcohol)
+        self._dr.period_apriori_required_tests_predicted.append(candidate_drug)
 
 
     def calculate_true_values(self, period_index, start, end):
@@ -318,8 +329,8 @@ class Employer(BaseModel):
 
         employee_density = fraction_of_year * (float(employee_average)/float(day_count))
 
-        self._dr.period_actual.append(employee_density*self.drug_percent)
-        self._al.period_actual.append(employee_density*self.alcohol_percent)
+        self._dr.period_aposteriori_truth.append(employee_density*self.drug_percent)
+        self._al.period_aposteriori_truth.append(employee_density*self.alcohol_percent)
 
 
     def randomize_period(self, period_index, start, end, mu, sigma):
@@ -329,8 +340,8 @@ class Employer(BaseModel):
         drug_tests_total = 0
         alcohol_tests_total = 0
         for p in range(self.num_periods):
-            drug_tests_total += self._dr.period_sample_size[p]
-            alcohol_tests_total += self._al.period_sample_size[p]
+            drug_tests_total += self._dr.period_apriori_required_tests_predicted[p]
+            alcohol_tests_total += self._al.period_apriori_required_tests_predicted[p]
 
         d_error = abs(drug_tests_total - self.guess_at_drug)
         a_error = abs(alcohol_tests_total - self.guess_at_alcohol)
@@ -365,7 +376,6 @@ class Employer(BaseModel):
 
 
     def run_test_scenario(self, mu=0, sigma=2, randomize=False):
-
         #print('######################')
         self.initialize()
         previous_start = self.pool_inception
