@@ -50,10 +50,8 @@ class Substance(BaseModel):
         return Substance(**d_dict)
 
     def print_stats(self, owner):
-        print('\n$$$$$$$$$$$$$$$$$$$$$$$$$$$')
-        owner.base_print()
         tests_total = sum(self.period_apriori_required_tests_predicted)
-        print(f'{self.name} results:')
+        print(f'{self.name} requires {tests_total} tests. \nAll results:')
         for p in range(len(self.period_apriori_required_tests_predicted)):
             print(f'{p}: E: {self.period_apriori_estimate[p]}, A: {self.period_aposteriori_truth[p]}, S:{self.period_apriori_required_tests_predicted[p]}')
 
@@ -63,14 +61,33 @@ class Substance(BaseModel):
         print(f'  {self.period_apriori_estimate=} -> {sum(self.period_apriori_estimate)}')
         print(f'{self.period_apriori_required_tests_predicted=} -> {sum(self.period_apriori_required_tests_predicted)}')
 
-    def make_predictions(self):
-        pass
+    def final_overcount(self):
+        return self.period_overcount_error[-1] if len(self.period_overcount_error) > 0 else 0.0
 
-    def accept_populations_data(self, donor_count_list):
-        pass
+    def make_predictions(self, initial_donor_count, start, end, days_in_year):
+        num_days = (end-start).days + 1
+        apriori_estimate = float(num_days)*self.percent*float(initial_donor_count)/float(days_in_year)
+        self.period_apriori_estimate.append(apriori_estimate)
+        previous_overcount_error = self.period_overcount_error[-1] if len(self.period_overcount_error) > 0 else 0.0
+        tests_predicted = ceil(apriori_estimate - previous_overcount_error)
+        tests_predicted = max(tests_predicted, 0)
+        self.period_apriori_required_tests_predicted.append(tests_predicted)
 
-    def generate_final_report(self):
-        pass
+    def accept_population_data(self, donor_count_list, days_in_year):
+        average_donor_count_for_period = float(sum(donor_count_list))/float(len(donor_count_list))
+        average_donor_count_for_year = average_donor_count_for_period * float(len(donor_count_list))/float(days_in_year)
+        aposteriori_truth =  average_donor_count_for_year*self.percent
+        self.period_aposteriori_truth.append(aposteriori_truth)
+        tests_predicted = self.period_apriori_required_tests_predicted[-1]
+        self.period_overcount_error.append(float(tests_predicted)-aposteriori_truth)
+
+    def generate_final_report(self, owner):
+        self.print_stats(owner)
+        print(f'{self.name}')
+        print(f'{self.period_apriori_estimate=}')
+        print(f'{self.period_apriori_required_tests_predicted=}')
+        print(f'{self.period_aposteriori_truth=}')
+        print(f'{self.period_overcount_error=}')
 
 class Employer(BaseModel):
     start_count: int
@@ -125,7 +142,7 @@ class Employer(BaseModel):
         return ceil(self.fraction_of_year*self.start_count*self.drug_percent)
 
     def guess_for(self, type):
-        if type is 'drug':
+        if type == 'drug':
             return self.guess_at_drug
         return self.guess_at_alcohol
 
@@ -172,7 +189,7 @@ class Employer(BaseModel):
         else:
             self.initialize_custom_periods(custom_period_start_dates)
 
-    def initialize_employee_count(self):
+    def initialize_employee_count(self, mu, sigma, randomize):
         start_date = self.pool_inception
         end_date = self.pool_inception.replace(month=12, day=31)
         delta = timedelta(days=1)
@@ -180,10 +197,10 @@ class Employer(BaseModel):
             self.employee_count[start_date] = self.start_count
             start_date += delta
 
-    def initialize(self, custom_period_start_dates=[]):
+    def initialize(self, custom_period_start_dates=[], mu=0, sigma=2, randomize=False):
         self.year = self.pool_inception.year
         self.employee_count = {}
-        self.initialize_employee_count()
+        self.initialize_employee_count(mu, sigma, randomize)
 
         self.period_start_dates = []
         self.initialize_periods(custom_period_start_dates)
@@ -346,6 +363,10 @@ class Employer(BaseModel):
         d_error = abs(drug_tests_total - self.guess_at_drug)
         a_error = abs(alcohol_tests_total - self.guess_at_alcohol)
 
+        self._al.print_stats(self)
+        self._dr.print_stats(self)
+        return 0
+
         if d_error >= 3 or a_error >= 3:
             if d_error >= 3:
                 self._dr.print_stats(self)
@@ -367,6 +388,8 @@ class Employer(BaseModel):
                 self._al.print_stats(self)
             return 1
 
+        self._al.print_stats(self)
+        self._dr.print_stats(self)
         return 0
 
 
@@ -374,10 +397,42 @@ class Employer(BaseModel):
     def period_start_end(self, period_index):
         return self.period_start_dates[period_index], self.period_end_date(period_index)
 
+    def load_period_donors(self, start, end):
+        period_donor_count_list = []
+        day = start
+        day_count = 0
+        while day <= end:
+            period_donor_count_list.append(self.employee_count[day])
+            day_count += 1
+            day += timedelta(days=1)
+
+        return period_donor_count_list
+
+    def run_test_scenario2(self, mu=0, sigma=2, randomize=False):
+        #print('######################')
+        self.initialize(mu, sigma, randomize)
+        previous_start = self.pool_inception
+        previous_end = self.pool_inception
+        previous_period_index = 0
+        for period_index in range(len(self.period_start_dates)):
+            start, end = self.period_start_end(period_index)
+            self._al.make_predictions(self.employee_count[start], start, end, self.total_days_in_year)
+            self._dr.make_predictions(self.employee_count[start], start, end, self.total_days_in_year)
+            period_donor_count_list = self.load_period_donors(start, end)
+            self._al.accept_population_data(period_donor_count_list, self.total_days_in_year)
+            self._dr.accept_population_data(period_donor_count_list, self.total_days_in_year)
+        if self._dr.final_overcount() > 1 or self._al.final_overcount() > 1:
+            self.base_print()
+            print('\n*********************************************\n')
+            self._al.generate_final_report(self)
+            self._dr.generate_final_report(self)
+            return 1
+        return 0
+
 
     def run_test_scenario(self, mu=0, sigma=2, randomize=False):
         #print('######################')
-        self.initialize()
+        self.initialize(mu, sigma, randomize)
         previous_start = self.pool_inception
         previous_end = self.pool_inception
         previous_period_index = 0

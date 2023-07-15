@@ -20,12 +20,9 @@ employer_json = {
     'year': 2000,
     'employee_count': {'2023-01-01': 100},
     'period_start_dates': ['2023-01-01'],
-
-    #'accumulating_alcohol_error': [0.0],
-    #'accumulating_drug_error': [0.0],
 }
 
-num_tests = 10000
+num_tests = 1000
 #num_tests = 1
 
 def main():
@@ -34,7 +31,6 @@ def main():
     big_errors = 0
     huge_errors = 0
     while(i < num_tests):
-        print(f'{type(employer_json)=}')
         e = Employer(**employer_json)
         e.start_count = randint(1, 500)
         days = randint(0, 364)
@@ -47,7 +43,8 @@ def main():
         #e.pool_inception = date(year=2018, month=2, day=14)
         #e.start_count = 4
         e.initialize()
-        err = e.run_test_scenario()
+        #err = e.run_test_scenario()
+        err = e.run_test_scenario2()
         if err >= 3:
             huge_errors += 1
         elif err >= 2:
