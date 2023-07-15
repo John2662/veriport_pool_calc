@@ -51,15 +51,18 @@ class Substance(BaseModel):
 
     def print_stats(self, owner):
         tests_total = sum(self.period_apriori_required_tests_predicted)
-        print(f'{self.name} requires {tests_total} tests. \nAll results:')
+        print(f'Predicted  num {self.name} tests: {owner.guess_for(self.name)}')
+        print(f'Calculated num {self.name} tests: {tests_total}')
+        print('\nAll results:')
         for p in range(len(self.period_apriori_required_tests_predicted)):
-            print(f'{p}: E: {self.period_apriori_estimate[p]}, A: {self.period_aposteriori_truth[p]}, S:{self.period_apriori_required_tests_predicted[p]}')
+            print(f'{p}: Est: {self.period_apriori_estimate[p]}, Truth: {self.period_aposteriori_truth[p]}, Req: {self.period_apriori_required_tests_predicted[p]}')
 
-        print(f'Total {self.name} tests   : {tests_total}')
-        print(f'Expected num tests: {owner.guess_for(self.name)}')
-        print(f'     {self.period_aposteriori_truth=} -> {sum(self.period_aposteriori_truth)}')
+        print('')
+        print(f' {self.period_aposteriori_truth=} -> {sum(self.period_aposteriori_truth)}')
         print(f'  {self.period_apriori_estimate=} -> {sum(self.period_apriori_estimate)}')
+        print('')
         print(f'{self.period_apriori_required_tests_predicted=} -> {sum(self.period_apriori_required_tests_predicted)}')
+        print(f'{self.period_overcount_error=} -> {sum(self.period_overcount_error)}')
 
     def final_overcount(self):
         return self.period_overcount_error[-1] if len(self.period_overcount_error) > 0 else 0.0
@@ -83,11 +86,6 @@ class Substance(BaseModel):
 
     def generate_final_report(self, owner):
         self.print_stats(owner)
-        print(f'{self.name}')
-        print(f'{self.period_apriori_estimate=}')
-        print(f'{self.period_apriori_required_tests_predicted=}')
-        print(f'{self.period_aposteriori_truth=}')
-        print(f'{self.period_overcount_error=}')
 
 class Employer(BaseModel):
     start_count: int
@@ -102,20 +100,12 @@ class Employer(BaseModel):
     period_start_dates: Optional[list[date]]
 
     @property
-    def alcohol_percent(self):
-        return self._al.percent
-
-    @property
-    def drug_percent(self):
-        return self._dr.percent
-
-    @property
     def num_periods(self):
         return len(self.period_start_dates)
 
-    @property
-    def final_period(self):
-        return len(self.period_start_dates)-1
+    #@property
+    #def final_period(self):
+    #    return len(self.period_start_dates)-1
 
     @property
     def last_day_of_year(self):
@@ -130,17 +120,17 @@ class Employer(BaseModel):
         return float(1+(self.last_day_of_year-self.pool_inception).days) / float(self.total_days_in_year)
 
     @property
-    def guess_at_alcohol(self):
-        return ceil(self.fraction_of_year*self.start_count*self.alcohol_percent)
+    def alcohol_percent(self):
+        return self._al.percent
 
     @property
-    def guess_at_drug(self):
-        return ceil(self.fraction_of_year*self.start_count*self.drug_percent)
+    def drug_percent(self):
+        return self._dr.percent
 
     def guess_for(self, type):
         if type == 'drug':
-            return self.guess_at_drug
-        return self.guess_at_alcohol
+            return ceil(self.fraction_of_year*self.start_count*self.drug_percent)
+        return ceil(self.fraction_of_year*self.start_count*self.alcohol_percent)
 
     @staticmethod
     def order_correctly(start, end):
@@ -210,16 +200,14 @@ class Employer(BaseModel):
         print(f'Num employees  : {self.start_count}')
         print(f'Inception date : {self.pool_inception}')
         print(f'Fractional year: {self.fraction_of_year}')
-        print('#########')
         for p in range(self.num_periods):
             start = self.period_start_dates[p]
             end = self.period_end_date(p)
             days = (end-start).days+1
             employ_weight = self.start_count * float(days)/float(self.total_days_in_year)
-            print(f'{p}->[{start} to {end}] has {days} days and {employ_weight}. A: {self.alcohol_percent * employ_weight}, D: {self.drug_percent * employ_weight}')
-        print(f'Employee Density : {self.fraction_of_year*self.start_count}')
-        print(f'Expected drug    : {self.guess_at_drug}')
-        print(f'Expected alcoho  : {self.guess_at_alcohol}')
+            print(f'{p}->[{start} to {end}] has {days} days')
+        print(f'Expected drug    : {self.guess_for("drug")}')
+        print(f'Expected alcoho  : {self.guess_for("alcohol")}')
         print('')
 
     @staticmethod
@@ -258,9 +246,6 @@ class Employer(BaseModel):
 
     def run_test_scenario(self, mu=0, sigma=2, randomize=False):
         self.initialize(mu, sigma, randomize)
-        previous_start = self.pool_inception
-        previous_end = self.pool_inception
-        previous_period_index = 0
         for period_index in range(len(self.period_start_dates)):
             start, end = self.period_start_end(period_index)
             self._al.make_predictions(self.employee_count[start], start, end, self.total_days_in_year)
@@ -272,6 +257,8 @@ class Employer(BaseModel):
             self.base_print()
             print('\n*********************************************\n')
             self._al.generate_final_report(self)
+            print('\n*********************************************\n')
             self._dr.generate_final_report(self)
+            exit(0)
             return 1
         return 0
