@@ -44,7 +44,6 @@ class Substance(BaseModel):
     @staticmethod
     def generate_object(json_str):
         d_dict = json.loads(json_str)
-        print(f'{d_dict=}')
         d_dict['percent'] = float(d_dict['percent'])
         d_dict['period_estimates'] = [0.0]
         d_dict['period_actual'] = [0.0]
@@ -70,19 +69,17 @@ class Employer(BaseModel):
     pool_inception: date
     schedule: Schedule = Schedule.QUARTERLY
 
+    sub_d: str  # Optional[Substance]
+    sub_a: str  # Optional[Substance]
+
     # These get auto filled in the initialize method
     year: Optional[int]
     employee_count: Optional[dict]
     period_start_dates: Optional[list[date]]
 
-    # These move to the Substance class
-    alcohol_percent: float
-    drug_percent: float
 
     # These will give us the estimates (apriori) and the true values (aposteriori)
     # The floats are the exact values
-    period_alcohol_estimates: Optional[list[float]]
-    period_drug_estimates: Optional[list[float]]
     period_alcohol_actual: Optional[list[float]]
     period_drug_actual: Optional[list[float]]
 
@@ -93,8 +90,13 @@ class Employer(BaseModel):
     accumulating_alcohol_error: Optional[list[float]]
     accumulating_drug_error: Optional[list[float]]
 
-    sub_d: str  # Optional[Substance]
-    sub_a: str  # Optional[Substance]
+    @property
+    def alcohol_percent(self):
+        return self._al.percent
+
+    @property
+    def drug_percent(self):
+        return self._dr.percent
 
     @property
     def num_periods(self):
@@ -135,6 +137,7 @@ class Employer(BaseModel):
             start = tmp
         return start, end
 
+    # INITIALIZATION METHODS
     def initialize_monthly_periods(self):
         self.period_start_dates.append(self.pool_inception)
         for m in range(12):
@@ -174,8 +177,6 @@ class Employer(BaseModel):
         self._al = Substance.generate_object(self.sub_a)
         self._al.initialize()
 
-        self.period_alcohol_estimates = []
-        self.period_drug_estimates = []
         self.period_alcohol_actual = []
         self.period_drug_actual = []
         self.period_alcohol_sample_size = []
@@ -220,7 +221,6 @@ class Employer(BaseModel):
         print(f'Employee Density : {self.fraction_of_year*self.start_count}')
         print(f'Expected drug    : {self.guess_at_drug}')
         print(f'Expected alcoho  : {self.guess_at_alcohol}')
-
         print('')
 
     @staticmethod
@@ -279,9 +279,7 @@ class Employer(BaseModel):
         period_drug_estimate = employee_density*self.drug_percent
         period_alcohol_estimate = employee_density*self.alcohol_percent
 
-        self.period_drug_estimates.append(period_drug_estimate)
         self._dr.period_estimates.append(period_drug_estimate)
-        self.period_alcohol_estimates.append(period_alcohol_estimate)
         self._al.period_estimates.append(period_alcohol_estimate)
 
         # This is a hureistic!!!
@@ -362,12 +360,12 @@ class Employer(BaseModel):
 
         print('\nAlcohol results:')
         for p in range(period_index):
-            print(f'{p}: A-e: {self.period_alcohol_estimates[p]}, A-a: {self.period_alcohol_actual[p]}, A-s:{self.period_alcohol_sample_size[p]}')
+            print(f'{p}: A-e: {self._al.period_estimates[p]}, A-a: {self.period_alcohol_actual[p]}, A-s:{self.period_alcohol_sample_size[p]}')
 
         print(f'Total alcohol tests   : {alcohol_tests_total}')
         print(f'Expected alcohol tests: {self.guess_at_alcohol}')
         print(f'     {self.period_alcohol_actual=} -> {sum(self.period_alcohol_actual)}')
-        print(f'  {self.period_alcohol_estimates=} -> {sum(self.period_alcohol_estimates)}')
+        print(f'  {self._al.period_estimates=} -> {sum(self._al.period_estimates)}')
         print(f'{self.period_alcohol_sample_size=} -> {sum(self.period_alcohol_sample_size)}')
 
     def print_drug_stats(self, period_index):
@@ -378,12 +376,12 @@ class Employer(BaseModel):
 
         print('Drug results:')
         for p in range(period_index):
-            print(f'{p}: D-e: {self.period_drug_estimates[p]}, D-a: {self.period_drug_actual[p]}, D-s:{self.period_drug_sample_size[p]}')
+            print(f'{p}: D-e: {self._dr.period_estimates[p]}, D-a: {self.period_drug_actual[p]}, D-s:{self.period_drug_sample_size[p]}')
 
         print(f'Total drug tests   : {drug_tests_total}')
         print(f'Expected drug tests: {self.guess_at_drug}')
         print(f'        {self.period_drug_actual=} -> {sum(self.period_drug_actual)}')
-        print(f'     {self.period_drug_estimates=} -> {sum(self.period_drug_estimates)}')
+        print(f'     {self._dr.period_estimates=} -> {sum(self._dr.period_estimates)}')
         print(f'   {self.period_drug_sample_size=} -> {sum(self.period_drug_sample_size)}')
 
     def report_errors(self, period_index, final_start, final_end):
@@ -411,10 +409,10 @@ class Employer(BaseModel):
             return 2
 
         if d_error >= 1 or a_error >= 1:
-            # if d_error >= 1:
-            #     self.print_drug_stats(self.final_period)
-            # if a_error >= 1:
-            #     self.print_alcohol_stats(self.final_period)
+            if d_error >= 1:
+                self.print_drug_stats(self.final_period)
+            if a_error >= 1:
+                self.print_alcohol_stats(self.final_period)
             return 1
 
         return 0

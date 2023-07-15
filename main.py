@@ -12,47 +12,25 @@ from random import randint
 employer_json = {
     'start_count': '7',
     'pool_inception': '2023-02-01',
-    'alcohol_percent': .1,
-    'drug_percent': .5,
     'schedule': Schedule.QUARTERLY,
+    'sub_a': '{"name": "alcohol", "percent": ".1"}',
+    'sub_d': '{"name": "drug", "percent": ".5"}',
+
     # The rest can all be junk, as it gets overwritten in initialize
     'year': 2000,
     'employee_count': {'2023-01-01': 100},
     'period_start_dates': ['2023-01-01'],
-    'period_alcohol_estimates': [0.0],
-    'period_drug_estimates': [0.0],
+
     'period_alcohol_actual': [0.0],
     'period_drug_actual': [0.0],
     'period_alcohol_sample_size': [0],
     'period_drug_sample_size': [0],
     'accumulating_alcohol_error': [0.0],
     'accumulating_drug_error': [0.0],
-    'sub_a': '{"name": "alcohol", "percent": ".1"}',
-    'sub_d': '{"name": "drug", "percent": ".5"}',
-
-}
-
-a_json = {
-    'name': 'alcohol',
-    'percent': .1,
-    'period_estimates': [0.0],
-    'period_actual': [0.0],
-    'period_sample_size': [0],
-    'accumulating_error': [0.0],
-}
-
-d_json = {
-    'name': 'drug',
-    'percent': .5,
-    'period_estimates': [0.0],
-    'period_actual': [0.0],
-    'period_sample_size': [0],
-    'accumulating_error': [0.0],
 }
 
 num_tests = 10000
-num_tests = 1
-
+#num_tests = 1
 
 def main():
     i = 0
@@ -70,8 +48,8 @@ def main():
         #e.schedule = Schedule.MONTHLY
 
         #lock it down for debug
-        e.pool_inception = date(year=2018, month=2, day=14)
-        e.start_count = 4
+        #e.pool_inception = date(year=2018, month=2, day=14)
+        #e.start_count = 4
         e.initialize()
         err = e.run_test_scenario()
         if err >= 3:
