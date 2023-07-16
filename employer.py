@@ -22,7 +22,6 @@ class Schedule(Enum):
 class DbConn(BaseModel):
     population: dict
 
-
     def __str__(self):
         return str(self.population)
 
@@ -81,7 +80,7 @@ class DbConn(BaseModel):
             # load dic from file and create object
             population = DbConn.read_population_from_file(filename)
             generate_dict = {'population': population}
-            return  DbConn(**generate_dict)
+            return DbConn(**generate_dict)
 
         start = d_dict['start'] if 'start' in d_dict else None
         pop = d_dict['pop'] if 'pop' in d_dict else None
@@ -100,7 +99,7 @@ class DbConn(BaseModel):
         pool_inception = start
         start_count = pop
 
-        end = date(year=start.year, month = 12, day=31)
+        end = date(year=start.year, month=12, day=31)
         mu = d_dict['mu'] if 'mu' in d_dict else 0
         sigma = d_dict['sigma'] if 'sigma' in d_dict else 0
 
@@ -113,12 +112,12 @@ class DbConn(BaseModel):
 
         population = DbConn.generate_population(start, end, pop, mu, sigma)
         generate_dict = {'population': population}
-        db_conn =  DbConn(**generate_dict)
+        db_conn = DbConn(**generate_dict)
         db_conn.write_population_to_file('pop_dump.csv')
         return db_conn, pool_inception, start_count
 
     def employee_count(self, day):
-       return self.population[day]
+        return self.population[day]
 
 
 class Substance(BaseModel):
@@ -350,7 +349,7 @@ class Employer(BaseModel):
         return 0
 
 # TODO:
-# 1. write/read input employee data as csv
+# 1. read input employee data as csv
 # 2. write csv report
 # 3. turn on "randomization" and debug if needed
 # 4. Calculate "area variation" for changing employee data
