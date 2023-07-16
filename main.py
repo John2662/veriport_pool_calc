@@ -11,14 +11,14 @@ from random import randint
 
 employer_json = {
     'name': 'company-name',
-    'start_count': '7',
-    'pool_inception': '2023-02-01',
     'schedule': Schedule.QUARTERLY,
     'sub_a': '{"name": "alcohol", "percent": ".1"}',
     'sub_d': '{"name": "drug", "percent": ".5"}',
     'pop': '{"start":"2023-12-14", "pop":"200"}',
 
     # The rest can all be junk, as it gets overwritten in initialize
+    'pool_inception': '2023-02-01',
+    'start_count': '0',
     'year': 2000,
     'employee_count': {'2023-01-01': 100},
     'period_start_dates': ['2023-01-01'],
@@ -52,11 +52,11 @@ def main():
         sigma = 0
         init = generate_ramdom_data(mu, sigma)
         e = Employer(**employer_json)
-        e.start_count = randint(1, 500)
-        days = randint(0, 364)
-        year = 2016 + randint(0, 10)
-        year_start = date(year=year, month=1, day=1) + timedelta(days=days)
-        e.pool_inception = year_start + timedelta(days=days)
+        #e.start_count = randint(1, 500)
+        #days = randint(0, 364)
+        #year = 2016 + randint(0, 10)
+        #year_start = date(year=year, month=1, day=1) + timedelta(days=days)
+        #e.pool_inception = year_start + timedelta(days=days)
         # e.schedule = Schedule.MONTHLY
 
         # lock it down for debug

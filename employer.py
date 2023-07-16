@@ -22,6 +22,7 @@ class Schedule(Enum):
 class DbConn(BaseModel):
     population: dict
 
+
     def __str__(self):
         return str(self.population)
 
@@ -93,8 +94,12 @@ class DbConn(BaseModel):
         except ValueError:
             return None
 
-
         pop = max(0, pop)
+
+        # This is a bit kludgy, since the employer should know this!
+        pool_inception = start
+        start_count = pop
+
         end = date(year=start.year, month = 12, day=31)
         mu = d_dict['mu'] if 'mu' in d_dict else 0
         sigma = d_dict['sigma'] if 'sigma' in d_dict else 0
@@ -110,7 +115,11 @@ class DbConn(BaseModel):
         generate_dict = {'population': population}
         db_conn =  DbConn(**generate_dict)
         db_conn.write_population_to_file('pop_dump.csv')
-        return db_conn
+        return db_conn, pool_inception, start_count
+
+    def employee_count(self, day):
+       return self.population[day]
+
 
 class Substance(BaseModel):
     name: str
@@ -186,16 +195,17 @@ class Substance(BaseModel):
 
 class Employer(BaseModel):
     name: str
-    start_count: int
-    pool_inception: date
     schedule: Schedule = Schedule.QUARTERLY
+
+    # These are used to load ancillary data
     sub_d: str
     sub_a: str
     pop: str
 
     # These get auto filled in the initialize method
+    start_count: int
+    pool_inception: date
     year: Optional[int]
-    employee_count: Optional[dict]
     period_start_dates: Optional[list[date]]
 
     @property
@@ -264,23 +274,15 @@ class Employer(BaseModel):
         else:
             self.initialize_custom_periods(custom_period_start_dates)
 
-    def initialize_employee_count(self, mu, sigma, randomize):
-        start_date = self.pool_inception
-        end_date = self.pool_inception.replace(month=12, day=31)
-        delta = timedelta(days=1)
-        while(start_date <= end_date):
-            self.employee_count[start_date] = self.start_count
-            start_date += delta
-
     def initialize(self, custom_period_start_dates=[], mu=0, sigma=2, randomize=False):
         self.year = self.pool_inception.year
-        self.employee_count = {}
-        self.initialize_employee_count(mu, sigma, randomize)
+        # self.employee_count = {}
+        # self.initialize_employee_count(mu, sigma, randomize)
         self.period_start_dates = []
         self.initialize_periods(custom_period_start_dates)
         self._dr = Substance.generate_object(self.sub_d)
         self._al = Substance.generate_object(self.sub_a)
-        self._db_conn = DbConn.generate_object(self.pop)
+        self._db_conn, self.pool_inception, self.start_count = DbConn.generate_object(self.pop)
         print(f'{self._db_conn=}')
 
     def period_end_date(self, period_index):
@@ -301,15 +303,6 @@ class Employer(BaseModel):
         print(f'Expected alcoho  : {self.guess_for("alcohol")}')
         print('')
 
-    def randomize_employee_count(self, period, mu, sigma):
-        return
-        curr_count = self.start_count
-        weight = 0
-        for d in self.employee_count:
-            curr_count += weight
-            self.employee_count[d] = curr_count
-            weight = Employer.get_count_change(d, mu, sigma)
-
     @staticmethod
     def day_count(start, end):
         return (end-start).days + 1
@@ -322,24 +315,24 @@ class Employer(BaseModel):
         day = start
         day_count = 0
         while day <= end:
-            period_donor_count_list.append(self.employee_count[day])
+            period_donor_count_list.append(self._db_conn.employee_count(day))
             day_count += 1
             day += timedelta(days=1)
         return period_donor_count_list
 
     def write_csv_report(self):
         with open(f'{self.name}.csv', 'w') as f:
-            for d in self.employee_count:
+            for d in self._db_conn.population:
                 if d in self.period_start_dates:
                     f.write('\nPeriod start\n')
-                f.write(f'{d},{self.employee_count[d]}\n')
+                f.write(f'{d},{self._db_conn.employee_count(d)}\n')
 
     def run_test_scenario(self, mu=0, sigma=2, randomize=False):
         self.initialize(mu, sigma, randomize)
         for period_index in range(len(self.period_start_dates)):
             start, end = self.period_start_end(period_index)
-            self._al.make_predictions(self.employee_count[start], start, end, self.total_days_in_year)
-            self._dr.make_predictions(self.employee_count[start], start, end, self.total_days_in_year)
+            self._al.make_predictions(self._db_conn.employee_count(start), start, end, self.total_days_in_year)
+            self._dr.make_predictions(self._db_conn.employee_count(start), start, end, self.total_days_in_year)
             period_donor_count_list = self.load_period_donors(start, end)
             self._al.accept_population_data(period_donor_count_list, self.total_days_in_year)
             self._dr.accept_population_data(period_donor_count_list, self.total_days_in_year)
