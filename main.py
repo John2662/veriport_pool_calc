@@ -5,19 +5,26 @@
 
 from employer import Schedule
 from datetime import date, timedelta
-
 from random import randint
-
 from initialization import run_test
 
+MAX_POP = 500
 num_tests = 1000
 num_tests = 1
 
 
-def get_random_date():
+def get_random_date(year=0, month=0, day=0):
+    if year > 1900 and month > 0 and month <= 12 and day > 0 and day <= 31:
+        return str(date(year=year, month=month, day=day))
     days = randint(0, 364)
     year = 2016 + randint(0, 10)
     return str(date(year=year, month=1, day=1) + timedelta(days=days))
+
+
+def get_random_population(pop=0):
+    if pop <= 0:
+        return randint(1, MAX_POP)
+    return pop
 
 
 def main():
@@ -26,10 +33,10 @@ def main():
     big_errors = 0
     huge_errors = 0
     while(i < num_tests):
-        pop = randint(1, 500)
+        pop = get_random_population(5)
         start = get_random_date()
-        mu = .1
-        sigma = 2
+        mu = 0  # .1
+        sigma = 0  # 2
         datafile = ''
         err = run_test('fake_company_name', start, pop, Schedule.QUARTERLY, datafile, mu, sigma)
         if err >= 3:
