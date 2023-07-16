@@ -63,7 +63,7 @@ class Employer(BaseModel):
     def drug_percent(self):
         return self._dr.percent
 
-    def guess_for(self, type):
+    def guess_for(self, type: str):
         if type == 'drug':
             return ceil(self.fraction_of_year*self.start_count*self.drug_percent)
         return ceil(self.fraction_of_year*self.start_count*self.alcohol_percent)
@@ -90,10 +90,10 @@ class Employer(BaseModel):
         if self.pool_inception < dec_1:
             self.period_start_dates.append(dec_1)
 
-    def initialize_custom_periods(self, custom_period_start_dates):
+    def initialize_custom_periods(self, custom_period_start_dates: list):
         self.period_start_dates = custom_period_start_dates
 
-    def initialize_periods(self, custom_period_start_dates):
+    def initialize_periods(self, custom_period_start_dates: list):
         if self.schedule == Schedule.MONTHLY:
             self.initialize_monthly_periods()
         elif self.schedule == Schedule.QUARTERLY:
@@ -101,7 +101,7 @@ class Employer(BaseModel):
         else:
             self.initialize_custom_periods(custom_period_start_dates)
 
-    def initialize(self, custom_period_start_dates=[], mu=0, sigma=2, randomize=False):
+    def initialize(self, custom_period_start_dates: list = [], mu: float = 0.0, sigma: int = 2, randomize: bool = False):
         self.year = self.pool_inception.year
         # self.employee_count = {}
         # self.initialize_employee_count(mu, sigma, randomize)
@@ -112,7 +112,7 @@ class Employer(BaseModel):
         self._db_conn, self.pool_inception, self.start_count = DbConn.generate_object(self.pop)
         print(f'{self._db_conn=}')
 
-    def period_end_date(self, period_index):
+    def period_end_date(self, period_index: int):
         if period_index == len(self.period_start_dates)-1:
             return self.last_day_of_year
         return (self.period_start_dates[period_index+1]-timedelta(days=1))
@@ -131,13 +131,13 @@ class Employer(BaseModel):
         print('')
 
     @staticmethod
-    def day_count(start, end):
+    def day_count(start: date, end: date):
         return (end-start).days + 1
 
-    def period_start_end(self, period_index):
+    def period_start_end(self, period_index: int):
         return self.period_start_dates[period_index], self.period_end_date(period_index)
 
-    def load_period_donors(self, start, end):
+    def load_period_donors(self, start: date, end: date):
         period_donor_count_list = []
         day = start
         day_count = 0
@@ -154,7 +154,7 @@ class Employer(BaseModel):
                     f.write('\nPeriod start\n')
                 f.write(f'{d},{self._db_conn.employee_count(d)}\n')
 
-    def run_test_scenario(self, mu=0, sigma=2, randomize=False):
+    def run_test_scenario(self, mu: float = 0.0, sigma: int = 2, randomize: bool = False):
         self.initialize(mu, sigma, randomize)
         for period_index in range(len(self.period_start_dates)):
             start, end = self.period_start_end(period_index)
@@ -169,9 +169,9 @@ class Employer(BaseModel):
         if self._dr.final_overcount() > 1 or self._al.final_overcount() > 1:
             self.base_print()
             print('\n*********************************************\n')
-            self._al.generate_final_report(self)
+            self._al.generate_final_report()
             print('\n*********************************************\n')
-            self._dr.generate_final_report(self)
+            self._dr.generate_final_report()
             exit(0)
             return 1
         return 0

@@ -13,7 +13,7 @@ num_tests = 1000
 num_tests = 1
 
 
-def get_random_date(year=0, month=0, day=0):
+def get_random_date(year: int = 0, month: int = 0, day: int = 0):
     if year > 1900 and month > 0 and month <= 12 and day > 0 and day <= 31:
         return str(date(year=year, month=month, day=day))
     days = randint(0, 364)
@@ -21,7 +21,7 @@ def get_random_date(year=0, month=0, day=0):
     return str(date(year=year, month=1, day=1) + timedelta(days=days))
 
 
-def get_random_population(pop=0):
+def get_random_population(pop:int = 0):
     if pop <= 0:
         return randint(1, MAX_POP)
     return pop

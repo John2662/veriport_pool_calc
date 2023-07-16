@@ -15,7 +15,7 @@ class DbConn(BaseModel):
     def __str__(self):
         return str(self.population)
 
-    def write_population_to_file(self, filename):
+    def write_population_to_file(self, filename: str):
         # TODO write this method
         pass
 
@@ -26,7 +26,7 @@ class DbConn(BaseModel):
         return population
 
     @staticmethod
-    def calculate_population_change(d, mu, sigma):
+    def calculate_population_change(d, mu, sigma: int):
         if sigma == 0:
             return 0
         if d.weekday() < 5:
@@ -34,7 +34,7 @@ class DbConn(BaseModel):
         return 0
 
     @staticmethod
-    def order_correctly(start, end):
+    def order_correctly(start: date, end: date):
         if start > end:
             tmp = end
             end = start
@@ -42,12 +42,12 @@ class DbConn(BaseModel):
         return start, end
 
     @staticmethod
-    def increment(day):
+    def increment(day: date):
         oneday = timedelta(days=1)
         return day+oneday
 
     @staticmethod
-    def generate_population(start, end, pop, mu=0, sigma=0):
+    def generate_population(start: date, end: date, pop: int, mu: float = 0.0, sigma: int = 0):
         start, end = DbConn.order_correctly(start, end)
         pop = max(0, pop)
         population = {}
@@ -61,7 +61,7 @@ class DbConn(BaseModel):
         return population
 
     @staticmethod
-    def generate_object(json_str):
+    def generate_object(json_str: str):
         d_dict = json.loads(json_str)
         print(f'{d_dict=}')
         filename = d_dict['filename'] if 'filename' in d_dict else None
@@ -106,5 +106,5 @@ class DbConn(BaseModel):
         db_conn.write_population_to_file('pop_dump.csv')
         return db_conn, pool_inception, start_count
 
-    def employee_count(self, day):
+    def employee_count(self, day: date):
         return self.population[day]

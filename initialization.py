@@ -22,7 +22,7 @@ employer_json = {
 }
 
 
-def generate_population_value(inception, start_count, mu, sigma):
+def generate_population_value(inception: date, start_count: int, mu: float, sigma: int):
     s_start = f'"start":\"{inception}\"'
     s_pop = f'"pop":\"{start_count}\"'
     s_mu = f'"mu":\"{mu}\"'
