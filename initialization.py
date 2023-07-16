@@ -3,9 +3,8 @@
 # Proprietary and confidential
 # Written by John Read <john.read@colibri-software.com>, July 2023
 
-from datetime import timedelta, date
-from employer import Schedule
-from random import randint
+from datetime import date
+from employer import Schedule, Employer
 
 employer_json = {
     'name': 'company-name',
@@ -23,19 +22,14 @@ employer_json = {
 }
 
 
-def generate_ramdom_data(mu, sigma):
-    pop = randint(1, 500)
-    days = randint(0, 364)
-    year = 2016 + randint(0, 10)
-    start = str(date(year=year, month=1, day=1) + timedelta(days=days))
-    s_start = f'"start":\"{start}\"'
-    s_pop = f'"pop":\"{pop}\"'
+def generate_population_value(inception, start_count, mu, sigma):
+    s_start = f'"start":\"{inception}\"'
+    s_pop = f'"pop":\"{start_count}\"'
     s_mu = f'"mu":\"{mu}\"'
     s_sigma = f'"sigma":\"{sigma}\"'
     phrase = f'{s_start}, {s_pop}, {s_mu}, {s_sigma}'
     population = '{'+phrase+'}'
-    employer_json['pop'] = population
-    return employer_json
+    return population
 
 
 def run_test(company_name: str,
@@ -45,10 +39,11 @@ def run_test(company_name: str,
              datafile: str = '',
              mu: float = 0.0,
              sigma: int = 0):
-    pass
 
-# TODO:
-# 1. read input employee data as csv
-# 2. write csv report
-# 3. turn on "randomization" and debug if needed
-# 4. Calculate "area variation" for changing employee data
+    employer_json['name'] = company_name
+    employer_json['schedule'] = schedule
+    employer_json['pop'] = generate_population_value(inception, start_count, mu, sigma)
+
+    e = Employer(**employer_json)
+    e.initialize()
+    return e.run_test_scenario()
