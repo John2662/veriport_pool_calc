@@ -99,6 +99,13 @@ class DbConn(BaseModel):
         mu = d_dict['mu'] if 'mu' in d_dict else 0
         sigma = d_dict['sigma'] if 'sigma' in d_dict else 0
 
+        try:
+            mu = float(mu)
+            sigma = int(sigma)
+        except ValueError:
+            mu = 0
+            sigma = 0
+
         population = DbConn.generate_population(start, end, pop, mu, sigma)
         generate_dict = {'population': population}
         db_conn =  DbConn(**generate_dict)

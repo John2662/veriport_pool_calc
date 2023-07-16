@@ -4,8 +4,8 @@
 # Written by John Read <john.read@colibri-software.com>, July 2023
 
 from employer import Employer, Schedule
-# import json
-from datetime import date, timedelta
+import json
+from datetime import datetime, date, timedelta
 
 from random import randint
 
@@ -16,7 +16,7 @@ employer_json = {
     'schedule': Schedule.QUARTERLY,
     'sub_a': '{"name": "alcohol", "percent": ".1"}',
     'sub_d': '{"name": "drug", "percent": ".5"}',
-    'pop': '{"start":"2023-12-14", "pop": "200"}',
+    'pop': '{"start":"2023-12-14", "pop":"200"}',
 
     # The rest can all be junk, as it gets overwritten in initialize
     'year': 2000,
@@ -27,6 +27,20 @@ employer_json = {
 num_tests = 1000
 num_tests = 1
 
+def generate_ramdom_data(mu, sigma):
+    pop = randint(1, 500)
+    days = randint(0, 364)
+    year = 2016 + randint(0, 10)
+    start = str(date(year=year, month=1, day=1) + timedelta(days=days))
+    s_start = f'"start":\"{start}\"'
+    s_pop = f'"pop":\"{pop}\"'
+    s_mu = f'"mu":\"{mu}\"'
+    s_sigma = f'"sigma":\"{sigma}\"'
+    phrase = f'{s_start}, {s_pop}, {s_mu}, {s_sigma}'
+    population = '{'+phrase+ '}'
+    employer_json['pop'] = population
+    return employer_json
+
 
 def main():
     i = 0
@@ -34,6 +48,9 @@ def main():
     big_errors = 0
     huge_errors = 0
     while(i < num_tests):
+        mu = 0
+        sigma = 0
+        init = generate_ramdom_data(mu, sigma)
         e = Employer(**employer_json)
         e.start_count = randint(1, 500)
         days = randint(0, 364)
