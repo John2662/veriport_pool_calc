@@ -16,6 +16,7 @@ employer_json = {
     'schedule': Schedule.QUARTERLY,
     'sub_a': '{"name": "alcohol", "percent": ".1"}',
     'sub_d': '{"name": "drug", "percent": ".5"}',
+    'pop': '{"start":"2023-12-14", "pop": "200"}',
 
     # The rest can all be junk, as it gets overwritten in initialize
     'year': 2000,

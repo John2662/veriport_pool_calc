@@ -3,7 +3,7 @@
 # Proprietary and confidential
 # Written by John Read <john.read@colibri-software.com>, July 2023
 
-from datetime import timedelta, date
+from datetime import timedelta, date, datetime
 from pydantic import BaseModel
 from typing import Optional
 from math import ceil
@@ -18,6 +18,92 @@ class Schedule(Enum):
     QUARTERLY = 4
     CUSTOM = 0
 
+
+class DbConn(BaseModel):
+    population: dict
+
+    def __str__(self):
+        return str(self.population)
+
+    def write_population_to_file(self, filename):
+        # TODO write this method
+        pass
+
+    @staticmethod
+    def read_population_from_file():
+        # TODO write this method
+        population = {}
+        return population
+
+    @staticmethod
+    def calculate_population_change(d, mu, sigma):
+        if sigma == 0:
+            return 0
+        if d.weekday() < 5:
+            return int(random.gauss(mu, sigma))
+        return 0
+
+    @staticmethod
+    def order_correctly(start, end):
+        if start > end:
+            tmp = end
+            end = start
+            start = tmp
+        return start, end
+
+    @staticmethod
+    def increment(day):
+        oneday = timedelta(days=1)
+        return day+oneday
+
+    @staticmethod
+    def generate_population(start, end, pop, mu=0, sigma=0):
+        start, end = DbConn.order_correctly(start, end)
+        pop = max(0, pop)
+        population = {}
+        day = start
+        population[start] = pop
+        while day < end:
+            day = DbConn.increment(day)
+            pop += DbConn.calculate_population_change(day, mu, sigma)
+            pop = max(0, pop)
+            population[day] = pop
+        return population
+
+    @staticmethod
+    def generate_object(json_str):
+        d_dict = json.loads(json_str)
+        print(f'{d_dict=}')
+        filename = d_dict['filename'] if 'filename' in d_dict else None
+
+        if filename is not None:
+            # load dic from file and create object
+            population = DbConn.read_population_from_file(filename)
+            generate_dict = {'population': population}
+            return  DbConn(**generate_dict)
+
+        start = d_dict['start'] if 'start' in d_dict else None
+        pop = d_dict['pop'] if 'pop' in d_dict else None
+        if start is None or pop is None:
+            return None
+
+        try:
+            start = datetime.strptime(start, '%Y-%m-%d').date()
+            pop = int(pop)
+        except ValueError:
+            return None
+
+
+        pop = max(0, pop)
+        end = date(year=start.year, month = 12, day=31)
+        mu = d_dict['mu'] if 'mu' in d_dict else 0
+        sigma = d_dict['sigma'] if 'sigma' in d_dict else 0
+
+        population = DbConn.generate_population(start, end, pop, mu, sigma)
+        generate_dict = {'population': population}
+        db_conn =  DbConn(**generate_dict)
+        db_conn.write_population_to_file('pop_dump.csv')
+        return db_conn
 
 class Substance(BaseModel):
     name: str
@@ -72,7 +158,7 @@ class Substance(BaseModel):
         self.period_apriori_estimate.append(apriori_estimate)
         previous_overcount_error = sum(self.period_overcount_error) if len(self.period_overcount_error) > 0 else 0.0
 
-        # find the lagest over count that we can work off in the period
+        # find the lagest overcount that we can eliminate in the current period
         account_for = min(apriori_estimate, previous_overcount_error)
 
         tests_predicted = ceil(apriori_estimate - account_for)
@@ -98,6 +184,7 @@ class Employer(BaseModel):
     schedule: Schedule = Schedule.QUARTERLY
     sub_d: str
     sub_a: str
+    pop: str
 
     # These get auto filled in the initialize method
     year: Optional[int]
@@ -136,14 +223,6 @@ class Employer(BaseModel):
         if type == 'drug':
             return ceil(self.fraction_of_year*self.start_count*self.drug_percent)
         return ceil(self.fraction_of_year*self.start_count*self.alcohol_percent)
-
-    @staticmethod
-    def order_correctly(start, end):
-        if start > end:
-            tmp = end
-            end = start
-            start = tmp
-        return start, end
 
     def initialize_monthly_periods(self):
         self.period_start_dates.append(self.pool_inception)
@@ -194,6 +273,8 @@ class Employer(BaseModel):
         self.initialize_periods(custom_period_start_dates)
         self._dr = Substance.generate_object(self.sub_d)
         self._al = Substance.generate_object(self.sub_a)
+        self._db_conn = DbConn.generate_object(self.pop)
+        print(f'{self._db_conn=}')
 
     def period_end_date(self, period_index):
         if period_index == len(self.period_start_dates)-1:
@@ -212,12 +293,6 @@ class Employer(BaseModel):
         print(f'Expected drug    : {self.guess_for("drug")}')
         print(f'Expected alcoho  : {self.guess_for("alcohol")}')
         print('')
-
-    @staticmethod
-    def get_count_change(d, mu, sigma):
-        if d.weekday() < 5:
-            return int(random.gauss(mu, sigma))
-        return 0
 
     def randomize_employee_count(self, period, mu, sigma):
         return
@@ -273,3 +348,9 @@ class Employer(BaseModel):
             exit(0)
             return 1
         return 0
+
+# TODO:
+# 1. write/read input employee data as csv
+# 2. write csv report
+# 3. turn on "randomization" and debug if needed
+# 4. Calculate "area variation" for changing employee data
