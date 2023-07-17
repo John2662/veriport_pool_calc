@@ -10,6 +10,9 @@ from math import ceil
 import json
 
 
+EPSILON = 0.0000000000000001
+
+
 class Substance(BaseModel):
     name: str
     percent: float
@@ -59,10 +62,9 @@ class Substance(BaseModel):
         # find the lagest overcount that we can eliminate in the current period
         account_for = min(apriori_estimate, previous_overcount_error)
 
-        epsilon = 0.0000000000000001
         # correct for floating point error.
         # For one simple test this caused a bug if epsilon = 0.00000000000000001
-        if abs(apriori_estimate - account_for) < epsilon:
+        if abs(apriori_estimate - account_for) < EPSILON:
             tests_predicted = 0
         else:
             tests_predicted = ceil(apriori_estimate - account_for)
@@ -86,7 +88,10 @@ class Substance(BaseModel):
 
     @property
     def tests_required(self) -> int:
-        return ceil(sum(self.period_aposteriori_truth))
+        val = sum(self.period_aposteriori_truth)
+        if abs(val) < EPSILON:
+            val = 0
+        return ceil(val)
 
     def generate_period_report(self) -> str:
         string = f',type:,{self.name}:\n'
