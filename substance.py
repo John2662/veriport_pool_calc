@@ -80,7 +80,7 @@ class Substance(BaseModel):
     def tests_required(self) -> int:
         val = sum(self.period_aposteriori_truth)
         if abs(val) < EPSILON:
-            val = 0
+            return 0
         return ceil(val)
 
     def generate_period_report(self) -> str:
