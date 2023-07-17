@@ -36,20 +36,6 @@ class Substance(BaseModel):
     def num_periods(self) -> int:
         return len(self.period_apriori_estimate)
 
-    def print_stats(self) -> None:
-        tests_total = sum(self.period_apriori_required_tests_predicted)
-        print(f'Calculated num {self.name} tests: {tests_total}')
-        print('\nAll results:')
-        for p in range(len(self.period_apriori_required_tests_predicted)):
-            print(f'{p}: Est: {self.period_apriori_estimate[p]}, Truth: {self.period_aposteriori_truth[p]}, Req: {self.period_apriori_required_tests_predicted[p]}')
-
-        print('')
-        print(f' {self.period_aposteriori_truth=} -> {sum(self.period_aposteriori_truth)}')
-        print(f'  {self.period_apriori_estimate=} -> {sum(self.period_apriori_estimate)}')
-        print('')
-        print(f'{self.period_apriori_required_tests_predicted=} -> {sum(self.period_apriori_required_tests_predicted)}')
-        print(f'{self.period_overcount_error=} -> {sum(self.period_overcount_error)}')
-
     def final_overcount(self) -> int:
         return sum(self.period_apriori_required_tests_predicted) - self.tests_required
 
@@ -63,7 +49,7 @@ class Substance(BaseModel):
         account_for = min(apriori_estimate, previous_overcount_error)
 
         # correct for floating point error.
-        # For one simple test this caused a bug if epsilon = 0.00000000000000001
+        # For one simple test this caused a bug if epsilon = 0.00000000000000001 (or less)
         if abs(apriori_estimate - account_for) < EPSILON:
             tests_predicted = 0
         else:
@@ -83,7 +69,11 @@ class Substance(BaseModel):
     def generate_final_report(self) -> None:
         self.print_stats()
 
-    def population_deviation(self, p) -> float:
+    # This is only used in a report, so it is not that critical.
+    # TODO: put a better safety check in
+    def population_deviation(self, p: int) -> float:
+        if p >= len(self.period_apriori_estimate):
+            return -1000000000000000000000.0
         return (self.period_aposteriori_truth[p] - self.period_apriori_estimate[p]) / self.period_apriori_estimate[p]
 
     @property
@@ -120,6 +110,20 @@ class Substance(BaseModel):
         string += offset + 'PRESCRIBED:,' + str(sum(self.period_apriori_required_tests_predicted)) + '\n'
         string += offset + 'NEEDED:,' + str(self.tests_required) + '\n'
         return string + '\n'
+
+    def print_stats(self) -> None:
+        tests_total = sum(self.period_apriori_required_tests_predicted)
+        print(f'Calculated num {self.name} tests: {tests_total}')
+        print('\nAll results:')
+        for p in range(len(self.period_apriori_required_tests_predicted)):
+            print(f'{p}: Est: {self.period_apriori_estimate[p]}, Truth: {self.period_aposteriori_truth[p]}, Req: {self.period_apriori_required_tests_predicted[p]}')
+
+        print('')
+        print(f' {self.period_aposteriori_truth=} -> {sum(self.period_aposteriori_truth)}')
+        print(f'  {self.period_apriori_estimate=} -> {sum(self.period_apriori_estimate)}')
+        print('')
+        print(f'{self.period_apriori_required_tests_predicted=} -> {sum(self.period_apriori_required_tests_predicted)}')
+        print(f'{self.period_overcount_error=} -> {sum(self.period_overcount_error)}')
 
 
 def generate_substance(json_str: str) -> Substance:
