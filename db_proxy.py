@@ -13,7 +13,7 @@ class DbConn(BaseModel):
     population: dict
     datafile: str
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.population)
 
     @staticmethod

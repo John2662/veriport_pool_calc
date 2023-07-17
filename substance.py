@@ -59,7 +59,14 @@ class Substance(BaseModel):
         # find the lagest overcount that we can eliminate in the current period
         account_for = min(apriori_estimate, previous_overcount_error)
 
-        tests_predicted = ceil(apriori_estimate - account_for)
+        epsilon = 0.0000000000000001
+        # correct for floating point error.
+        # For one simple test this caused a bug if epsilon = 0.00000000000000001
+        if abs(apriori_estimate - account_for) < epsilon:
+            tests_predicted = 0
+        else:
+            tests_predicted = ceil(apriori_estimate - account_for)
+
         tests_predicted = max(tests_predicted, 0)
         self.period_apriori_required_tests_predicted.append(tests_predicted)
 

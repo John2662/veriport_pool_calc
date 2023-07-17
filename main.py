@@ -13,7 +13,7 @@ from math import log10, ceil
 MAX_NUM_TESTS = 10000
 MAX_POP = 500
 num_tests = 1000
-num_tests = 10
+num_tests = 1
 
 
 def get_random_date(year: int = 0, month: int = 0, day: int = 0) -> str:
@@ -54,19 +54,19 @@ def get_padded_string(i: int, num_tests: int) -> str:
 
 
 def main() -> int:
-    i = 1
+    i = 0
     mild_errors = 0
     big_errors = 0
     huge_errors = 0
     while(i < num_tests):
-        # pop = get_random_population(3450)
-        # start = get_random_date(2020, 2, 14)
+        pop = get_random_population(20)
+        start = get_random_date(2020, 1, 1)
         # mu = 1.7
         # sigma = 2
-        pop = get_random_population()
-        start = get_random_date()
-        mu = 20
-        sigma = 10
+        # pop = get_random_population()
+        # start = get_random_date()
+        mu = 0
+        sigma = 0
         pad = get_padded_string(i, num_tests)
         datafile = f'run_output/company_{pad}_input'
         employer_json = compile_json(f'run_output/company_{pad}_output', start, pop, Schedule.QUARTERLY, datafile, mu, sigma)

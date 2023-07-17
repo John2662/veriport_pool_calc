@@ -133,7 +133,7 @@ class Employer(BaseModel):
     #    VARIOUS INITIALIZATION METHODS    #
     ########################################
 
-    def load_period_donors(self, start: date, end: date) -> list:
+    def load_period_donors(self, start: date, end: date) -> list[int]:
         return self._db_conn.load_population(start, end)
 
     def donor_count(self, day: date) -> int:
