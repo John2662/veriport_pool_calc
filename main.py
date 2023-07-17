@@ -35,8 +35,8 @@ def main():
     while(i < num_tests):
         pop = get_random_population(3450)
         start = get_random_date(2020, 2, 14)
-        mu = -10
-        sigma = 20
+        mu = 1
+        sigma = 2
         datafile = ''
         err = run_test('fake_company_name', start, pop, Schedule.QUARTERLY, datafile, mu, sigma)
         if err >= 3:

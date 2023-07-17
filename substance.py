@@ -58,7 +58,8 @@ class Substance(BaseModel):
         print(f'{self.period_overcount_error=} -> {sum(self.period_overcount_error)}')
 
     def final_overcount(self):
-        return self.period_overcount_error[-1] if len(self.period_overcount_error) > 0 else 0.0
+        # return self.period_overcount_error[-1] if len(self.period_overcount_error) > 0 else 0.0
+        return sum(self.period_apriori_required_tests_predicted) - self.tests_required
 
     def make_predictions(self, initial_donor_count: int, start: date, end: date, days_in_year: int):
         num_days = (end-start).days + 1
