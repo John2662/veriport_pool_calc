@@ -21,7 +21,7 @@ def get_random_date(year: int = 0, month: int = 0, day: int = 0):
     return str(date(year=year, month=1, day=1) + timedelta(days=days))
 
 
-def get_random_population(pop:int = 0):
+def get_random_population(pop: int = 0):
     if pop <= 0:
         return randint(1, MAX_POP)
     return pop
@@ -33,10 +33,10 @@ def main():
     big_errors = 0
     huge_errors = 0
     while(i < num_tests):
-        pop = get_random_population(5)
-        start = get_random_date()
-        mu = 0  # .1
-        sigma = 0  # 2
+        pop = get_random_population(450)
+        start = get_random_date(2020, 2, 14)
+        mu = .1
+        sigma = 2
         datafile = ''
         err = run_test('fake_company_name', start, pop, Schedule.QUARTERLY, datafile, mu, sigma)
         if err >= 3:

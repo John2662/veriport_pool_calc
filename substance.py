@@ -29,6 +29,10 @@ class Substance(BaseModel):
     def __str__(self):
         return f'{self.name=} and {self.percent=}'
 
+    @property
+    def num_periods(self):
+        return len(self.period_apriori_estimate)
+
     @staticmethod
     def generate_object(json_str: str):
         d_dict = json.loads(json_str)
@@ -79,3 +83,33 @@ class Substance(BaseModel):
 
     def generate_final_report(self):
         self.print_stats()
+
+    def population_deviation(self, p):
+        return (self.period_aposteriori_truth[p] - self.period_apriori_estimate[p]) / self.period_apriori_estimate[p]
+
+    def generate_period_report(self):
+        string = f',type:,{self.name}:\n'
+        string += f',percent:,{100.0* self.percent} %\n'
+        string += ',SUMMARY TABLE:\n'
+        offset = ',,'
+        string += ',DATA:\n'
+        apriori_estimates = offset + 'Apriori estimate,'
+        aposteriori_truth = offset + 'Aposteiori truth,'
+        overcount_error = offset + 'Over count error,'
+        population_deviation = offset + 'Pool variation (%),'
+        apriori_required_tests_predicted = offset + 'prescribed # tests,'
+
+        for p in range(self.num_periods):
+            apriori_estimates += f'{self.period_apriori_estimate[p]},'
+            aposteriori_truth += f'{self.period_aposteriori_truth[p]},'
+            overcount_error += f'{self.period_overcount_error[p]},'
+            population_deviation += f'{100.0*self.population_deviation(p)},'
+            apriori_required_tests_predicted += f'{self.period_apriori_required_tests_predicted[p]},'
+
+        string += apriori_estimates + '\n'
+        string += aposteriori_truth + '\n'
+        string += overcount_error + '\n'
+        string += population_deviation + '\n'
+        string += apriori_required_tests_predicted + '\n'
+
+        return string + '\n'

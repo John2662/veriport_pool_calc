@@ -19,6 +19,14 @@ class Schedule(Enum):
     QUARTERLY = 4
     CUSTOM = 0
 
+    @staticmethod
+    def as_str(value):
+        if value == Schedule.MONTHLY:
+            return 'monthly'
+        if value == Schedule.QUARTERLY:
+            return 'quarterly'
+        return 'custom'
+
 
 class Employer(BaseModel):
     name: str
@@ -147,12 +155,34 @@ class Employer(BaseModel):
             day += timedelta(days=1)
         return period_donor_count_list
 
-    def write_csv_report(self):
+    def write_csv(self):
         with open(f'{self.name}.csv', 'w') as f:
+            period_count = 0
             for d in self._db_conn.population:
                 if d in self.period_start_dates:
-                    f.write('\nPeriod start\n')
+                    f.write(f'#,Period {period_count} start\n')
+                    period_count += 1
                 f.write(f'{d},{self._db_conn.employee_count(d)}\n')
+
+    def write_period_report(self):
+        with open(f'{self.name}_summary.csv', 'w') as f:
+            f.write('Company stats')
+            f.write(f'Schedule:, {Schedule.as_str(self.schedule)}\n')
+            f.write(f'Initial Size:, {self.start_count}\n')
+            f.write(f'Number of periods:, {len(self.period_start_dates)}\n')
+            f.write(', PERIOD, START DATE\n')
+            for i, d in enumerate(self.period_start_dates):
+                f.write(f', period {i}, {str(d)}\n')
+            f.write(f'pool as % of year:, {100.0 * self.fraction_of_year} %\n')
+            f.write('\nApriori test predictions\n')
+            f.write(f'drug % required:, {100.0*self.drug_percent} %\n')
+            f.write(f'inception drug expectation:, {self.guess_for("drug")}\n')
+            f.write(f'alcohol % required:, {100.0*self.alcohol_percent} %\n')
+            f.write(f'inception alcohol expectation:, {self.guess_for("alcohol")}\n')
+            f.write('\nDrug summary:\n')
+            f.write(f'{self._dr.generate_period_report()}')
+            f.write('\nAlcohol summary:\n')
+            f.write(f'{self._al.generate_period_report()}')
 
     def run_test_scenario(self, mu: float = 0.0, sigma: int = 2, randomize: bool = False):
         self.initialize(mu, sigma, randomize)
@@ -164,7 +194,8 @@ class Employer(BaseModel):
             self._al.accept_population_data(period_donor_count_list, self.total_days_in_year)
             self._dr.accept_population_data(period_donor_count_list, self.total_days_in_year)
 
-        self.write_csv_report()
+        self.write_csv()
+        self.write_period_report()
 
         if self._dr.final_overcount() > 1 or self._al.final_overcount() > 1:
             self.base_print()
@@ -178,6 +209,4 @@ class Employer(BaseModel):
 
 # TODO:
 # 1. read input employee data as csv
-# 2. write csv report
-# 3. turn on "randomization" and debug if needed
-# 4. Calculate "area variation" for changing employee data
+# 2. write a "driver" that pushes data in at the start of each period to mimic how it would be used in veriport
