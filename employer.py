@@ -158,7 +158,6 @@ class Employer(BaseModel):
         self.conclude_report()
         return self._dr.final_overcount() + self._al.final_overcount()
 
-
     def conclude_report(self, output_to_screen: bool = False):
         self.write_csv()
         self.write_period_report()
@@ -169,7 +168,7 @@ class Employer(BaseModel):
             self._al.generate_final_report()
             print('\n*********************************************\n')
             self._dr.generate_final_report()
-            #exit(0)
+            #  exit(0)
 
     ##############################
     #       PRINTING, REPORTS    #
