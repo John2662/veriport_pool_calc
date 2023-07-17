@@ -3,10 +3,10 @@
 # Proprietary and confidential
 # Written by John Read <john.read@colibri-software.com>, July 2023
 
-from employer import Schedule
+from employer import Schedule, Employer
 from datetime import date, timedelta
 from random import randint
-from initialization import run_test
+from initialize_json import compile_json
 
 MAX_POP = 500
 num_tests = 1000
@@ -38,7 +38,12 @@ def main():
         mu = 1
         sigma = 2
         datafile = ''
-        err = run_test('fake_company_name', start, pop, Schedule.QUARTERLY, datafile, mu, sigma)
+        employer_json = compile_json('fake_company_name', start, pop, Schedule.QUARTERLY, datafile, mu, sigma)
+
+        e = Employer(**employer_json)
+        e.initialize()
+        err = e.run_test_scenario()
+
         if err >= 3:
             huge_errors += 1
         elif err >= 2:

@@ -76,6 +76,14 @@ class Employer(BaseModel):
             return ceil(self.fraction_of_year*self.start_count*self.drug_percent)
         return ceil(self.fraction_of_year*self.start_count*self.alcohol_percent)
 
+    def period_end_date(self, period_index: int):
+        if period_index == len(self.period_start_dates)-1:
+            return self.last_day_of_year
+        return (self.period_start_dates[period_index+1]-timedelta(days=1))
+
+    ########################################
+    #    VARIOUS INITIALIZATION METHODS    #
+    ########################################
     def initialize_monthly_periods(self):
         self.period_start_dates.append(self.pool_inception)
         for m in range(12):
@@ -113,56 +121,53 @@ class Employer(BaseModel):
         else:
             self.initialize_custom_periods(custom_period_start_dates)
 
-    def initialize(self, custom_period_start_dates: list = [], mu: float = 0.0, sigma: int = 2, randomize: bool = False):
+    def initialize(self, custom_period_start_dates: list = []):
         self.year = self.pool_inception.year
-        # self.employee_count = {}
-        # self.initialize_employee_count(mu, sigma, randomize)
         self.period_start_dates = []
         self.initialize_periods(custom_period_start_dates)
         self._dr = Substance.generate_object(self.sub_d)
         self._al = Substance.generate_object(self.sub_a)
+        # The mu, sigma get pushed in through self.pop
         self._db_conn, self.pool_inception, self.start_count = DbConn.generate_object(self.pop)
-        print(f'{self._db_conn=}')
+    ########################################
+    #    VARIOUS INITIALIZATION METHODS    #
+    ########################################
 
-    def period_end_date(self, period_index: int):
-        if period_index == len(self.period_start_dates)-1:
-            return self.last_day_of_year
-        return (self.period_start_dates[period_index+1]-timedelta(days=1))
-
-    def base_print(self):
-        print(f'Num employees  : {self.start_count}')
-        print(f'Inception date : {self.pool_inception}')
-        print(f'Fractional year: {self.fraction_of_year}')
-        for p in range(self.num_periods):
-            start = self.period_start_dates[p]
-            end = self.period_end_date(p)
-            days = (end-start).days+1
-            print(f'{p}->[{start} to {end}] has {days} days')
-        print(f'Expected drug    : {self.guess_for("drug")}')
-        print(f'Expected alcoho  : {self.guess_for("alcohol")}')
-        print('')
-
-    def average_pool_size(self, period_index):
-        start = self.period_start_dates[period_index]
-        end = self.period_end_date(period_index)
-        return self._db_conn.average_population(start, end)
-
-    @staticmethod
-    def day_count(start: date, end: date):
-        return (end-start).days + 1
+    def load_period_donors(self, start: date, end: date):
+        return self._db_conn.load_population(start, end)
 
     def period_start_end(self, period_index: int):
         return self.period_start_dates[period_index], self.period_end_date(period_index)
 
-    def load_period_donors(self, start: date, end: date):
-        period_donor_count_list = []
-        day = start
-        day_count = 0
-        while day <= end:
-            period_donor_count_list.append(self._db_conn.employee_count(day))
-            day_count += 1
-            day += timedelta(days=1)
-        return period_donor_count_list
+    def make_period_calculations(self, period_index: int):
+        start, end = self.period_start_end(period_index)
+        self._al.make_predictions(self._db_conn.employee_count(start), start, end, self.total_days_in_year)
+        self._dr.make_predictions(self._db_conn.employee_count(start), start, end, self.total_days_in_year)
+        period_donor_count_list = self.load_period_donors(start, end)
+        self._al.accept_population_data(period_donor_count_list, self.total_days_in_year)
+        self._dr.accept_population_data(period_donor_count_list, self.total_days_in_year)
+
+    def run_test_scenario(self):
+        self.initialize()
+        for period_index in range(len(self.period_start_dates)):
+            self.make_period_calculations(period_index)
+
+        self.write_csv()
+        self.write_period_report()
+
+        if self._dr.final_overcount() > 1 or self._al.final_overcount() > 1:
+            self.base_print()
+            print('\n*********************************************\n')
+            self._al.generate_final_report()
+            print('\n*********************************************\n')
+            self._dr.generate_final_report()
+            exit(0)
+            return 1
+        return 0
+
+    ##############################
+    #       PRINTING, REPORTS    #
+    ##############################
 
     def write_csv(self):
         with open(f'{self.name}.csv', 'w') as f:
@@ -172,6 +177,11 @@ class Employer(BaseModel):
                     f.write(f'#,Period {period_count} start\n')
                     period_count += 1
                 f.write(f'{d},{self._db_conn.employee_count(d)}\n')
+
+    def average_pool_size(self, period_index: int):
+        start = self.period_start_dates[period_index]
+        end = self.period_end_date(period_index)
+        return self._db_conn.average_population(start, end)
 
     def write_period_report(self):
         with open(f'{self.name}_summary.csv', 'w') as f:
@@ -193,29 +203,20 @@ class Employer(BaseModel):
             f.write('\nAlcohol summary:\n')
             f.write(f'{self._al.generate_period_report()}')
 
-    def run_test_scenario(self, mu: float = 0.0, sigma: int = 2, randomize: bool = False):
-        self.initialize(mu, sigma, randomize)
-        for period_index in range(len(self.period_start_dates)):
-            start, end = self.period_start_end(period_index)
-            self._al.make_predictions(self._db_conn.employee_count(start), start, end, self.total_days_in_year)
-            self._dr.make_predictions(self._db_conn.employee_count(start), start, end, self.total_days_in_year)
-            period_donor_count_list = self.load_period_donors(start, end)
-            self._al.accept_population_data(period_donor_count_list, self.total_days_in_year)
-            self._dr.accept_population_data(period_donor_count_list, self.total_days_in_year)
-
-        self.write_csv()
-        self.write_period_report()
-
-        if self._dr.final_overcount() > 1 or self._al.final_overcount() > 1:
-            self.base_print()
-            print('\n*********************************************\n')
-            self._al.generate_final_report()
-            print('\n*********************************************\n')
-            self._dr.generate_final_report()
-            exit(0)
-            return 1
-        return 0
+    def base_print(self):
+        print(f'Num employees  : {self.start_count}')
+        print(f'Inception date : {self.pool_inception}')
+        print(f'Fractional year: {self.fraction_of_year}')
+        for p in range(self.num_periods):
+            start = self.period_start_dates[p]
+            end = self.period_end_date(p)
+            days = (end-start).days+1
+            print(f'{p}->[{start} to {end}] has {days} days')
+        print(f'Expected drug    : {self.guess_for("drug")}')
+        print(f'Expected alcoho  : {self.guess_for("alcohol")}')
+        print('')
 
 # TODO:
 # 1. read input employee data as csv
 # 2. write a "driver" that pushes data in at the start of each period to mimic how it would be used in veriport
+# 3. Write "heal run" function by adding more periods and rerunning

@@ -15,25 +15,6 @@ class DbConn(BaseModel):
     def __str__(self):
         return str(self.population)
 
-    def write_population_to_file(self, filename: str):
-        # TODO write this method
-        pass
-
-    def average_population(self, start: date, end: date):
-        day, end = DbConn.order_correctly(start, end)
-        num_days = (end-day).days + 1
-        count = 0
-        while day <= end:
-            count += self.population[day]
-            day = DbConn.increment(day)
-        return float(count) / float(num_days)
-
-    @staticmethod
-    def read_population_from_file():
-        # TODO write this method
-        population = {}
-        return population
-
     @staticmethod
     def calculate_population_change(d, mu, sigma: int):
         if sigma == 0:
@@ -115,5 +96,31 @@ class DbConn(BaseModel):
         db_conn.write_population_to_file('pop_dump.csv')
         return db_conn, pool_inception, start_count
 
+    @staticmethod
+    def read_population_from_file():
+        # TODO write this method
+        population = {}
+        return population
+
+    def write_population_to_file(self, filename: str):
+        # TODO write this method
+        pass
+
+    def load_population(self, start: date, end: date):
+        requested_population = []
+        while start <= end:
+            requested_population.append(self.employee_count(start))
+            start = DbConn.increment(start)
+        return requested_population
+
     def employee_count(self, day: date):
         return self.population[day]
+
+    def average_population(self, start: date, end: date):
+        day, end = DbConn.order_correctly(start, end)
+        num_days = (end-day).days + 1
+        count = 0
+        while day <= end:
+            count += self.population[day]
+            day = DbConn.increment(day)
+        return float(count) / float(num_days)

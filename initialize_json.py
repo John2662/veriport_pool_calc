@@ -4,7 +4,7 @@
 # Written by John Read <john.read@colibri-software.com>, July 2023
 
 from datetime import date
-from employer import Schedule, Employer
+from employer import Schedule
 
 employer_json = {
     'name': 'company-name',
@@ -32,18 +32,16 @@ def generate_population_value(inception: date, start_count: int, mu: float, sigm
     return population
 
 
-def run_test(company_name: str,
-             inception: date,
-             start_count: int,
-             schedule: Schedule = Schedule.QUARTERLY,
-             datafile: str = '',
-             mu: float = 0.0,
-             sigma: int = 0):
+def compile_json(company_name: str,
+                 inception: date,
+                 start_count: int,
+                 schedule: Schedule = Schedule.QUARTERLY,
+                 datafile: str = '',
+                 mu: float = 0.0,
+                 sigma: int = 0):
 
     employer_json['name'] = company_name
     employer_json['schedule'] = schedule
     employer_json['pop'] = generate_population_value(inception, start_count, mu, sigma)
 
-    e = Employer(**employer_json)
-    e.initialize()
-    return e.run_test_scenario()
+    return employer_json
