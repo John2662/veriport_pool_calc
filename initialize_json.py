@@ -5,6 +5,7 @@
 
 from datetime import date
 from employer import Schedule
+import json
 
 employer_json = {
     'name': 'company-name',
@@ -22,12 +23,13 @@ employer_json = {
 }
 
 
-def generate_population_value(inception: date, start_count: int, mu: float, sigma: int):
+def generate_population_value(datafile: str, inception: date, start_count: int, mu: float, sigma: int):
+    s_datafile = f'"datafile":\"{datafile}\"'
     s_start = f'"start":\"{inception}\"'
     s_pop = f'"pop":\"{start_count}\"'
     s_mu = f'"mu":\"{mu}\"'
     s_sigma = f'"sigma":\"{sigma}\"'
-    phrase = f'{s_start}, {s_pop}, {s_mu}, {s_sigma}'
+    phrase = f'{s_datafile}, {s_start}, {s_pop}, {s_mu}, {s_sigma}'
     population = '{'+phrase+'}'
     return population
 
@@ -42,6 +44,16 @@ def compile_json(company_name: str,
 
     employer_json['name'] = company_name
     employer_json['schedule'] = schedule
-    employer_json['pop'] = generate_population_value(inception, start_count, mu, sigma)
+    employer_json['pop'] = generate_population_value(datafile, inception, start_count, mu, sigma)
+
+    print(f'{employer_json=}')
+
+    print(f'{type(employer_json)=}')
+
+    with open(f'{datafile}.json', 'w') as f:
+        f.write('{\n')
+        for item in employer_json:
+            f.write(f'    {item}: {employer_json[item]},\n')
+        f.write('}\n')
 
     return employer_json

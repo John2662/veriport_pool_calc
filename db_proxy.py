@@ -11,6 +11,7 @@ import random
 
 class DbConn(BaseModel):
     population: dict
+    datafile: str
 
     def __str__(self):
         return str(self.population)
@@ -55,7 +56,7 @@ class DbConn(BaseModel):
         d_dict = json.loads(json_str)
         print(f'{d_dict=}')
         filename = d_dict['filename'] if 'filename' in d_dict else None
-
+        datafile = d_dict['datafile'] if 'datafile' in d_dict else 'population_dump.csv'
         if filename is not None:
             # load dic from file and create object
             population = DbConn.read_population_from_file(filename)
@@ -91,9 +92,9 @@ class DbConn(BaseModel):
             sigma = 0
 
         population = DbConn.generate_population(start, end, pop, mu, sigma)
-        generate_dict = {'population': population}
+        generate_dict = {'population': population, 'datafile': datafile}
         db_conn = DbConn(**generate_dict)
-        db_conn.write_population_to_file('pop_dump.csv')
+        db_conn.write_population_to_file()
         return db_conn, pool_inception, start_count
 
     @staticmethod
@@ -102,9 +103,9 @@ class DbConn(BaseModel):
         population = {}
         return population
 
-    def write_population_to_file(self, filename: str):
+    def write_population_to_file(self):
         # TODO write this method
-        pass
+        return self.datafile
 
     def load_population(self, start: date, end: date):
         requested_population = []

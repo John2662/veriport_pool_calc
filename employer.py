@@ -136,13 +136,16 @@ class Employer(BaseModel):
     def load_period_donors(self, start: date, end: date):
         return self._db_conn.load_population(start, end)
 
+    def donor_count(self, day: date):
+        return self._db_conn.employee_count(day)
+
     def period_start_end(self, period_index: int):
         return self.period_start_dates[period_index], self.period_end_date(period_index)
 
     def make_period_calculations(self, period_index: int):
         start, end = self.period_start_end(period_index)
-        self._al.make_predictions(self._db_conn.employee_count(start), start, end, self.total_days_in_year)
-        self._dr.make_predictions(self._db_conn.employee_count(start), start, end, self.total_days_in_year)
+        self._al.make_predictions(self.donor_count(start), start, end, self.total_days_in_year)
+        self._dr.make_predictions(self.donor_count(start), start, end, self.total_days_in_year)
         period_donor_count_list = self.load_period_donors(start, end)
         self._al.accept_population_data(period_donor_count_list, self.total_days_in_year)
         self._dr.accept_population_data(period_donor_count_list, self.total_days_in_year)
@@ -152,24 +155,29 @@ class Employer(BaseModel):
         for period_index in range(len(self.period_start_dates)):
             self.make_period_calculations(period_index)
 
+        self.conclude_report()
+        return self._dr.final_overcount() + self._al.final_overcount()
+
+
+    def conclude_report(self, output_to_screen: bool = False):
         self.write_csv()
         self.write_period_report()
 
-        if self._dr.final_overcount() > 1 or self._al.final_overcount() > 1:
+        if output_to_screen and (self._dr.final_overcount() > 1 or self._al.final_overcount() > 1):
             self.base_print()
             print('\n*********************************************\n')
             self._al.generate_final_report()
             print('\n*********************************************\n')
             self._dr.generate_final_report()
-            exit(0)
-            return 1
-        return 0
+            #exit(0)
 
     ##############################
     #       PRINTING, REPORTS    #
     ##############################
 
     def write_csv(self):
+        print(f'DB file: {self._db_conn.write_population_to_file()}')
+
         with open(f'{self.name}.csv', 'w') as f:
             period_count = 0
             for d in self._db_conn.population:
