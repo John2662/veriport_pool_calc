@@ -142,11 +142,24 @@ class Employer(BaseModel):
     def period_start_end(self, period_index: int):
         return self.period_start_dates[period_index], self.period_end_date(period_index)
 
+    # This method is the core of the calculations
     def make_period_calculations(self, period_index: int):
+        # find the start and end dates of the period
         start, end = self.period_start_end(period_index)
+
+        # make predictions based on:
+        #  1. the poolsize on the first day of the period
+        #  2. the % or the calendar year that is in this period
+        #  3. the % of the population that needs to be tested
+        #  4. any accumulated error from the guess we made last period
         self._al.make_predictions(self.donor_count(start), start, end, self.total_days_in_year)
         self._dr.make_predictions(self.donor_count(start), start, end, self.total_days_in_year)
+
+        # At the end of the period, we need to get the actual average pool size of the period
         period_donor_count_list = self.load_period_donors(start, end)
+
+        # using the actual (aposteriori) data, see how far off we were and keep that
+        #  for the next prefiction
         self._al.accept_population_data(period_donor_count_list, self.total_days_in_year)
         self._dr.accept_population_data(period_donor_count_list, self.total_days_in_year)
 
