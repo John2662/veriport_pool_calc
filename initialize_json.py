@@ -23,7 +23,7 @@ employer_json = {
 }
 
 
-def generate_population_value(datafile: str, inception: date, start_count: int, mu: float, sigma: int):
+def generate_population_value(datafile: str, inception: date, start_count: int, mu: float, sigma: int) -> str:
     s_datafile = f'"datafile":\"{datafile}\"'
     s_start = f'"start":\"{inception}\"'
     s_pop = f'"pop":\"{start_count}\"'
@@ -40,15 +40,14 @@ def compile_json(company_name: str,
                  schedule: Schedule = Schedule.QUARTERLY,
                  datafile: str = '',
                  mu: float = 0.0,
-                 sigma: int = 0):
+                 sigma: int = 0) -> dict:
 
     employer_json['name'] = company_name
     employer_json['schedule'] = schedule
     employer_json['pop'] = generate_population_value(datafile, inception, start_count, mu, sigma)
 
-    print(f'{employer_json=}')
-
-    print(f'{type(employer_json)=}')
+    # print(f'{employer_json=}')
+    # print(f'{type(employer_json)=}')
 
     with open(f'{datafile}.json', 'w') as f:
         f.write('{\n')

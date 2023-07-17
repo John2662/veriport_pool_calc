@@ -7,13 +7,16 @@ from employer import Schedule, Employer
 from datetime import date, timedelta
 from random import randint
 from initialize_json import compile_json
+from math import log10, ceil
 
+
+MAX_NUM_TESTS = 10000
 MAX_POP = 500
 num_tests = 1000
-num_tests = 1
+num_tests = 10
 
 
-def get_random_date(year: int = 0, month: int = 0, day: int = 0):
+def get_random_date(year: int = 0, month: int = 0, day: int = 0) -> str:
     if year > 1900 and month > 0 and month <= 12 and day > 0 and day <= 31:
         return str(date(year=year, month=month, day=day))
     days = randint(0, 364)
@@ -21,24 +24,52 @@ def get_random_date(year: int = 0, month: int = 0, day: int = 0):
     return str(date(year=year, month=1, day=1) + timedelta(days=days))
 
 
-def get_random_population(pop: int = 0):
+def get_random_population(pop: int = 0) -> int:
     if pop <= 0:
         return randint(1, MAX_POP)
     return pop
 
 
-def main():
-    i = 0
+def get_num_tests(num_tests: int) -> int:
+    if num_tests < 0:
+        num_tests = -num_tests
+    if num_tests > MAX_NUM_TESTS:
+        num_tests = MAX_NUM_TESTS
+
+
+def get_padded_string(i: int, num_tests: int) -> str:
+    places = ceil(log10(num_tests))-1
+
+    if i < 10:
+        return '_' * places + str(i)
+    if i < 100:
+        return '_' * (places-1) + str(i)
+    if i < 1000:
+        return '_' * (places-2) + str(i)
+    if i < 10000:
+        return '_' * (places-3) + str(i)
+    if i < 100000:
+        return '_' * (places-4) + str(i)
+    return str(i)
+
+
+def main() -> int:
+    i = 1
     mild_errors = 0
     big_errors = 0
     huge_errors = 0
     while(i < num_tests):
-        pop = get_random_population(3450)
-        start = get_random_date(2020, 2, 14)
-        mu = 1
-        sigma = 2
-        datafile = 'run_output/company_input'
-        employer_json = compile_json('run_output/company_output', start, pop, Schedule.QUARTERLY, datafile, mu, sigma)
+        # pop = get_random_population(3450)
+        # start = get_random_date(2020, 2, 14)
+        # mu = 1.7
+        # sigma = 2
+        pop = get_random_population()
+        start = get_random_date()
+        mu = 20
+        sigma = 10
+        pad = get_padded_string(i, num_tests)
+        datafile = f'run_output/company_{pad}_input'
+        employer_json = compile_json(f'run_output/company_{pad}_output', start, pop, Schedule.QUARTERLY, datafile, mu, sigma)
 
         e = Employer(**employer_json)
         e.initialize()
@@ -52,9 +83,9 @@ def main():
             mild_errors += 1
         i += 1
 
-    print(f'Mild Errors: {mild_errors} out of {num_tests}')
-    print(f'Big Errors: {big_errors} out of {num_tests}')
-    print(f'Huge Errors: {huge_errors} out of {num_tests}')
+    print(f'Mild Errors: {mild_errors} out of {i} tests')
+    print(f'Big Errors: {big_errors} out of {i} tests')
+    print(f'Huge Errors: {huge_errors} out of {i} tests')
     return 0
 
 

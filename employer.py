@@ -11,7 +11,7 @@ import calendar
 from enum import Enum
 
 from db_proxy import DbConn
-from substance import Substance
+from substance import generate_substance
 
 
 class Schedule(Enum):
@@ -44,39 +44,39 @@ class Employer(BaseModel):
     period_start_dates: Optional[list[date]]
 
     @property
-    def num_periods(self):
+    def num_periods(self) -> int:
         return len(self.period_start_dates)
 
     # @property
-    # def final_period(self):
+    # def final_period(self) -> int:
     #     return len(self.period_start_dates)-1
 
     @property
-    def last_day_of_year(self):
+    def last_day_of_year(self) -> date:
         return self.pool_inception.replace(month=12, day=31)
 
     @property
-    def total_days_in_year(self):
+    def total_days_in_year(self) -> int:
         return calendar.isleap(self.year) + 365
 
     @property
-    def fraction_of_year(self):
+    def fraction_of_year(self) -> float:
         return float(1+(self.last_day_of_year-self.pool_inception).days) / float(self.total_days_in_year)
 
     @property
-    def alcohol_percent(self):
+    def alcohol_percent(self) -> float:
         return self._al.percent
 
     @property
-    def drug_percent(self):
+    def drug_percent(self) -> float:
         return self._dr.percent
 
-    def guess_for(self, type: str):
+    def guess_for(self, type: str) -> int:
         if type == 'drug':
             return ceil(self.fraction_of_year*self.start_count*self.drug_percent)
         return ceil(self.fraction_of_year*self.start_count*self.alcohol_percent)
 
-    def period_end_date(self, period_index: int):
+    def period_end_date(self, period_index: int) -> int:
         if period_index == len(self.period_start_dates)-1:
             return self.last_day_of_year
         return (self.period_start_dates[period_index+1]-timedelta(days=1))
@@ -84,7 +84,7 @@ class Employer(BaseModel):
     ########################################
     #    VARIOUS INITIALIZATION METHODS    #
     ########################################
-    def initialize_monthly_periods(self):
+    def initialize_monthly_periods(self) -> None:
         self.period_start_dates.append(self.pool_inception)
         for m in range(12):
             month = m+1
@@ -93,7 +93,7 @@ class Employer(BaseModel):
                 continue
             self.period_start_dates.append(date)
 
-    def initialize_quarterly_periods(self):
+    def initialize_quarterly_periods(self) -> None:
         self.period_start_dates.append(self.pool_inception)
         for m in range(4):
             month = 3*m+1
@@ -110,10 +110,10 @@ class Employer(BaseModel):
         # if self.pool_inception < dec_15:
         #     self.period_start_dates.append(dec_15)
 
-    def initialize_custom_periods(self, custom_period_start_dates: list):
+    def initialize_custom_periods(self, custom_period_start_dates: list) -> None:
         self.period_start_dates = custom_period_start_dates
 
-    def initialize_periods(self, custom_period_start_dates: list):
+    def initialize_periods(self, custom_period_start_dates: list) -> None:
         if self.schedule == Schedule.MONTHLY:
             self.initialize_monthly_periods()
         elif self.schedule == Schedule.QUARTERLY:
@@ -121,31 +121,31 @@ class Employer(BaseModel):
         else:
             self.initialize_custom_periods(custom_period_start_dates)
 
-    def initialize(self, custom_period_start_dates: list = []):
+    def initialize(self, custom_period_start_dates: list = []) -> None:
         self.year = self.pool_inception.year
         self.period_start_dates = []
         self.initialize_periods(custom_period_start_dates)
-        self._dr = Substance.generate_object(self.sub_d)
-        self._al = Substance.generate_object(self.sub_a)
+        self._dr = generate_substance(self.sub_d)
+        self._al = generate_substance(self.sub_a)
         # The mu, sigma get pushed in through self.pop
-        self._db_conn, self.pool_inception, self.start_count = DbConn.generate_object(self.pop)
+        (self._db_conn, self.pool_inception, self.start_count) = DbConn.generate_object(self.pop)
     ########################################
     #    VARIOUS INITIALIZATION METHODS    #
     ########################################
 
-    def load_period_donors(self, start: date, end: date):
+    def load_period_donors(self, start: date, end: date) -> list:
         return self._db_conn.load_population(start, end)
 
-    def donor_count(self, day: date):
+    def donor_count(self, day: date) -> int:
         return self._db_conn.employee_count(day)
 
-    def period_start_end(self, period_index: int):
-        return self.period_start_dates[period_index], self.period_end_date(period_index)
+    def period_start_end(self, period_index: int) -> tuple:
+        return (self.period_start_dates[period_index], self.period_end_date(period_index))
 
     # This method is the core of the calculations
-    def make_period_calculations(self, period_index: int):
+    def make_period_calculations(self, period_index: int) -> None:
         # find the start and end dates of the period
-        start, end = self.period_start_end(period_index)
+        (start, end) = self.period_start_end(period_index)
 
         # make predictions based on:
         #  1. the poolsize on the first day of the period
@@ -163,7 +163,7 @@ class Employer(BaseModel):
         self._al.accept_population_data(period_donor_count_list, self.total_days_in_year)
         self._dr.accept_population_data(period_donor_count_list, self.total_days_in_year)
 
-    def run_test_scenario(self):
+    def run_test_scenario(self) -> int:
         self.initialize()
         for period_index in range(len(self.period_start_dates)):
             self.make_period_calculations(period_index)
@@ -171,7 +171,7 @@ class Employer(BaseModel):
         self.conclude_report()
         return self._dr.final_overcount() + self._al.final_overcount()
 
-    def conclude_report(self, output_to_screen: bool = False):
+    def conclude_report(self, output_to_screen: bool = False) -> None:
         self._db_conn.write_population_to_file(self.period_start_dates)
         self.write_period_report()
 
@@ -187,12 +187,12 @@ class Employer(BaseModel):
     #       PRINTING, REPORTS    #
     ##############################
 
-    def average_pool_size(self, period_index: int):
+    def average_pool_size(self, period_index: int) -> float:
         start = self.period_start_dates[period_index]
         end = self.period_end_date(period_index)
         return self._db_conn.average_population(start, end)
 
-    def write_period_report(self):
+    def write_period_report(self) -> None:
         with open(f'{self.name}_summary.csv', 'w') as f:
             f.write('Company stats')
             f.write(f'Schedule:, {Schedule.as_str(self.schedule)}\n')
@@ -212,7 +212,7 @@ class Employer(BaseModel):
             f.write('\nAlcohol summary:\n')
             f.write(f'{self._al.generate_period_report()}')
 
-    def base_print(self):
+    def base_print(self) -> None:
         print(f'Num employees  : {self.start_count}')
         print(f'Inception date : {self.pool_inception}')
         print(f'Fractional year: {self.fraction_of_year}')

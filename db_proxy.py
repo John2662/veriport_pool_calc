@@ -17,7 +17,7 @@ class DbConn(BaseModel):
         return str(self.population)
 
     @staticmethod
-    def calculate_population_change(d, mu, sigma: int):
+    def calculate_population_change(d, mu, sigma: int) -> int:
         if sigma == 0:
             return 0
         if d.weekday() < 5:
@@ -25,7 +25,7 @@ class DbConn(BaseModel):
         return 0
 
     @staticmethod
-    def order_correctly(start: date, end: date):
+    def order_correctly(start: date, end: date) -> tuple:
         if start > end:
             tmp = end
             end = start
@@ -33,13 +33,13 @@ class DbConn(BaseModel):
         return start, end
 
     @staticmethod
-    def increment(day: date):
+    def increment(day: date) -> date:
         oneday = timedelta(days=1)
         return day+oneday
 
     @staticmethod
-    def generate_population(start: date, end: date, pop: int, mu: float = 0.0, sigma: int = 0):
-        start, end = DbConn.order_correctly(start, end)
+    def generate_population(start: date, end: date, pop: int, mu: float = 0.0, sigma: int = 0) -> dict:
+        (start, end) = DbConn.order_correctly(start, end)
         pop = max(0, pop)
         population = {}
         day = start
@@ -52,9 +52,9 @@ class DbConn(BaseModel):
         return population
 
     @staticmethod
-    def generate_object(json_str: str):
+    def generate_object(json_str: str) -> tuple:
         d_dict = json.loads(json_str)
-        print(f'{d_dict=}')
+        # print(f'{d_dict=}')
         filename = d_dict['filename'] if 'filename' in d_dict else None
         datafile = d_dict['datafile'] if 'datafile' in d_dict else 'population_dump.csv'
         if filename is not None:
@@ -94,15 +94,15 @@ class DbConn(BaseModel):
         population = DbConn.generate_population(start, end, pop, mu, sigma)
         generate_dict = {'population': population, 'datafile': datafile}
         db_conn = DbConn(**generate_dict)
-        return db_conn, pool_inception, start_count
+        return (db_conn, pool_inception, start_count)
 
     @staticmethod
-    def read_population_from_file():
+    def read_population_from_file() -> dict:
         # TODO write this method
         population = {}
         return population
 
-    def write_population_to_file(self, period_start_dates):
+    def write_population_to_file(self, period_start_dates) -> None:
         with open(f'{self.datafile}.csv', 'w') as f:
             period_count = 0
             for d in self.population:
@@ -110,20 +110,19 @@ class DbConn(BaseModel):
                     f.write(f'#,Period {period_count} start\n')
                     period_count += 1
                 f.write(f'{d},{self.employee_count(d)}\n')
-        return self.datafile
 
-    def load_population(self, start: date, end: date):
+    def load_population(self, start: date, end: date) -> list[int]:
         requested_population = []
         while start <= end:
             requested_population.append(self.employee_count(start))
             start = DbConn.increment(start)
         return requested_population
 
-    def employee_count(self, day: date):
+    def employee_count(self, day: date) -> int:
         return self.population[day]
 
-    def average_population(self, start: date, end: date):
-        day, end = DbConn.order_correctly(start, end)
+    def average_population(self, start: date, end: date) -> float:
+        (day, end) = DbConn.order_correctly(start, end)
         num_days = (end-day).days + 1
         count = 0
         while day <= end:
