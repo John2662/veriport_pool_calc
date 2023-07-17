@@ -94,7 +94,6 @@ class DbConn(BaseModel):
         population = DbConn.generate_population(start, end, pop, mu, sigma)
         generate_dict = {'population': population, 'datafile': datafile}
         db_conn = DbConn(**generate_dict)
-        db_conn.write_population_to_file()
         return db_conn, pool_inception, start_count
 
     @staticmethod
@@ -103,8 +102,14 @@ class DbConn(BaseModel):
         population = {}
         return population
 
-    def write_population_to_file(self):
-        # TODO write this method
+    def write_population_to_file(self, period_start_dates):
+        with open(f'{self.datafile}.csv', 'w') as f:
+            period_count = 0
+            for d in self.population:
+                if d in period_start_dates:
+                    f.write(f'#,Period {period_count} start\n')
+                    period_count += 1
+                f.write(f'{d},{self.employee_count(d)}\n')
         return self.datafile
 
     def load_population(self, start: date, end: date):

@@ -37,8 +37,8 @@ def main():
         start = get_random_date(2020, 2, 14)
         mu = 1
         sigma = 2
-        datafile = 'test'
-        employer_json = compile_json('fake_company_name', start, pop, Schedule.QUARTERLY, datafile, mu, sigma)
+        datafile = 'run_output/company_input'
+        employer_json = compile_json('run_output/company_output', start, pop, Schedule.QUARTERLY, datafile, mu, sigma)
 
         e = Employer(**employer_json)
         e.initialize()

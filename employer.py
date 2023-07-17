@@ -172,7 +172,7 @@ class Employer(BaseModel):
         return self._dr.final_overcount() + self._al.final_overcount()
 
     def conclude_report(self, output_to_screen: bool = False):
-        self.write_csv()
+        self._db_conn.write_population_to_file(self.period_start_dates)
         self.write_period_report()
 
         if output_to_screen and (self._dr.final_overcount() > 1 or self._al.final_overcount() > 1):
@@ -186,17 +186,6 @@ class Employer(BaseModel):
     ##############################
     #       PRINTING, REPORTS    #
     ##############################
-
-    def write_csv(self):
-        print(f'DB file: {self._db_conn.write_population_to_file()}')
-
-        with open(f'{self.name}.csv', 'w') as f:
-            period_count = 0
-            for d in self._db_conn.population:
-                if d in self.period_start_dates:
-                    f.write(f'#,Period {period_count} start\n')
-                    period_count += 1
-                f.write(f'{d},{self._db_conn.employee_count(d)}\n')
 
     def average_pool_size(self, period_index: int):
         start = self.period_start_dates[period_index]
