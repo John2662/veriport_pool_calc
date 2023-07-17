@@ -33,10 +33,10 @@ def main():
     big_errors = 0
     huge_errors = 0
     while(i < num_tests):
-        pop = get_random_population(450)
+        pop = get_random_population(3450)
         start = get_random_date(2020, 2, 14)
-        mu = .1
-        sigma = 2
+        mu = -10
+        sigma = 20
         datafile = ''
         err = run_test('fake_company_name', start, pop, Schedule.QUARTERLY, datafile, mu, sigma)
         if err >= 3:

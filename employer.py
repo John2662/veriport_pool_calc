@@ -98,6 +98,10 @@ class Employer(BaseModel):
         if self.pool_inception < dec_1:
             self.period_start_dates.append(dec_1)
 
+        # dec_15 = self.pool_inception.replace(month=12, day=15)
+        # if self.pool_inception < dec_15:
+        #     self.period_start_dates.append(dec_15)
+
     def initialize_custom_periods(self, custom_period_start_dates: list):
         self.period_start_dates = custom_period_start_dates
 
@@ -138,6 +142,11 @@ class Employer(BaseModel):
         print(f'Expected alcoho  : {self.guess_for("alcohol")}')
         print('')
 
+    def average_pool_size(self, period_index):
+        start = self.period_start_dates[period_index]
+        end = self.period_end_date(period_index)
+        return self._db_conn.average_population(start, end)
+
     @staticmethod
     def day_count(start: date, end: date):
         return (end-start).days + 1
@@ -170,14 +179,14 @@ class Employer(BaseModel):
             f.write(f'Schedule:, {Schedule.as_str(self.schedule)}\n')
             f.write(f'Initial Size:, {self.start_count}\n')
             f.write(f'Number of periods:, {len(self.period_start_dates)}\n')
-            f.write(', PERIOD, START DATE\n')
+            f.write(', PERIOD, START DATE, AVG. POOL SIZE\n')
             for i, d in enumerate(self.period_start_dates):
-                f.write(f', period {i}, {str(d)}\n')
-            f.write(f'pool as % of year:, {100.0 * self.fraction_of_year} %\n')
+                f.write(f', period {i}, {str(d)}, {str(self.average_pool_size(i))}\n')
+            f.write(f'pool as % of year:, {100.0 * self.fraction_of_year}\n')
             f.write('\nApriori test predictions\n')
-            f.write(f'drug % required:, {100.0*self.drug_percent} %\n')
+            f.write(f'drug % required:, {100.0*self.drug_percent}\n')
             f.write(f'inception drug expectation:, {self.guess_for("drug")}\n')
-            f.write(f'alcohol % required:, {100.0*self.alcohol_percent} %\n')
+            f.write(f'alcohol % required:, {100.0*self.alcohol_percent}\n')
             f.write(f'inception alcohol expectation:, {self.guess_for("alcohol")}\n')
             f.write('\nDrug summary:\n')
             f.write(f'{self._dr.generate_period_report()}')

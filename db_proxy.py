@@ -19,6 +19,15 @@ class DbConn(BaseModel):
         # TODO write this method
         pass
 
+    def average_population(self, start: date, end: date):
+        day, end = DbConn.order_correctly(start, end)
+        num_days = (end-day).days + 1
+        count = 0
+        while day <= end:
+            count += self.population[day]
+            day = DbConn.increment(day)
+        return float(count) / float(num_days)
+
     @staticmethod
     def read_population_from_file():
         # TODO write this method

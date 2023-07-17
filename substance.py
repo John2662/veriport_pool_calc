@@ -87,6 +87,10 @@ class Substance(BaseModel):
     def population_deviation(self, p):
         return (self.period_aposteriori_truth[p] - self.period_apriori_estimate[p]) / self.period_apriori_estimate[p]
 
+    @property
+    def tests_required(self):
+        return ceil(sum(self.period_aposteriori_truth))
+
     def generate_period_report(self):
         string = f',type:,{self.name}:\n'
         string += f',percent:,{100.0* self.percent} %\n'
@@ -110,6 +114,7 @@ class Substance(BaseModel):
         string += aposteriori_truth + '\n'
         string += overcount_error + '\n'
         string += population_deviation + '\n'
-        string += apriori_required_tests_predicted + '\n'
-
+        string += apriori_required_tests_predicted + '\n\n'
+        string += offset + 'PRESCRIBED:,' + str(sum(self.period_apriori_required_tests_predicted)) + '\n'
+        string += offset + 'NEEDED:,' + str(self.tests_required) + '\n'
         return string + '\n'
