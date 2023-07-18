@@ -10,8 +10,21 @@ from math import ceil
 import json
 
 
-EPSILON = 0.0000000000000001
+# EPSILON = 0.0000000000000001
+EPSILON = 0.0000000001
 
+def reset_to_close_int(v: float, epsilon: float = EPSILON) -> float:
+    sign = -1 if v < 0 else 1
+    abs_v = abs(v)
+    if abs_v - int(abs_v) < epsilon:
+        return sign * int(abs_v)
+    return v
+
+# def true_ceil(v: float, epsilon: float) -> int:
+#     epsilon = EPSILON if epsilon is None else epsilon
+#     if abs(v) < epsilon:
+#         return 0
+#     return ceil(v)
 
 class Substance(BaseModel):
     name: str
@@ -74,41 +87,89 @@ class Substance(BaseModel):
     def population_deviation(self, p: int) -> float:
         if p >= len(self.period_apriori_estimate):
             return -1000000000000000000000.0
+        if self.period_apriori_estimate[p] < EPSILON:
+            return 0.0
         return (self.period_aposteriori_truth[p] - self.period_apriori_estimate[p]) / self.period_apriori_estimate[p]
 
     @property
     def tests_required(self) -> int:
         val = sum(self.period_aposteriori_truth)
-        if abs(val) < EPSILON:
-            return 0
-        return ceil(val)
+        return ceil(reset_to_close_int(val))
 
-    def generate_period_report(self) -> str:
+    def required_sum_by_period(self, period_index: int) -> int:
+        required_sum = sum([self.period_aposteriori_truth[i] for i in range(period_index+1)])
+        return ceil(reset_to_close_int(required_sum))
+
+    def predicted_sum_by_period(self, period_index: int) -> int:
+        return sum([self.period_apriori_required_tests_predicted[i] for i in range(period_index+1)])
+
+    def overcount_by_period(self, period_index: int) -> int:
+        return self.predicted_sum_by_period(period_index) - self.required_sum_by_period(period_index)
+
+    def period_summary(self, period_index, initial_pop: int, avg_pop: float, percent_of_year: float):
+        s = [f'In period {period_index}:']
+        esti = self.period_apriori_estimate[period_index]
+        trut = self.period_aposteriori_truth[period_index]
+        over = self.period_overcount_error[period_index]
+        pred = self.period_apriori_required_tests_predicted[period_index]
+        s.append(f',apriori estmate = {esti}, is calculated:,Initial pop={initial_pop} * fraction of year={percent_of_year} * percent tests required {self.percent}, all rounded up ')
+        s.append(f',actual value = {trut}, is calculated:,Average pop={avg_pop} * fraction of year={percent_of_year} * percent tests required {self.percent} ')
+        s.append(f',over count error = {ceil(esti) - trut}, is calculated:,apriori estimate rounded up: {ceil(esti)} - truth: {trut} ')
+        var = (trut - esti) / esti if esti > EPSILON else 0.0
+        s.append(f',pool size variation = {100.0 * var}%, is calculated:,(actual value: {100.0 * trut} - apriori estimate: {esti}) divided by the apriori estimate {esti} * 100 %')
+        unpredicted = (trut-pred) * self.percent * percent_of_year
+        s.append(f',pool size variation added:, {self.overcount_by_period(period_index)}, tests to number actual required')
+        return s
+
+    def generate_period_report(self, initial_pop: list[int], avg_pop: list[float], percent_of_year: list[float]) -> str:
         string = f',type:,{self.name}:\n'
         string += f',percent:,{100.0* self.percent} %\n'
         string += ',SUMMARY TABLE:\n'
         offset = ',,'
-        string += ',DATA:\n'
+        #string += ',DATA:\n'
+        header = offset + 'period ->,'
         apriori_estimates = offset + 'Apriori estimate,'
         aposteriori_truth = offset + 'Aposteiori truth,'
         overcount_error = offset + 'Over count error,'
         population_deviation = offset + 'Pool variation (%),'
         apriori_required_tests_predicted = offset + 'prescribed # tests,'
+        aposteriori_required_tests = offset + 'cum. tests required,'
+        apriori_predicted_tests = offset + 'cum. tests prescribed,'
+        difference = offset + 'prescribed test over-count:,'
 
         for p in range(self.num_periods):
+            header += f'Period {p},'
             apriori_estimates += f'{self.period_apriori_estimate[p]},'
             aposteriori_truth += f'{self.period_aposteriori_truth[p]},'
             overcount_error += f'{self.period_overcount_error[p]},'
-            population_deviation += f'{100.0*self.population_deviation(p)},'
+            population_deviation += f'{100.0*reset_to_close_int(self.population_deviation(p))},'
             apriori_required_tests_predicted += f'{self.period_apriori_required_tests_predicted[p]},'
+            required_sum = self.required_sum_by_period(p)
+            predicted_sum = self.predicted_sum_by_period(p)
 
+            aposteriori_required_tests += f'{required_sum},'
+            apriori_predicted_tests += f'{predicted_sum},'
+            difference += f'{self.overcount_by_period(p)},'
+
+        string += header + '\n'
         string += apriori_estimates + '\n'
         string += aposteriori_truth + '\n'
         string += overcount_error + '\n'
         string += population_deviation + '\n'
         string += apriori_required_tests_predicted + '\n\n'
+        string += apriori_predicted_tests + '\n'
+        string += aposteriori_required_tests + '\n'
+        string += difference + '\n\n'
         string += offset + 'PRESCRIBED:,' + str(sum(self.period_apriori_required_tests_predicted)) + '\n'
         string += offset + 'NEEDED:,' + str(self.tests_required) + '\n'
+        string += offset + ','*(self.num_periods+1) + 'NOTES:' + '\n'
+        for p in range(self.num_periods):
+            lines = self.period_summary(p, initial_pop[p], avg_pop[p], percent_of_year[p])
+            for line in lines:
+                string += offset + ','*(self.num_periods+1) + line + '\n'
+            string += '\n'
+
+
         return string + '\n'
 
     def print_stats(self) -> None:

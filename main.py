@@ -13,7 +13,7 @@ from math import log10, ceil
 MAX_NUM_TESTS = 10000
 MAX_POP = 500
 num_tests = 1000
-# num_tests = 1
+num_tests = 1
 
 
 def get_random_date(year: int = 0, month: int = 0, day: int = 0) -> str:
@@ -38,6 +38,7 @@ def get_num_tests(num_tests: int) -> int:
 
 
 def get_padded_string(i: int, num_tests: int) -> str:
+    return ''
     places = ceil(log10(num_tests))-1
 
     if i < 10:
@@ -59,12 +60,12 @@ def main() -> int:
     big_errors = 0
     huge_errors = 0
     while(i < num_tests):
-        # pop = get_random_population(20)
-        # start = get_random_date(2020, 1, 1)
-        mu = 1.7
-        sigma = 2
-        pop = get_random_population()
-        start = get_random_date()
+        pop = get_random_population(20)
+        start = get_random_date(2020, 1, 1)
+        mu = 0.0
+        sigma = 0
+        pop = get_random_population(20)
+        start = get_random_date(2020,1,1)
         # mu = 0
         # sigma = 0
         pad = get_padded_string(i, num_tests)
@@ -82,7 +83,12 @@ def main() -> int:
         elif err == 1:
             mild_errors += 1
         i += 1
+        if err > 0:
+            break
 
+        mu += .1
+
+    print(f'{mu=}')
     print(f'Mild Errors: {mild_errors} out of {i} tests')
     print(f'Big Errors: {big_errors} out of {i} tests')
     print(f'Huge Errors: {huge_errors} out of {i} tests')

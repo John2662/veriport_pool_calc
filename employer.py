@@ -139,6 +139,9 @@ class Employer(BaseModel):
     def donor_count(self, day: date) -> int:
         return self._db_conn.employee_count(day)
 
+    # def donor_count_period_start(self, period_index: int) -> int:
+    #     return self._db_conn.employee_count(self.period_start_dates[period_index])
+
     def period_start_end(self, period_index: int) -> tuple:
         return (self.period_start_dates[period_index], self.period_end_date(period_index))
 
@@ -169,11 +172,23 @@ class Employer(BaseModel):
             self.make_period_calculations(period_index)
 
         self.conclude_report()
-        return self._dr.final_overcount() + self._al.final_overcount()
+        return abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
 
     def conclude_report(self, output_to_screen: bool = False) -> None:
         self._db_conn.write_population_to_file(self.period_start_dates)
-        self.write_period_report()
+        initial_pop = []
+        avg_pop = []
+        percent_of_year = []
+        for p in range(len(self.period_start_dates)):
+            (start,end) = self.period_start_end(p)
+            s_count = self._db_conn.employee_count(start)
+            all_donors = self.load_period_donors(start, end)
+            num_days = (end-start).days + 1
+            initial_pop.append(s_count)
+            avg_pop.append(float(sum(all_donors))/float(num_days))
+            percent_of_year.append(float(num_days)/float(self.total_days_in_year))
+
+        self.write_period_report(initial_pop, avg_pop, percent_of_year)
 
         if output_to_screen and (self._dr.final_overcount() > 1 or self._al.final_overcount() > 1):
             self.base_print()
@@ -192,25 +207,25 @@ class Employer(BaseModel):
         end = self.period_end_date(period_index)
         return self._db_conn.average_population(start, end)
 
-    def write_period_report(self) -> None:
+    def write_period_report(self, initial_pop: list[int], avg_pop: list[float], percent_of_year: list[float]) -> None:
         with open(f'{self.name}_summary.csv', 'w') as f:
             f.write('Company stats')
             f.write(f'Schedule:, {Schedule.as_str(self.schedule)}\n')
             f.write(f'Initial Size:, {self.start_count}\n')
             f.write(f'Number of periods:, {len(self.period_start_dates)}\n')
-            f.write(', PERIOD, START DATE, AVG. POOL SIZE\n')
+            f.write(', PERIOD,START DATE,PERIOD START POOL SIZE,AVG. POOL SIZE\n')
             for i, d in enumerate(self.period_start_dates):
-                f.write(f', period {i}, {str(d)}, {str(self.average_pool_size(i))}\n')
+                f.write(f', period {i}, {str(d)}, {str(self.donor_count(d))}, {str(self.average_pool_size(i))}\n')
             f.write(f'pool as % of year:, {100.0 * self.fraction_of_year}\n')
-            f.write('\nApriori test predictions\n')
-            f.write(f'drug % required:, {100.0*self.drug_percent}\n')
-            f.write(f'inception drug expectation:, {self.guess_for("drug")}\n')
-            f.write(f'alcohol % required:, {100.0*self.alcohol_percent}\n')
-            f.write(f'inception alcohol expectation:, {self.guess_for("alcohol")}\n')
-            f.write('\nDrug summary:\n')
-            f.write(f'{self._dr.generate_period_report()}')
-            f.write('\nAlcohol summary:\n')
-            f.write(f'{self._al.generate_period_report()}')
+            f.write('\nApriori test predictions:\n')
+            f.write(f'\n,drug % required:, {100.0*self.drug_percent}\n')
+            f.write(f',initial drug guess:, {self.guess_for("drug")}\n')
+            f.write(f'\n,alcohol % required:, {100.0*self.alcohol_percent}\n')
+            f.write(f',initial alcohol guess:, {self.guess_for("alcohol")}\n')
+            f.write('\n\nDrug summary:\n')
+            f.write(f'{self._dr.generate_period_report(initial_pop, avg_pop, percent_of_year)}')
+            f.write('\n\nAlcohol summary:\n')
+            f.write(f'{self._al.generate_period_report(initial_pop, avg_pop, percent_of_year)}')
 
     def base_print(self) -> None:
         print(f'Num employees  : {self.start_count}')
