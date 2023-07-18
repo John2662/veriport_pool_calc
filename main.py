@@ -12,8 +12,8 @@ from math import log10, ceil
 
 MAX_NUM_TESTS = 10000
 MAX_POP = 500
-num_tests = 1000
-num_tests = 1
+num_tests = 100000
+#num_tests = 1
 
 
 def get_random_date(year: int = 0, month: int = 0, day: int = 0) -> str:
@@ -60,12 +60,14 @@ def main() -> int:
     big_errors = 0
     huge_errors = 0
     while(i < num_tests):
-        pop = get_random_population(20)
-        start = get_random_date(2020, 1, 1)
-        mu = 0.0
-        sigma = 0
-        pop = get_random_population(20)
-        start = get_random_date(2020, 1, 1)
+        pop = get_random_population()
+        start = get_random_date()
+        mu = 0.0001  # will drift up slowly
+        mu = -0.0001  # will drift down slowly
+        mu = 0.01
+        sigma = 1
+        # pop = get_random_population(438)
+        # start = get_random_date(2026, 4, 26)
         # mu = 0
         # sigma = 0
         pad = get_padded_string(i, num_tests)
@@ -89,6 +91,7 @@ def main() -> int:
         mu += .1
 
     print(f'{mu=}')
+    print(f'{sigma=}')
     print(f'Mild Errors: {mild_errors} out of {i} tests')
     print(f'Big Errors: {big_errors} out of {i} tests')
     print(f'Huge Errors: {huge_errors} out of {i} tests')

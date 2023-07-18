@@ -17,8 +17,8 @@ class DbConn(BaseModel):
         return str(self.population)
 
     @staticmethod
-    def calculate_population_change(d, mu, sigma: int) -> int:
-        if sigma == 0:
+    def calculate_population_change(d, mu, sigma: float) -> int:
+        if abs(sigma) < 0.000001:
             return 0
         if d.weekday() < 5:
             return int(random.gauss(mu, sigma))
@@ -38,7 +38,7 @@ class DbConn(BaseModel):
         return day+oneday
 
     @staticmethod
-    def generate_population(start: date, end: date, pop: int, mu: float = 0.0, sigma: int = 0) -> dict:
+    def generate_population(start: date, end: date, pop: int, mu: float = 0.0, sigma: float = 0) -> dict:
         (start, end) = DbConn.order_correctly(start, end)
         pop = max(0, pop)
         population = {}

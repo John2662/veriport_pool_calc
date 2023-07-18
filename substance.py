@@ -62,7 +62,7 @@ class Substance(BaseModel):
         if abs(apriori_estimate - account_for) < EPSILON:
             tests_predicted = 0
         else:
-            tests_predicted = ceil(apriori_estimate - account_for)
+            tests_predicted = ceil(reset_to_close_int(apriori_estimate - account_for))
 
         tests_predicted = max(tests_predicted, 0)
         self.period_apriori_required_tests_predicted.append(tests_predicted)
