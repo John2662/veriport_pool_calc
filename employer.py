@@ -180,7 +180,7 @@ class Employer(BaseModel):
         avg_pop = []
         percent_of_year = []
         for p in range(len(self.period_start_dates)):
-            (start,end) = self.period_start_end(p)
+            (start, end) = self.period_start_end(p)
             s_count = self._db_conn.employee_count(start)
             all_donors = self.load_period_donors(start, end)
             num_days = (end-start).days + 1

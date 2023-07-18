@@ -65,7 +65,7 @@ def main() -> int:
         mu = 0.0
         sigma = 0
         pop = get_random_population(20)
-        start = get_random_date(2020,1,1)
+        start = get_random_date(2020, 1, 1)
         # mu = 0
         # sigma = 0
         pad = get_padded_string(i, num_tests)

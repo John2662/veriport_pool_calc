@@ -13,6 +13,7 @@ import json
 # EPSILON = 0.0000000000000001
 EPSILON = 0.0000000001
 
+
 def reset_to_close_int(v: float, epsilon: float = EPSILON) -> float:
     sign = -1 if v < 0 else 1
     abs_v = abs(v)
@@ -20,11 +21,6 @@ def reset_to_close_int(v: float, epsilon: float = EPSILON) -> float:
         return sign * int(abs_v)
     return v
 
-# def true_ceil(v: float, epsilon: float) -> int:
-#     epsilon = EPSILON if epsilon is None else epsilon
-#     if abs(v) < epsilon:
-#         return 0
-#     return ceil(v)
 
 class Substance(BaseModel):
     name: str
@@ -110,14 +106,13 @@ class Substance(BaseModel):
         s = [f'In period {period_index}:']
         esti = self.period_apriori_estimate[period_index]
         trut = self.period_aposteriori_truth[period_index]
-        over = self.period_overcount_error[period_index]
-        pred = self.period_apriori_required_tests_predicted[period_index]
+        # over = self.period_overcount_error[period_index]
+        # pred = self.period_apriori_required_tests_predicted[period_index]
         s.append(f',apriori estmate = {esti}, is calculated:,Initial pop={initial_pop} * fraction of year={percent_of_year} * percent tests required {self.percent}, all rounded up ')
         s.append(f',actual value = {trut}, is calculated:,Average pop={avg_pop} * fraction of year={percent_of_year} * percent tests required {self.percent} ')
         s.append(f',over count error = {ceil(esti) - trut}, is calculated:,apriori estimate rounded up: {ceil(esti)} - truth: {trut} ')
         var = (trut - esti) / esti if esti > EPSILON else 0.0
         s.append(f',pool size variation = {100.0 * var}%, is calculated:,(actual value: {100.0 * trut} - apriori estimate: {esti}) divided by the apriori estimate {esti} * 100 %')
-        unpredicted = (trut-pred) * self.percent * percent_of_year
         s.append(f',pool size variation added:, {self.overcount_by_period(period_index)}, tests to number actual required')
         return s
 
@@ -126,7 +121,6 @@ class Substance(BaseModel):
         string += f',percent:,{100.0* self.percent} %\n'
         string += ',SUMMARY TABLE:\n'
         offset = ',,'
-        #string += ',DATA:\n'
         header = offset + 'period ->,'
         apriori_estimates = offset + 'Apriori estimate,'
         aposteriori_truth = offset + 'Aposteiori truth,'
@@ -168,8 +162,6 @@ class Substance(BaseModel):
             for line in lines:
                 string += offset + ','*(self.num_periods+1) + line + '\n'
             string += '\n'
-
-
         return string + '\n'
 
     def print_stats(self) -> None:
