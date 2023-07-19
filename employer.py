@@ -213,9 +213,11 @@ class Employer(BaseModel):
             f.write(f'Schedule:, {Schedule.as_str(self.schedule)}\n')
             f.write(f'Initial Size:, {self.start_count}\n')
             f.write(f'Number of periods:, {len(self.period_start_dates)}\n')
-            f.write(', PERIOD,START DATE,PERIOD START POOL SIZE,AVG. POOL SIZE\n')
+            f.write(', PERIOD,START DATE,PERIOD START POOL SIZE,AVG. POOL SIZE,% of YEAR, weighted pop, error\n')
             for i, d in enumerate(self.period_start_dates):
-                f.write(f', period {i}, {str(d)}, {str(self.donor_count(d))}, {str(self.average_pool_size(i))}\n')
+                weighted = self.average_pool_size(i) * percent_of_year[i]
+                error = weighted * (float(self.average_pool_size(i)-self.donor_count(d))/float(self.donor_count(d)))
+                f.write(f', period {i}, {str(d)}, {str(self.donor_count(d))}, {str(self.average_pool_size(i))}, {percent_of_year[i]}, {str(weighted)}, {error}\n')
             f.write(f'pool as % of year:, {100.0 * self.fraction_of_year}\n')
             f.write('\nApriori test predictions:\n')
             f.write(f'\n,drug % required:, {100.0*self.drug_percent}\n')
