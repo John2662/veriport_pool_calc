@@ -121,11 +121,3 @@ class DbConn(BaseModel):
     def employee_count(self, day: date) -> int:
         return self.population[day]
 
-    def average_population(self, start: date, end: date) -> float:
-        (day, end) = DbConn.order_correctly(start, end)
-        num_days = (end-day).days + 1
-        count = 0
-        while day <= end:
-            count += self.population[day]
-            day = DbConn.increment(day)
-        return float(count) / float(num_days)

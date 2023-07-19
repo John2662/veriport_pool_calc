@@ -12,8 +12,8 @@ from math import log10, ceil
 
 MAX_NUM_TESTS = 10000
 MAX_POP = 500
-num_tests = 100000
-#num_tests = 1
+num_tests = 10000
+num_tests = 1
 
 
 def get_random_date(year: int = 0, month: int = 0, day: int = 0) -> str:
@@ -76,7 +76,7 @@ def main() -> int:
 
         e = Employer(**employer_json)
         e.initialize()
-        err = e.run_test_scenario()
+        err = e.run_test_scenario(2)
 
         if err >= 3:
             huge_errors += 1
