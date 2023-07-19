@@ -14,7 +14,7 @@ import json
 EPSILON = 0.0000000001
 
 
-def reset_to_close_int(v: float, epsilon: float = EPSILON) -> float:
+def discretize_float(v: float, epsilon: float = EPSILON) -> float:
     sign = -1 if v < 0 else 1
     abs_v = abs(v)
     if abs_v - int(abs_v) < epsilon:
@@ -62,7 +62,7 @@ class Substance(BaseModel):
         if abs(apriori_estimate - account_for) < EPSILON:
             tests_predicted = 0
         else:
-            tests_predicted = ceil(reset_to_close_int(apriori_estimate - account_for))
+            tests_predicted = ceil(discretize_float(apriori_estimate - account_for))
 
         tests_predicted = max(tests_predicted, 0)
         self.period_apriori_required_tests_predicted.append(tests_predicted)
@@ -90,11 +90,11 @@ class Substance(BaseModel):
     @property
     def tests_required(self) -> int:
         val = sum(self.period_aposteriori_truth)
-        return ceil(reset_to_close_int(val))
+        return ceil(discretize_float(val))
 
     def required_sum_by_period(self, period_index: int) -> int:
         required_sum = sum([self.period_aposteriori_truth[i] for i in range(period_index+1)])
-        return ceil(reset_to_close_int(required_sum))
+        return ceil(discretize_float(required_sum))
 
     def predicted_sum_by_period(self, period_index: int) -> int:
         return sum([self.period_apriori_required_tests_predicted[i] for i in range(period_index+1)])
@@ -138,7 +138,7 @@ class Substance(BaseModel):
             apriori_estimates += f'{self.period_apriori_estimate[p]},'
             aposteriori_truth += f'{self.period_aposteriori_truth[p]},'
             overcount_error += f'{self.period_overcount_error[p]},' + (', ***%' if p == len(initial_pop)-1 else '')
-            population_deviation += f'{100.0*reset_to_close_int(self.population_deviation(p))},'
+            population_deviation += f'{100.0*discretize_float(self.population_deviation(p))},'
             apriori_required_tests_predicted += f'{self.period_apriori_required_tests_predicted[p]},'
             required_sum = self.required_sum_by_period(p)
             predicted_sum = self.predicted_sum_by_period(p)
