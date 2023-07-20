@@ -140,7 +140,7 @@ class Substance(BaseModel):
         if final_error < 0:
             print(f'\n*** Under estimated required number of tests by {-final_error}')
         elif final_error < 1:
-            print(f'\n*** Correct number of tests prescribed')
+            print('\n*** Correct number of tests prescribed')
         else:
             print(f'\n***Over estimated required number of tests by {final_error}')
 
@@ -148,18 +148,15 @@ class Substance(BaseModel):
         print(f'requ = {required}')
         oc_sum = sum(self.overcount_error)
         if oc_sum < 0:
-            print(f'over = {error}  <=> {oc_sum} ! UNDER COUNT' )
+            print(f'over = {error}  <=> {oc_sum} ! UNDER COUNT')
         elif oc_sum < 1:
-            print(f'over = {error}  <=> {oc_sum}' )
+            print(f'over = {error}  <=> {oc_sum}')
         else:
-            print(f'over = {error}  <=> {oc_sum}  ! OVER COUNT' )
+            print(f'over = {error}  <=> {oc_sum}  ! OVER COUNT')
 
         print(f'{self.required_tests_predicted=}')
         print(f'{self.aposteriori_truth=}')
         print(f'{self.overcount_error=}')
-
-
-    ####################################################################
 
     def generate_period_report(self, initial_pop: list[int], avg_pop: list[float], percent_of_year: list[float]) -> str:
         string = f',type:,{self.name}:\n'

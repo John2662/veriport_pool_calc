@@ -3,9 +3,8 @@
 # Proprietary and confidential
 # Written by John Read <john.read@colibri-software.com>, July 2023
 
-from datetime import date
+from datetime import date, datetime
 from employer import Schedule
-# import json
 
 employer_json = {
     'name': 'company-name',
@@ -18,7 +17,7 @@ employer_json = {
     'pool_inception': '2023-02-01',
     'start_count': '0',
     'year': 2000,
-    'employee_count': {'2023-01-01': 100},
+    # 'employee_count': {'2023-01-01': 100},
     'period_start_dates': ['2023-01-01'],
 }
 
@@ -45,6 +44,11 @@ def compile_json(company_name: str,
     employer_json['name'] = company_name
     employer_json['schedule'] = schedule
     employer_json['pop'] = generate_population_value(datafile, inception, start_count, mu, sigma)
+    employer_json['pool_inception'] = f'{inception}'
+    employer_json['start_count'] = f'{start_count}'
+    start = datetime.strptime(inception, '%Y-%m-%d').date()
+    employer_json['year'] = start.year
+    employer_json['period_start_dates'] = ['1900-01-01']
 
     # print(f'{employer_json=}')
     # print(f'{type(employer_json)=}')

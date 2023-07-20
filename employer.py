@@ -140,7 +140,7 @@ class Employer(BaseModel):
             if d.year != self.year or d <= self.period_start_dates[0]:
                 continue
             new_dates.add(d)
-            count_added =+ 1
+            count_added += 1
         if count_added == 0:
             return False
 
@@ -149,7 +149,6 @@ class Employer(BaseModel):
         self._dr.clear_data()
         self._al.clear_data()
         return True
-
 
     ########################################
     #  END VARIOUS INITIALIZATION METHODS  #
@@ -206,7 +205,6 @@ class Employer(BaseModel):
             return abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
         return -1
 
-
     ##############################
     #    WRITE RESULTS TO FILE   #
     ##############################
@@ -219,7 +217,6 @@ class Employer(BaseModel):
                     f.write(f'#,Period {period_count} start\n')
                     period_count += 1
                 f.write(f'{d},{self.employee_count(d)}\n')
-
 
     def make_report(self, record_level: int) -> None:
         if record_level >= 2:
@@ -236,9 +233,8 @@ class Employer(BaseModel):
     def average_pool_size(self, period_index: int) -> float:
         start = self.period_start_dates[period_index]
         end = self.period_end_date(period_index)
-        pop =  self._db_conn.load_population(start, end)
+        pop = self._db_conn.load_population(start, end)
         return float(sum(pop))/float(len(pop))
-
 
     def write_summary_report_to_file(self, output_to_screen: bool = False) -> None:
         initial_pop = []
@@ -262,7 +258,7 @@ class Employer(BaseModel):
             for i, d in enumerate(self.period_start_dates):
                 weighted = self.average_pool_size(i) * percent_of_year[i]
                 donor_cnt = self.donor_count(d)
-                _error = weighted * (float(self.average_pool_size(i)-self.donor_count(d))/max(0.0000001,float(donor_cnt)))
+                _error = weighted * (float(self.average_pool_size(i)-self.donor_count(d))/max(0.0000001, float(donor_cnt)))
                 f.write(f', period {i}, {str(d)}, {str(self.donor_count(d))}, {str(self.average_pool_size(i))}, {percent_of_year[i]}, {str(weighted)}, {_error}\n')
             f.write(f'pool as % of year:, {100.0 * self.fraction_of_year}\n')
             f.write('\nApriori test predictions:\n')
@@ -274,7 +270,6 @@ class Employer(BaseModel):
             f.write(f'{self._dr.generate_period_report(initial_pop, avg_pop, percent_of_year)}')
             f.write('\n\nAlcohol summary:\n')
             f.write(f'{self._al.generate_period_report(initial_pop, avg_pop, percent_of_year)}')
-
 
     ##############################
     #         PRINT REPORT       #

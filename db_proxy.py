@@ -120,4 +120,3 @@ class DbConn(BaseModel):
 
     def employee_count(self, day: date) -> int:
         return self.population[day]
-

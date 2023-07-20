@@ -74,8 +74,8 @@ def main() -> int:
         datafile = f'run_output/company_{pad}_input'
         employer_json = compile_json(f'run_output/company_{pad}_output', start, pop, Schedule.QUARTERLY, datafile, mu, sigma)
 
+        print(f'{start=}')
         e = Employer(**employer_json)
-        e.initialize()
         err = e.run_test_scenario(2)
 
         if err >= 3:
