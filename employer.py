@@ -199,10 +199,6 @@ class Employer(BaseModel):
 
     def run_test_scenario(self, record_level: int = 0) -> int:
         self.initialize()
-        if record_level >= 2:
-            # This will force the "DB" to persist its data for re-runing a scenario
-            # It is not important in a real world use case
-            self._db_conn.write_population_to_file(self.period_start_dates)
 
         for period_index in range(len(self.period_start_dates)):
             self.make_period_calculations(period_index)

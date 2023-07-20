@@ -20,12 +20,11 @@ employer_json = {
 
 
 def generate_population_value(datafile: str, inception: date, start_count: int, mu: float, sigma: float) -> str:
-    s_datafile = f'"datafile":\"{datafile}\"'
     s_start = f'"start":\"{inception}\"'
     s_pop = f'"pop":\"{start_count}\"'
     s_mu = f'"mu":\"{mu}\"'
     s_sigma = f'"sigma":\"{sigma}\"'
-    phrase = f'{s_datafile}, {s_start}, {s_pop}, {s_mu}, {s_sigma}'
+    phrase = f'{s_start}, {s_pop}, {s_mu}, {s_sigma}'
     population = '{'+phrase+'}'
     return population
 
