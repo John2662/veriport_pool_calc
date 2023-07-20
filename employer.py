@@ -154,13 +154,14 @@ class Employer(BaseModel):
     #  END VARIOUS INITIALIZATION METHODS  #
     ########################################
 
-    def load_period_donors(self, start: date, end: date) -> list[int]:
+    def fetch_donor_queryset_by_interval(self, start: date, end: date) -> list[int]:
         return self._db_conn.load_population(start, end)
 
-    def donor_count(self, day: date) -> int:
-        print(f'{str(self.pool_inception)=}')
-        print(str(day))
-        return self._db_conn.employee_count(day)
+    def donor_count_on(self, day: date) -> int:
+        query_set = self.fetch_donor_queryset_by_interval(day, day)
+        if len(query_set) > 0:
+            return query_set[0]
+        return 0
 
     def period_start_end(self, period_index: int) -> tuple:
         return (self.period_start_dates[period_index], self.period_end_date(period_index))
@@ -175,11 +176,11 @@ class Employer(BaseModel):
         #  2. the % or the calendar year that is in this period
         #  3. the % of the population that needs to be tested
         #  4. any accumulated error from the guess we made last period
-        self._al.make_apriori_predictions(self.donor_count(start), start, end, self.total_days_in_year)
-        self._dr.make_apriori_predictions(self.donor_count(start), start, end, self.total_days_in_year)
+        self._al.make_apriori_predictions(self.donor_count_on(start), start, end, self.total_days_in_year)
+        self._dr.make_apriori_predictions(self.donor_count_on(start), start, end, self.total_days_in_year)
 
         # At the end of the period, we need to get the actual average pool size of the period
-        period_donor_list = self.load_period_donors(start, end)
+        period_donor_list = self.fetch_donor_queryset_by_interval(start, end)
 
         # using the actual (aposteriori) data, see how far off we were and keep that
         #  for the next prediction
@@ -233,7 +234,7 @@ class Employer(BaseModel):
     def average_pool_size(self, period_index: int) -> float:
         start = self.period_start_dates[period_index]
         end = self.period_end_date(period_index)
-        pop = self._db_conn.load_population(start, end)
+        pop = self.fetch_donor_queryset_by_interval(start, end)
         return float(sum(pop))/float(len(pop))
 
     def write_summary_report_to_file(self, output_to_screen: bool = False) -> None:
@@ -242,8 +243,8 @@ class Employer(BaseModel):
         percent_of_year = []
         for p in range(len(self.period_start_dates)):
             (start, end) = self.period_start_end(p)
-            s_count = self._db_conn.employee_count(start)
-            all_donors = self.load_period_donors(start, end)
+            s_count = self.donor_count_on(start)
+            all_donors = self.fetch_donor_queryset_by_interval(start, end)
             num_days = (end-start).days + 1
             initial_pop.append(s_count)
             avg_pop.append(float(sum(all_donors))/float(num_days))
@@ -257,9 +258,9 @@ class Employer(BaseModel):
             f.write(', PERIOD,START DATE,PERIOD START POOL SIZE,AVG. POOL SIZE,% of YEAR, weighted pop, error\n')
             for i, d in enumerate(self.period_start_dates):
                 weighted = self.average_pool_size(i) * percent_of_year[i]
-                donor_cnt = self.donor_count(d)
-                _error = weighted * (float(self.average_pool_size(i)-self.donor_count(d))/max(0.0000001, float(donor_cnt)))
-                f.write(f', period {i}, {str(d)}, {str(self.donor_count(d))}, {str(self.average_pool_size(i))}, {percent_of_year[i]}, {str(weighted)}, {_error}\n')
+                donor_cnt = self.donor_count_on(d)
+                _error = weighted * (float(self.average_pool_size(i)-self.donor_count_on(d))/max(0.0000001, float(donor_cnt)))
+                f.write(f', period {i}, {str(d)}, {str(self.donor_count_on(d))}, {str(self.average_pool_size(i))}, {percent_of_year[i]}, {str(weighted)}, {_error}\n')
             f.write(f'pool as % of year:, {100.0 * self.fraction_of_year}\n')
             f.write('\nApriori test predictions:\n')
             f.write(f'\n,drug % required:, {100.0*self.drug_percent}\n')
@@ -288,17 +289,17 @@ class Employer(BaseModel):
         print(f'Expected alcoho  : {self.guess_for("alcohol")}')
         print('')
 
-    def donor_list_by_period(self, period_index: int) -> list[int]:
+    def fetch_donor_query_set_for_period(self, period_index: int) -> list[int]:
         (start, end) = self.period_start_end(period_index)
-        return self._db_conn.load_population(start, end)
+        return self.fetch_donor_queryset_by_interval(start, end)
 
     def print_report(self):
         self.base_print()
-        donor_list_by_period = []
+        donor_query_set_for_period = []
         for p in range(self.num_periods):
-            donor_list_by_period.append(self.donor_list_by_period(p))
-        self._dr.print_report(self.total_days_in_year, donor_list_by_period)
-        self._al.print_report(self.total_days_in_year, donor_list_by_period)
+            donor_query_set_for_period.append(self.fetch_donor_query_set_for_period(p))
+        self._dr.print_report(self.total_days_in_year, donor_query_set_for_period)
+        self._al.print_report(self.total_days_in_year, donor_query_set_for_period)
 
 # TODO:
 # 1. read input employee data as csv
