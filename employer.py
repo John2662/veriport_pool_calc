@@ -38,10 +38,16 @@ class Employer(BaseModel):
     pop: str
 
     # These get auto filled in the initialize method
-    start_count: int
     pool_inception: date
-    year: Optional[int]
     period_start_dates: Optional[list[date]]
+
+    @property
+    def start_count(self):
+        return self.donor_count_on(self.pool_inception)
+
+    @property
+    def year(self):
+        return self.pool_inception.year
 
     @property
     def num_periods(self) -> int:
@@ -122,13 +128,16 @@ class Employer(BaseModel):
             self.initialize_custom_periods(custom_period_start_dates)
 
     def initialize(self, custom_period_start_dates: list = []) -> None:
-        self.year = self.pool_inception.year
         self.period_start_dates = []
         self.initialize_periods(custom_period_start_dates)
         self._dr = generate_substance(self.sub_d)
         self._al = generate_substance(self.sub_a)
+        # This will initialize the "DB" but in a real world example, it would already exist
+        (self._db_conn, self.pool_inception) = DbConn.generate_object(self.pop)
+        # print(f'{self.sub_a=}')
+        # print(f'{self.sub_d=}')
         # The mu, sigma get pushed in through self.pop
-        (self._db_conn, self.pool_inception, self.start_count) = DbConn.generate_object(self.pop)
+        # print(f'{self.pop=}')
 
     # This will add some new period boundries and reset the substance counters to empty
     #  we can then call this again to re-calculate the error to attempt to 'heal' the
@@ -154,8 +163,9 @@ class Employer(BaseModel):
     #  END VARIOUS INITIALIZATION METHODS  #
     ########################################
 
+    # This is the only code that needs to pull data from the DB
     def fetch_donor_queryset_by_interval(self, start: date, end: date) -> list[int]:
-        return self._db_conn.load_population(start, end)
+        return self._db_conn.get_population_report(start, end)
 
     def donor_count_on(self, day: date) -> int:
         query_set = self.fetch_donor_queryset_by_interval(day, day)
@@ -190,6 +200,8 @@ class Employer(BaseModel):
     def run_test_scenario(self, record_level: int = 0) -> int:
         self.initialize()
         if record_level >= 2:
+            # This will force the "DB" to persist its data for re-runing a scenario
+            # It is not important in a real world use case
             self._db_conn.write_population_to_file(self.period_start_dates)
 
         for period_index in range(len(self.period_start_dates)):

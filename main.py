@@ -55,6 +55,7 @@ def get_padded_string(i: int, num_tests: int) -> str:
 
 
 def main() -> int:
+    from db_proxy import DbConn
     i = 0
     mild_errors = 0
     big_errors = 0

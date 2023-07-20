@@ -71,7 +71,7 @@ class Substance(BaseModel):
         # true average population divided by # days in the year times percent
         self.aposteriori_truth.append(float(sum(donor_count_list))/float(days_in_year)*self.percent)
 
-        # keep track of anythong we missed through the estimate
+        # keep track of anything we missed through the estimate
         self.overcount_error.append(float(self.required_tests_predicted[-1]) - self.aposteriori_truth[-1])
 
     ############################

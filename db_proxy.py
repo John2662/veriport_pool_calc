@@ -17,6 +17,13 @@ class DbConn(BaseModel):
         return str(self.population)
 
     @staticmethod
+    def string_to_date(s):
+        try:
+            return datetime.strptime(s, '%Y-%m-%d').date()
+        except:
+            return None
+
+    @staticmethod
     def calculate_population_change(d, mu, sigma: float) -> int:
         if abs(sigma) < 0.000001:
             return 0
@@ -69,7 +76,7 @@ class DbConn(BaseModel):
             return None
 
         try:
-            start = datetime.strptime(start, '%Y-%m-%d').date()
+            start = DbConn.string_to_date(start)
             pop = int(pop)
         except ValueError:
             return None
@@ -94,7 +101,7 @@ class DbConn(BaseModel):
         population = DbConn.generate_population(start, end, pop, mu, sigma)
         generate_dict = {'population': population, 'datafile': datafile}
         db_conn = DbConn(**generate_dict)
-        return (db_conn, pool_inception, start_count)
+        return (db_conn, pool_inception)
 
     @staticmethod
     def read_population_from_file() -> dict:
@@ -102,16 +109,17 @@ class DbConn(BaseModel):
         population = {}
         return population
 
-    def write_population_to_file(self, period_start_dates) -> None:
-        with open(f'{self.datafile}.csv', 'w') as f:
+    def write_population_to_file(self, period_start_dates: list[date], filename: str = None) -> None:
+        file_name = self.datafile if filename is None else filename
+        with open(f'{file_name}.csv', 'w') as f:
             period_count = 0
             for d in self.population:
                 if d in period_start_dates:
                     f.write(f'#,Period {period_count} start\n')
                     period_count += 1
-                f.write(f'{d},{self.employee_count(d)}\n')
+                f.write(f'{d},{self.population[d]}\n')
 
-    def load_population(self, start: date, end: date) -> list[int]:
+    def get_population_report(self, start: date, end: date) -> list[int]:
         requested_population = []
         while start <= end:
             requested_population.append(self.employee_count(start))
@@ -120,3 +128,37 @@ class DbConn(BaseModel):
 
     def employee_count(self, day: date) -> int:
         return self.population[day]
+
+    @staticmethod
+    def load_VP_data_format(filename):
+        inception_date = DbConn.string_to_date('3000-12-31')
+        inception_not_found = True
+        population = {}
+        last_population_seen = 0
+        with open(filename, 'r') as f:
+            lines = f.readlines()
+            for i, line in enumerate(lines):
+                data = line.split(',')
+                if len(data) != 2:
+                    print(f'cannot process line number: {i+1} \"line\"')
+                    continue
+
+                d = DbConn.string_to_date(data[0])
+                if d is None:
+                    print(f'skip {line=}')
+                    continue
+                pop = int(data[1])
+                if inception_not_found and pop > 0:
+                    inception_date = DbConn.string_to_date(d)
+                    inception_not_found = False
+                if inception_not_found:
+                    continue
+
+                last_population_seen += pop
+                population[d] = last_population_seen
+
+        for d in population:
+            print(f'{str(d)} -> {population[d]}')
+        return population
+
+
