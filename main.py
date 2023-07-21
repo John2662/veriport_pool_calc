@@ -173,7 +173,7 @@ def process_data_set(population: dict, company_name: str) -> int:
     start = list(population.keys())[0]
     employer_json = compile_json(company_name, start, Schedule.QUARTERLY, s_dic)
     e = Employer(**employer_json)
-    return e.run_test_scenario(2)
+    return e.run_test_scenario()
 
 
 def main() -> int:
@@ -202,7 +202,7 @@ def main() -> int:
         company_name = 'company_' + padding
         employer_json = compile_json(company_name, start, Schedule.QUARTERLY, s_dic)
         e = Employer(**employer_json)
-        err = e.run_test_scenario(2)
+        err = e.run_test_scenario()
 
         if err >= 3:
             huge_errors += 1

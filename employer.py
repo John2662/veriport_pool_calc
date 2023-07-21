@@ -140,22 +140,29 @@ class Employer(BaseModel):
         self._db_conn = DbConn.generate_object(mapping)
         self.pool_inception = self._db_conn.get_inception_date
 
+    @staticmethod
+    def extended_start_dates(old_dates, additional_dates):
+        if len(old_dates) == 0 and len(additional_dates) == 0:
+            return old_dates
+
+        year = old_dates[0].year if len(old_dates) > 0 else additional_dates[0].year
+        new_date_set = set(old_dates)
+        for d in additional_dates:
+            if d.year != year:
+                continue
+            new_date_set.add(d)
+
+        return list[sorted(new_date_set)]
+
     # This will add some new period boundries and reset the substance counters to empty
     #  we can then call this again to re-calculate the error to attempt to 'heal' the
     #  predictions made and get a correct answer
     def reinitialize(self, new_period_dates: list[date]):
-        count_added = 0
-        new_dates = set(self.period_start_dates)
-        for d in new_period_dates:
-            if d.year != self.year or d <= self.period_start_dates[0]:
-                continue
-            new_dates.add(d)
-            count_added += 1
-        if count_added == 0:
-            return False
+        new_date_set = Employer.extended_start_dates(self.period_start_dates, new_period_dates)
+        if len(new_date_set) <= len(self.period_start_dates):
+            return False   # no new dates added
 
-        self.period_start_dates = sorted(new_dates)
-
+        self.period_start_dates = new_date_set
         self._dr.clear_data()
         self._al.clear_data()
         return True
@@ -198,22 +205,22 @@ class Employer(BaseModel):
         self._al.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
         self._dr.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
 
-    def run_test_scenario(self, record_level: int = 0) -> int:
+    def run_test_scenario(self) -> int:
         self.initialize()
-
         for period_index in range(len(self.period_start_dates)):
             self.make_period_calculations(period_index)
-        self.make_report(record_level)
+        self.make_report(2)
         return abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
 
-    def rerun_test_scenario(self, new_period_dates: list[date], record_level: int = 0):
+    def rerun_test_scenario(self, new_period_dates: list[date]):
         added_dates = self.reinitialize(new_period_dates)
         if added_dates:
             for period_index in range(len(self.period_start_dates)):
                 self.make_period_calculations(period_index)
-            self.make_report(record_level)
             return abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
-        return -1
+        # No dates added so these numbers will not change
+        print(f'WARNING: {new_period_dates} are contained in {self.period_start_dates} so no changes')
+        return abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
 
     ##############################
     #    WRITE RESULTS TO FILE   #
@@ -311,5 +318,7 @@ class Employer(BaseModel):
         self._al.print_report(self.total_days_in_year, donor_query_set_for_period)
 
 # TODO:
+# 0. return a report in the form of a string that main can write to a text file
+# 0. return a report in the form of a string that main can write to a csv file
 # 1. write a "driver" that pushes data in at the start of each period to mimic how it would be used in veriport
 # 2. Write "heal run" function by adding more periods and rerunning
