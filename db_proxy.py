@@ -27,6 +27,10 @@ class DbConn(BaseModel):
     def employee_count(self, day: date) -> int:
         return self.population[day]
 
+    ##################################################
+    #  THE REST PERTAINS TO INITILIZING THIS OBJECT  #
+    ##################################################
+
     @staticmethod
     def extract_date(s: str) -> date:
         s = s.strip().replace('\'', '')
