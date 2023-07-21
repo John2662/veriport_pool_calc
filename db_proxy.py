@@ -39,11 +39,15 @@ class DbConn(BaseModel):
     @staticmethod
     def from_initialization_string(m_str: str) -> dict:
         dic = {}
-        dic_array = m_str[2:-2].split(',')
+        dic_array = m_str[1:-1].split(',')
         for item in dic_array:
             [d, v] = item.split(':')
             d = DbConn.extract_date(d)
-            v = int(v)
+            try:
+                v = int(v)
+            except ValueError:
+                print(f'{str(d)=} <-> {v}')
+                exit(0)
             dic[d] = v
         return dic
 

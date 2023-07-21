@@ -5,9 +5,12 @@
 
 from employer import Schedule, Employer
 from datetime import datetime, date, timedelta
-from dateutil import parser
+from dateutil.parser import parse
+# from dateutil.parser import ParseError
+# from dateutil.parser._parser import ParseError
 from initialize_json import compile_json
 from math import log10, ceil
+import argparse
 
 from db_proxy import DbConn
 from random_population import generate_random_data
@@ -18,10 +21,16 @@ MAX_NUM_TESTS = 10000
 
 # Change to use dateutil.parser
 def string_to_date(s: str) -> date:
-    date1 = parser(s)
+    try:
+        date1 = parse(s).date()
+    # except ParseError:
+    except:
+        return None
+
     date2 = datetime.strptime(s, '%Y-%m-%d').date()
     if date1 == date2:
         return date1
+
     print(f'{date1=} != {date2=}')
     exit(0)
 
@@ -58,7 +67,7 @@ def process_line(line: str, i: int) -> tuple:
     try:
         pop = int(data[1])
     except ValueError:
-        return (None, pop)
+        return (None, None)
     return (d, pop)
 
 
@@ -71,26 +80,33 @@ def load_VP_data_format(filename: str) -> dict:
     with open(filename, 'r') as f:
         lines = f.readlines()
         for i, line in enumerate(lines):
-            (d, pop) = process_line(line)
+            (d, pop) = process_line(line, i)
             if d is None:
                 print(f'cannot process line number: {i+1} \"{line}\"')
                 continue
             if year == 1900:
                 year = d.year
+                print(f'{year=}')
             elif year != d.year:
                 print(f'{filename} spans multiple years')
                 exit(0)
 
-            if inception_not_found and pop > 0:
+            if inception_not_found and pop >= 0:
                 inception_not_found = False
                 last_date_processed = d
+                # print(f'Inception: {str(d)} -> {pop=}')
             if inception_not_found:
                 continue
-            # pad out any missing dates
-            while last_date_processed <= d:
+
+            # pad out any missing dates with the last population seen
+            while last_date_processed < d:
                 population[last_date_processed] = last_population_seen
                 last_date_processed += timedelta(days=1)
+
+            last_date_processed = d
             last_population_seen += pop
+            population[last_date_processed] = last_population_seen
+
     # Now pad out to the end of the year
     year_end = date(year, month=12, day=31)
     while last_date_processed <= year_end:
@@ -105,7 +121,7 @@ def read_data_from_file(filename: str) -> dict:
     with open(filename, 'r') as f:
         lines = f.readlines()
         for i, line in enumerate(lines):
-            (d, pop) = process_line(line)
+            (d, pop) = process_line(line, i)
             if d is None:
                 print(f'cannot process line number: {i+1} \"{line}\"')
                 continue
@@ -134,7 +150,46 @@ num_tests = 10000
 num_tests = 1
 
 
+def get_args() -> argparse.Namespace:
+    # parser = argparse.ArgumentParser(description='Process some integers.')
+    # parser.add_argument('integers', metavar='N', type=int, nargs='+',
+    #                     help='an integer for the accumulator')
+    # parser.add_argument('--sum', dest='accumulate', action='store_const',
+    #                     const=sum, default=max,
+    #                     help='sum the integers (default: find the max)')
+    # args = parser.parse_args()
+    # print(args.accumulate(args.integers))
+    parser = argparse.ArgumentParser(description='Arguments: file_to_load, vp_format, output_directory, company_name')
+    parser.add_argument('--file', type=str, help='data file to load')
+    parser.add_argument('--dir', type=str, help='output directory')
+    parser.add_argument('--vp', type=bool, help='Whether this comes from VP or from this program', default=False)
+    parser.add_argument('--co', type=str, help='company name', default='fake_co')
+    args = parser.parse_args()
+    return args
+
+
+def process_data_set(population: dict, company_name: str) -> int:
+    s_dic = DbConn.to_initialization_string(population)
+    start = list(population.keys())[0]
+    employer_json = compile_json(company_name, start, Schedule.QUARTERLY, s_dic)
+    e = Employer(**employer_json)
+    return e.run_test_scenario(2)
+
+
 def main() -> int:
+    args = get_args()
+
+    filename = args.file
+    if filename is not None:
+        vp_format = args.vp
+        print(args.dir)
+        print(args.co)
+        population = load_data_set(filename, vp_format)
+        print(f'{population=}')
+        # exit(0)
+        process_data_set(population, args.co)
+        return 0
+
     i = 0
     mild_errors = 0
     big_errors = 0
