@@ -315,7 +315,6 @@ class Employer(BaseModel):
 
 
 # TODO:
-# 0. return a report in the form of a string that main can write to a text file
-# 0. return a report in the form of a string that main can write to a csv file
+# 0. write files to disk if we hit errors (finish main.store_data)
 # 1. write a "driver" that pushes data in at the start of each period to mimic how it would be used in veriport
 # 2. Write "heal run" function by adding more periods and rerunning

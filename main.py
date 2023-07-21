@@ -154,6 +154,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('--dir', type=str, help='output directory')
     parser.add_argument('--vp', type=bool, help='Whether this comes from VP or from this program', default=False)
     parser.add_argument('--co', type=str, help='company name', default='fake_co')
+    parser.add_argument('--iter', type=int, help='number of random iterations', default=10)
     args = parser.parse_args()
     return args
 
@@ -166,10 +167,15 @@ def store_data(text: str, csv: str, pop: dict, file_name: str = '', directory: s
     csv = tokenize_string(csv)
     for line in csv:
         print(line)
+    # TODO write to file
 
     text = tokenize_string(text)
     for line in text:
         print(line)
+    # TODO write to file
+
+    # write_population_to_natural_file(pop, filename)
+    # TODO get the file name figured out
 
 
 def load_data_set_from_file(company_name: str, data_file: str, vp_format: bool) -> tuple:
@@ -183,7 +189,7 @@ def load_data_set_from_file(company_name: str, data_file: str, vp_format: bool) 
     return (Employer(**employer_json), population)
 
 
-def generate_data_set_randomly(run_count: int, mu: float, sigma: float) -> tuple:
+def generate_data_set_randomly(run_count: int, num_tests: int, mu: float, sigma: float) -> tuple:
     population = generate_random_population_data(mu, sigma)
     start = list(population.keys())[0]
     s_dic = DbConn.to_initialization_string(population)
@@ -192,8 +198,13 @@ def generate_data_set_randomly(run_count: int, mu: float, sigma: float) -> tuple
     return (Employer(**employer_json), population)
 
 
-num_tests = 10000
-num_tests = 10
+def run_from_file(company_name: str, filename: str, vp_format: bool):
+    (e, population) = load_data_set_from_file(company_name, filename, vp_format)
+    (err, csv, text) = e.run_test_scenario()
+    if err >= 1:
+        store_data(text, csv, population)
+        print(f'hit error of level {err}')
+    return 0
 
 
 def main() -> int:
@@ -201,16 +212,13 @@ def main() -> int:
 
     filename = args.file
     if filename is not None:
-        (e, population) = load_data_set_from_file(args.co, filename, args.vp)
-        (err, csv, text) = e.run_test_scenario()
-        if err >= 1:
-            store_data(text, csv, population)
-        return 0
+        return run_from_file(args.co, filename, args.vp)
 
     i = 0
     errors = {}
+    num_tests = min(args.iter, MAX_NUM_TESTS)
     while(i < num_tests):
-        (e, population) = generate_data_set_randomly(i, .1, 2.5)
+        (e, population) = generate_data_set_randomly(i, num_tests, .1, 2.5)
         (err, csv, text) = e.run_test_scenario()
         if err >= 1:
             if err not in errors:
