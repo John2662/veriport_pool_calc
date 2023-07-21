@@ -311,6 +311,5 @@ class Employer(BaseModel):
         self._al.print_report(self.total_days_in_year, donor_query_set_for_period)
 
 # TODO:
-# 1. read input employee data as csv
-# 2. write a "driver" that pushes data in at the start of each period to mimic how it would be used in veriport
-# 3. Write "heal run" function by adding more periods and rerunning
+# 1. write a "driver" that pushes data in at the start of each period to mimic how it would be used in veriport
+# 2. Write "heal run" function by adding more periods and rerunning
