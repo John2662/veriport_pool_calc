@@ -60,7 +60,7 @@ def generate_population(start: date, end: date, pop: int, mu: float = 0.0, sigma
     return population
 
 
-def generate_random_data(mu: float = 0, sigma: float = 0):
+def generate_random_population_data(mu: float = 0, sigma: float = 0):
     pop = get_random_population()
     start = get_random_date()
     end = date(year=start.year, month=12, day=31)

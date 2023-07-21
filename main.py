@@ -13,7 +13,7 @@ from math import log10, ceil
 import argparse
 
 from db_proxy import DbConn
-from random_population import generate_random_data
+from random_population import generate_random_population_data
 
 
 MAX_NUM_TESTS = 10000
@@ -71,7 +71,13 @@ def process_line(line: str, i: int) -> tuple:
     return (d, pop)
 
 
-def load_VP_data_format(filename: str) -> dict:
+def write_population_to_natural_file(population, filename: str) -> None:
+    with open('file_name', 'w') as f:
+        for d in population:
+            f.write(f'{d},{population[d]}\n')
+
+
+def load_population_from_vp_file(filename: str) -> dict:
     inception_not_found = True
     population = {}
     last_population_seen = 0
@@ -115,7 +121,7 @@ def load_VP_data_format(filename: str) -> dict:
     return population
 
 
-def read_data_from_file(filename: str) -> dict:
+def load_population_from_natural_file(filename: str) -> dict:
     population = {}
     year = 1900
     with open(filename, 'r') as f:
@@ -132,22 +138,6 @@ def read_data_from_file(filename: str) -> dict:
                 exit(0)
             population[d] = pop
     return population
-
-
-def load_data_set(data_file: str, vp_format: bool) -> dict:
-    if vp_format:
-        return load_VP_data_format(data_file)
-    return read_data_from_file(data_file)
-
-
-def write_population_to_file(population, filename: str) -> None:
-    with open('file_name', 'w') as f:
-        for d in population:
-            f.write(f'{d},{population[d]}\n')
-
-
-num_tests = 10000
-num_tests = 1
 
 
 def get_args() -> argparse.Namespace:
@@ -168,12 +158,42 @@ def get_args() -> argparse.Namespace:
     return args
 
 
-def process_data_set(population: dict, company_name: str) -> int:
-    s_dic = DbConn.to_initialization_string(population)
+def tokenize_string(s: str, t: str = '\n') -> list[str]:
+    return s.split(t)
+
+
+def store_data(text: str, csv: str, pop: dict, file_name: str = '', directory: str = 'run_output') -> None:
+    csv = tokenize_string(csv)
+    for line in csv:
+        print(line)
+
+    text = tokenize_string(text)
+    for line in text:
+        print(line)
+
+
+def load_data_set_from_file(company_name: str, data_file: str, vp_format: bool) -> tuple:
+    if vp_format:
+        population = load_population_from_vp_file(data_file)
+    else:
+        population = load_population_from_natural_file(data_file)
     start = list(population.keys())[0]
+    s_dic = DbConn.to_initialization_string(population)
     employer_json = compile_json(company_name, start, Schedule.QUARTERLY, s_dic)
-    e = Employer(**employer_json)
-    return e.run_test_scenario()
+    return (Employer(**employer_json), population)
+
+
+def generate_data_set_randomly(run_count: int, mu: float, sigma: float) -> tuple:
+    population = generate_random_population_data(mu, sigma)
+    start = list(population.keys())[0]
+    s_dic = DbConn.to_initialization_string(population)
+    company_name = 'company_' + get_padded_string(run_count, num_tests)
+    employer_json = compile_json(company_name, start, Schedule.QUARTERLY, s_dic)
+    return (Employer(**employer_json), population)
+
+
+num_tests = 10000
+num_tests = 10
 
 
 def main() -> int:
@@ -181,59 +201,26 @@ def main() -> int:
 
     filename = args.file
     if filename is not None:
-        vp_format = args.vp
-        # print(args.dir)
-        # print(args.co)
-        population = load_data_set(filename, vp_format)
-        # print(f'{population=}')
-        # exit(0)
-        (err, csv, text) = process_data_set(population, args.co)
-
-        csv = csv.split('\n')
-        for line in csv:
-            print(line)
-
-        text = text.split('\n')
-        for line in text:
-            print(line)
-
+        (e, population) = load_data_set_from_file(args.co, filename, args.vp)
+        (err, csv, text) = e.run_test_scenario()
+        if err >= 1:
+            store_data(text, csv, population)
         return 0
 
     i = 0
-    mild_errors = 0
-    big_errors = 0
-    huge_errors = 0
+    errors = {}
     while(i < num_tests):
-        population = generate_random_data(.1, 2.5)
-        start = list(population.keys())[0]
-        s_dic = DbConn.to_initialization_string(population)
-        padding = get_padded_string(i, num_tests)
-        company_name = 'company_' + padding
-        employer_json = compile_json(company_name, start, Schedule.QUARTERLY, s_dic)
-        e = Employer(**employer_json)
+        (e, population) = generate_data_set_randomly(i, .1, 2.5)
         (err, csv, text) = e.run_test_scenario()
-
-        csv = csv.split('\n')
-        for line in csv:
-            print(line)
-
-        text = text.split('\n')
-        for line in text:
-            print(line)
-
-        if err >= 3:
-            huge_errors += 1
-        elif err >= 2:
-            big_errors += 1
-        elif err == 1:
-            mild_errors += 1
+        if err >= 1:
+            if err not in errors:
+                errors[err] = 0
+            errors[err] += 1
+            store_data(text, csv, population)
         i += 1
-        if err > 0:
-            break
 
-    print(f'Mild Errors: {mild_errors} out of {i} tests')
-    print(f'Big Errors: {big_errors} out of {i} tests')
-    print(f'Huge Errors: {huge_errors} out of {i} tests')
+    for e in errors:
+        print(f'hit {errors[e]} errors of level {e} out of {num_tests}')
     return 0
 
 
