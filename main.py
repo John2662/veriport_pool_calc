@@ -182,10 +182,10 @@ def main() -> int:
     filename = args.file
     if filename is not None:
         vp_format = args.vp
-        print(args.dir)
-        print(args.co)
+        # print(args.dir)
+        # print(args.co)
         population = load_data_set(filename, vp_format)
-        print(f'{population=}')
+        # print(f'{population=}')
         # exit(0)
         (err, csv) = process_data_set(population, args.co)
         return 0

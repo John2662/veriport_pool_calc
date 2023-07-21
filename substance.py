@@ -74,91 +74,11 @@ class Substance(BaseModel):
         # keep track of anything we missed through the estimate
         self.overcount_error.append(float(self.required_tests_predicted[-1]) - self.aposteriori_truth[-1])
 
-    ############################
-    #  REPORT GENERATION CODE  #
-    ############################
-    @property
-    def num_periods(self) -> int:
-        return len(self.required_tests_predicted)
+    ##############################
+    #    GENERATE A CSV STRING   #
+    ##############################
 
-    @staticmethod
-    def average_population_over_period(donor_list):
-        return float(sum(donor_list)) / float(len(donor_list))
-
-    def required_sum_by_period(self, period_index: int) -> int:
-        required_sum = sum([self.aposteriori_truth[i] for i in range(period_index+1)])
-        return ceil(discretize_float(required_sum))
-
-    def predicted_sum_by_period(self, period_index: int) -> int:
-        return sum([self.required_tests_predicted[i] for i in range(period_index+1)])
-
-    def overcount_by_period(self, period_index: int) -> int:
-        return self.predicted_sum_by_period(period_index) - self.required_sum_by_period(period_index)
-
-    @staticmethod
-    def format_to_csv(array_of_numbers):
-        val = ''
-        for i, p in enumerate(array_of_numbers):
-            if i > 0:
-                val += ','
-            val += "{:8.4f}".format(float(p))
-        return val
-
-    def print_period(self, period_index: int, start_pop: int, percent_of_year: float, avg_pop: float) -> float:
-        print(f'\n{sum(self.required_tests_predicted)=}')
-        print(f'{ceil(discretize_float(sum(self.aposteriori_truth)))=}')
-        print(f'{floor(discretize_float(sum(self.overcount_error)))=}')
-        print(f'prescribed tests: {self.required_tests_predicted} (known at period start)')
-        print(f'required tests : {self.aposteriori_truth} (known at period end)')
-        print(f'overcount error: {self.overcount_error}')
-
-    def print_report(self, days_in_year: int, donor_list_by_period: list[int]) -> None:
-        num_periods = len(donor_list_by_period)
-
-        print(f'\n############ {self.name} ###################')
-        for p in range(num_periods):
-            donor_list = donor_list_by_period[p]
-            days_in_period = len(donor_list)
-            start_pop = donor_list[0]
-            percent_of_year = float(days_in_period)/float(days_in_year)
-            avg_pop = Substance.average_population_over_period(donor_list)
-
-            print(f'##### Period: {p} ########')
-            print(f'start pop       : {start_pop} (known at period start)')
-            print(f'percent of year : {percent_of_year} (known at period start)')
-            print(f'average pop    : {avg_pop} (known at period end)\n')
-
-            if p == num_periods - 1:
-                self.print_period(p, start_pop, percent_of_year, avg_pop)
-
-        final_error = floor(discretize_float(sum(self.overcount_error)))
-
-        required = '[' + Substance.format_to_csv(self.aposteriori_truth) + ']'
-        prescribed = '[' + Substance.format_to_csv(self.required_tests_predicted) + ']'
-        error = '[' + Substance.format_to_csv(self.overcount_error) + ']'
-
-        if final_error < 0:
-            print(f'\n*** Under estimated required number of tests by {-final_error}')
-        elif final_error < 1:
-            print('\n*** Correct number of tests prescribed')
-        else:
-            print(f'\n***Over estimated required number of tests by {final_error}')
-
-        print(f'pres = {prescribed}')
-        print(f'requ = {required}')
-        oc_sum = sum(self.overcount_error)
-        if oc_sum < 0:
-            print(f'over = {error}  <=> {oc_sum} ! UNDER COUNT')
-        elif oc_sum < 1:
-            print(f'over = {error}  <=> {oc_sum}')
-        else:
-            print(f'over = {error}  <=> {oc_sum}  ! OVER COUNT')
-
-        print(f'{self.required_tests_predicted=}')
-        print(f'{self.aposteriori_truth=}')
-        print(f'{self.overcount_error=}')
-
-    def generate_period_report(self, initial_pop: list[int], avg_pop: list[float], percent_of_year: list[float]) -> str:
+    def generate_csv_report(self, initial_pop: list[int], avg_pop: list[float], percent_of_year: list[float]) -> str:
         string = f',type:,{self.name}:\n'
         string += f',percent:,{100.0* self.percent} %\n'
         string += ',SUMMARY TABLE:\n'
@@ -172,7 +92,8 @@ class Substance(BaseModel):
         apriori_predicted_tests = offset + 'cum. tests prescribed,'
         difference = offset + 'prescribed test over-count:,'
 
-        for p in range(self.num_periods):
+        num_periods = len(self.required_tests_predicted)
+        for p in range(num_periods):
             header += f'Period {p},'
             required_tests_predicted += f'{self.required_tests_predicted[p]},'
             aposteriori_truth += f'{self.aposteriori_truth[p]},'
@@ -195,20 +116,72 @@ class Substance(BaseModel):
         string += offset + 'NEEDED:,' + str(self.actual_num_tests_required) + '\n'
         return string + '\n'
 
-    def generate_final_report(self) -> None:
-        tests_total = sum(self.required_tests_predicted)
-        print(f'Calculated num {self.name} tests: {tests_total}')
-        print('\nAll results:')
-        for p in range(len(self.required_tests_predicted)):
-            # print(f'{p}: Est: {self.apriori_estimate[p]}, Truth: {self.aposteriori_truth[p]}, Req: {self.required_tests_predicted[p]}')
-            print(f'{p}: Est: Truth: {self.aposteriori_truth[p]}, Req: {self.required_tests_predicted[p]}')
+    ############################
+    #  REPORT GENERATION CODE  #
+    ############################
 
-        print('')
-        print(f' {self.aposteriori_truth=} -> {sum(self.aposteriori_truth)}')
-        # print(f'  {self.apriori_estimate=} -> {sum(self.apriori_estimate)}')
-        print('')
-        print(f'{self.required_tests_predicted=} -> {sum(self.required_tests_predicted)}')
-        print(f'{self.overcount_error=} -> {sum(self.overcount_error)}')
+    @staticmethod
+    def average_population_over_period(donor_list):
+        return float(sum(donor_list)) / float(len(donor_list))
+
+    def required_sum_by_period(self, period_index: int) -> int:
+        required_sum = sum([self.aposteriori_truth[i] for i in range(period_index+1)])
+        return ceil(discretize_float(required_sum))
+
+    def predicted_sum_by_period(self, period_index: int) -> int:
+        return sum([self.required_tests_predicted[i] for i in range(period_index+1)])
+
+    def overcount_by_period(self, period_index: int) -> int:
+        return self.predicted_sum_by_period(period_index) - self.required_sum_by_period(period_index)
+
+    @staticmethod
+    def format_float(f):
+        return "{:7.2f}".format(float(f))
+
+
+    @staticmethod
+    def format_to_csv(array_of_numbers, int_val: bool = False):
+        val = ''
+        for i, p in enumerate(array_of_numbers):
+            if i > 0:
+                val += ','
+            val += "{:9.2f}".format(float(p))
+        return val
+
+    def print_substance_report(self, days_in_year: int, donor_list_by_period: list[int]) -> None:
+
+        print(f'\n{self.name.upper()} SUMMARY:')
+
+        r_req = Substance.format_float(sum(self.aposteriori_truth))
+        required = '[' + Substance.format_to_csv(self.aposteriori_truth) + '] summed -> ' + f'{r_req}'
+        r_req = Substance.format_float(sum(self.required_tests_predicted))
+        prescribed = '[' + Substance.format_to_csv(self.required_tests_predicted) + '] summed -> ' + f'{r_req}'
+        r_req = Substance.format_float(sum(self.overcount_error))
+        error = '[' + Substance.format_to_csv(self.overcount_error) + '] summed -> ' + f'{r_req}'
+
+        oc_sum = sum(self.overcount_error)
+
+        print(f'   prescribed = {prescribed}')
+        print(f'   required   = {required}')
+        if oc_sum < 0:
+            print(f'   overcount  = {error} ! UNDER COUNT by {ceil(-oc_sum)}\n')
+        elif oc_sum < 1:
+            print(f'   overcount  = {error} CORRECT PREDICTION\n')
+        else:
+            print(f'   overcount  = {error} ! OVER COUNT by {floor(oc_sum)}\n')
+
+        final_error = floor(discretize_float(sum(self.overcount_error)))
+
+        print(f'   TOTAL PREDICTED: {sum(self.required_tests_predicted)}')
+        print(f'   TOTAL REQUIRED:  {ceil(discretize_float(sum(self.aposteriori_truth)))}')
+        print('   ---------------------')
+
+        if final_error < 0:
+            print(f'   TOTAL UNDERCOUNT: {-final_error}')
+        elif final_error < 1:
+            print('   CORRECT NUMBER OF TESTS PRESCRIBED\n')
+        else:
+            print(f'   TOTAL OVERCOUNT: {final_error}\n')
 
 
 def generate_substance(json_str: str) -> Substance:

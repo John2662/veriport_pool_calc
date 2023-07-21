@@ -211,8 +211,8 @@ class Employer(BaseModel):
             self.make_period_calculations(period_index)
 
         score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
-        self.make_report(2)
-        return (score, self.build_report_csv())
+        self.make_report()
+        return (score, self.generate_csv_report())
 
     def rerun_test_scenario(self, new_period_dates: list[date]):
         added_dates = self.reinitialize(new_period_dates)
@@ -225,28 +225,8 @@ class Employer(BaseModel):
         return abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
 
     ##############################
-    #    WRITE RESULTS TO FILE   #
+    #    GENERATE A CSV STRING   #
     ##############################
-
-    # def write_population_to_file(self, period_start_dates) -> None:
-    #     with open(f'{self.datafile}.csv', 'w') as f:
-    #         period_count = 0
-    #         for d in self.population:
-    #             if d in period_start_dates:
-    #                 f.write(f'#,Period {period_count} start\n')
-    #                 period_count += 1
-    #             f.write(f'{d},{self.employee_count(d)}\n')
-
-    def make_report(self, record_level: int) -> None:
-        if record_level >= 2:
-            self.print_report()
-
-        if record_level >= 3 and (self._dr.final_overcount() > 1 or self._al.final_overcount() > 1):
-            self.base_print()
-            print('\n*********************************************\n')
-            self._al.generate_final_report()
-            print('\n*********************************************\n')
-            self._dr.generate_final_report()
 
     def average_pool_size(self, period_index: int) -> float:
         start = self.period_start_dates[period_index]
@@ -254,7 +234,7 @@ class Employer(BaseModel):
         pop = self.fetch_donor_queryset_by_interval(start, end)
         return float(sum(pop))/float(len(pop))
 
-    def build_report_csv(self) -> str:
+    def generate_csv_report(self) -> str:
         initial_pop = []
         avg_pop = []
         percent_of_year = []
@@ -284,43 +264,55 @@ class Employer(BaseModel):
         s += f'\n,alcohol % required:, {100.0*self.alcohol_percent}\n'
         s += f',initial alcohol guess:, {self.guess_for("alcohol")}\n'
         s += '\n\nDrug summary:\n'
-        s += f'{self._dr.generate_period_report(initial_pop, avg_pop, percent_of_year)}'
+        s += f'{self._dr.generate_csv_report(initial_pop, avg_pop, percent_of_year)}'
         s += '\n\nAlcohol summary:\n'
-        s += f'{self._al.generate_period_report(initial_pop, avg_pop, percent_of_year)}'
+        s += f'{self._al.generate_csv_report(initial_pop, avg_pop, percent_of_year)}'
         return s
-
-    def write_summary_report_to_file(self) -> None:
-        with open(f'{self.name}_summary.csv', 'w') as f:
-            f.write(self.build_report_csv())
 
     ##############################
     #         PRINT REPORT       #
     ##############################
 
-    def base_print(self) -> None:
-        print(f'Num employees  : {self.start_count}')
-        print(f'Inception date : {self.pool_inception}')
-        print(f'Fractional year: {self.fraction_of_year}')
-        for p in range(self.num_periods):
-            start = self.period_start_dates[p]
-            end = self.period_end_date(p)
-            days = (end-start).days+1
-            print(f'{p}->[{start} to {end}] has {days} days')
-        print(f'Expected drug    : {self.guess_for("drug")}')
-        print(f'Expected alcoho  : {self.guess_for("alcohol")}')
-        print('')
-
     def fetch_donor_query_set_for_period(self, period_index: int) -> list[int]:
         (start, end) = self.period_start_end(period_index)
         return self.fetch_donor_queryset_by_interval(start, end)
 
-    def print_report(self):
-        self.base_print()
+    @staticmethod
+    def format_float(f):
+        return "{:6.2f}".format(float(f))
+
+    def make_report(self) -> None:
+        print('\n\n')
+        print(f'DATA KNOWN ON INCEPTION DATE:')
+        print(f'   Num employees  : {self.start_count}')
+        print(f'   Inception date : {self.pool_inception}')
+        print(f'   Fractional year: {self.fraction_of_year}')
+        print(f'\n   Wild guess at inception date for drug    : {self.guess_for("drug")}')
+        print(f'   Wild guess at inception date for alcoho  : {self.guess_for("alcohol")}')
+        print('\nPOPULATION DATA AT EACH PERIOD:')
+
         donor_query_set_for_period = []
+
+        print(f'   Period |          Date Range           | % of yr |  pop  | Avg pop |  period var')
         for p in range(self.num_periods):
-            donor_query_set_for_period.append(self.fetch_donor_query_set_for_period(p))
-        self._dr.print_report(self.total_days_in_year, donor_query_set_for_period)
-        self._al.print_report(self.total_days_in_year, donor_query_set_for_period)
+            start = self.period_start_dates[p]
+            end = self.period_end_date(p)
+            days = (end-start).days+1
+            fract_of_year = float(days)/float(self.total_days_in_year)
+            percent_of_yr =  Employer.format_float(100.0*fract_of_year)
+
+            p_data = self.fetch_donor_query_set_for_period(p)
+            avg =  float(sum(p_data))/float(days)
+            avg_s = Employer.format_float(avg)
+            w = min(p_data[0], avg) + 1
+            var = Employer.format_float( float(avg - p_data[0])/w )
+            print(f'        {p+1} | [{start} to {end}]={days} | {percent_of_yr}% |  {p_data[0]}  | {avg_s} | {var}')
+
+            donor_query_set_for_period.append(p_data)
+
+        self._dr.print_substance_report(self.total_days_in_year, donor_query_set_for_period)
+        self._al.print_substance_report(self.total_days_in_year, donor_query_set_for_period)
+
 
 # TODO:
 # 0. return a report in the form of a string that main can write to a text file
