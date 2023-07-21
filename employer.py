@@ -209,8 +209,10 @@ class Employer(BaseModel):
         self.initialize()
         for period_index in range(len(self.period_start_dates)):
             self.make_period_calculations(period_index)
+
+        score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
         self.make_report(2)
-        return abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
+        return (score, self.build_report_csv())
 
     def rerun_test_scenario(self, new_period_dates: list[date]):
         added_dates = self.reinitialize(new_period_dates)
@@ -226,18 +228,17 @@ class Employer(BaseModel):
     #    WRITE RESULTS TO FILE   #
     ##############################
 
-    def write_population_to_file(self, period_start_dates) -> None:
-        with open(f'{self.datafile}.csv', 'w') as f:
-            period_count = 0
-            for d in self.population:
-                if d in period_start_dates:
-                    f.write(f'#,Period {period_count} start\n')
-                    period_count += 1
-                f.write(f'{d},{self.employee_count(d)}\n')
+    # def write_population_to_file(self, period_start_dates) -> None:
+    #     with open(f'{self.datafile}.csv', 'w') as f:
+    #         period_count = 0
+    #         for d in self.population:
+    #             if d in period_start_dates:
+    #                 f.write(f'#,Period {period_count} start\n')
+    #                 period_count += 1
+    #             f.write(f'{d},{self.employee_count(d)}\n')
 
     def make_report(self, record_level: int) -> None:
         if record_level >= 2:
-            self.write_summary_report_to_file()
             self.print_report()
 
         if record_level >= 3 and (self._dr.final_overcount() > 1 or self._al.final_overcount() > 1):
@@ -253,7 +254,7 @@ class Employer(BaseModel):
         pop = self.fetch_donor_queryset_by_interval(start, end)
         return float(sum(pop))/float(len(pop))
 
-    def write_summary_report_to_file(self, output_to_screen: bool = False) -> None:
+    def build_report_csv(self) -> str:
         initial_pop = []
         avg_pop = []
         percent_of_year = []
@@ -266,27 +267,31 @@ class Employer(BaseModel):
             avg_pop.append(float(sum(all_donors))/float(num_days))
             percent_of_year.append(float(num_days)/float(self.total_days_in_year))
 
+        s = 'Company stats\n'
+        s += f'Schedule:, {Schedule.as_str(self.schedule)}\n'
+        s += f'Initial Size:, {self.start_count}\n'
+        s += f'Number of periods:, {len(self.period_start_dates)}\n'
+        s += ', PERIOD,START DATE,PERIOD START POOL SIZE,AVG. POOL SIZE,% of YEAR, weighted pop, error\n'
+        for i, d in enumerate(self.period_start_dates):
+            weighted = self.average_pool_size(i) * percent_of_year[i]
+            donor_cnt = self.donor_count_on(d)
+            _error = weighted * (float(self.average_pool_size(i)-self.donor_count_on(d))/max(0.0000001, float(donor_cnt)))
+            s += f', period {i}, {str(d)}, {str(self.donor_count_on(d))}, {str(self.average_pool_size(i))}, {percent_of_year[i]}, {str(weighted)}, {_error}\n'
+        s += f'pool as % of year:, {100.0 * self.fraction_of_year}\n'
+        s += '\nApriori test predictions:\n'
+        s += f'\n,drug % required:, {100.0*self.drug_percent}\n'
+        s += f',initial drug guess:, {self.guess_for("drug")}\n'
+        s += f'\n,alcohol % required:, {100.0*self.alcohol_percent}\n'
+        s += f',initial alcohol guess:, {self.guess_for("alcohol")}\n'
+        s += '\n\nDrug summary:\n'
+        s += f'{self._dr.generate_period_report(initial_pop, avg_pop, percent_of_year)}'
+        s += '\n\nAlcohol summary:\n'
+        s += f'{self._al.generate_period_report(initial_pop, avg_pop, percent_of_year)}'
+        return s
+
+    def write_summary_report_to_file(self) -> None:
         with open(f'{self.name}_summary.csv', 'w') as f:
-            f.write('Company stats')
-            f.write(f'Schedule:, {Schedule.as_str(self.schedule)}\n')
-            f.write(f'Initial Size:, {self.start_count}\n')
-            f.write(f'Number of periods:, {len(self.period_start_dates)}\n')
-            f.write(', PERIOD,START DATE,PERIOD START POOL SIZE,AVG. POOL SIZE,% of YEAR, weighted pop, error\n')
-            for i, d in enumerate(self.period_start_dates):
-                weighted = self.average_pool_size(i) * percent_of_year[i]
-                donor_cnt = self.donor_count_on(d)
-                _error = weighted * (float(self.average_pool_size(i)-self.donor_count_on(d))/max(0.0000001, float(donor_cnt)))
-                f.write(f', period {i}, {str(d)}, {str(self.donor_count_on(d))}, {str(self.average_pool_size(i))}, {percent_of_year[i]}, {str(weighted)}, {_error}\n')
-            f.write(f'pool as % of year:, {100.0 * self.fraction_of_year}\n')
-            f.write('\nApriori test predictions:\n')
-            f.write(f'\n,drug % required:, {100.0*self.drug_percent}\n')
-            f.write(f',initial drug guess:, {self.guess_for("drug")}\n')
-            f.write(f'\n,alcohol % required:, {100.0*self.alcohol_percent}\n')
-            f.write(f',initial alcohol guess:, {self.guess_for("alcohol")}\n')
-            f.write('\n\nDrug summary:\n')
-            f.write(f'{self._dr.generate_period_report(initial_pop, avg_pop, percent_of_year)}')
-            f.write('\n\nAlcohol summary:\n')
-            f.write(f'{self._al.generate_period_report(initial_pop, avg_pop, percent_of_year)}')
+            f.write(self.build_report_csv())
 
     ##############################
     #         PRINT REPORT       #

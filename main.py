@@ -187,7 +187,7 @@ def main() -> int:
         population = load_data_set(filename, vp_format)
         print(f'{population=}')
         # exit(0)
-        process_data_set(population, args.co)
+        (err, csv) = process_data_set(population, args.co)
         return 0
 
     i = 0
@@ -202,7 +202,7 @@ def main() -> int:
         company_name = 'company_' + padding
         employer_json = compile_json(company_name, start, Schedule.QUARTERLY, s_dic)
         e = Employer(**employer_json)
-        err = e.run_test_scenario()
+        (err, csv) = e.run_test_scenario()
 
         if err >= 3:
             huge_errors += 1
