@@ -32,14 +32,14 @@ class Employer(BaseModel):
     name: str
     schedule: Schedule = Schedule.QUARTERLY
 
-    # These are used to load ancillary data
-    sub_d: str
-    sub_a: str
-    pop: str
-
     # These get auto filled in the initialize method
     pool_inception: date
     period_start_dates: Optional[list[date]]
+
+    # These are used to load ancillary data
+    sub_d: str
+    sub_a: str
+    db_str: str
 
     @property
     def start_count(self):
@@ -132,12 +132,13 @@ class Employer(BaseModel):
         self.initialize_periods(custom_period_start_dates)
         self._dr = generate_substance(self.sub_d)
         self._al = generate_substance(self.sub_a)
+
         # This will initialize the "DB" but in a real world example, it would already exist
-        (self._db_conn, self.pool_inception) = DbConn.generate_object(self.pop)
-        # print(f'{self.sub_a=}')
-        # print(f'{self.sub_d=}')
-        # The mu, sigma get pushed in through self.pop
-        # print(f'{self.pop=}')
+        dic = DbConn.from_initialization_string(self.db_str)
+        mapping = {}
+        mapping['population'] = dic
+        self._db_conn = DbConn.generate_object(mapping)
+        self.pool_inception = self._db_conn.get_inception_date
 
     # This will add some new period boundries and reset the substance counters to empty
     #  we can then call this again to re-calculate the error to attempt to 'heal' the

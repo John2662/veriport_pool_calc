@@ -3,50 +3,20 @@
 # Proprietary and confidential
 # Written by John Read <john.read@colibri-software.com>, July 2023
 
-from datetime import date, datetime
+from datetime import date
 from employer import Schedule
-
-employer_json = {
-    'name': 'company-name',
-    'schedule': Schedule.QUARTERLY,
-    'sub_a': '{"name": "alcohol", "percent": ".1"}',
-    'sub_d': '{"name": "drug", "percent": ".5"}',
-
-    # The rest can all be junk, as it gets overwritten in initialize
-    'pop': '{"start":"2023-12-14", "pop":"200"}',
-    'pool_inception': '2023-02-01',
-    'period_start_dates': ['2023-01-01'],
-}
-
-
-def generate_population_value(datafile: str, inception: date, start_count: int, mu: float, sigma: float) -> str:
-    s_start = f'"start":\"{inception}\"'
-    s_pop = f'"pop":\"{start_count}\"'
-    s_mu = f'"mu":\"{mu}\"'
-    s_sigma = f'"sigma":\"{sigma}\"'
-    phrase = f'{s_start}, {s_pop}, {s_mu}, {s_sigma}'
-    population = '{'+phrase+'}'
-    return population
 
 
 def compile_json(company_name: str,
                  inception: date,
-                 start_count: int,
-                 schedule: Schedule = Schedule.QUARTERLY,
-                 datafile: str = '',
-                 mu: float = 0.0,
-                 sigma: float = 0) -> dict:
-
+                 schedule: Schedule,
+                 s_dict: dict) -> dict:
+    employer_json = {}
     employer_json['name'] = company_name
     employer_json['schedule'] = schedule
-    employer_json['pop'] = generate_population_value(datafile, inception, start_count, mu, sigma)
     employer_json['pool_inception'] = f'{inception}'
     employer_json['period_start_dates'] = ['1900-01-01']
-
-    with open(f'{datafile}.json', 'w') as f:
-        f.write('{\n')
-        for item in employer_json:
-            f.write(f'    {item}: {employer_json[item]},\n')
-        f.write('}\n')
-
+    employer_json['sub_d'] = '{"name": "drug", "percent": ".5"}'
+    employer_json['sub_a'] = '{"name": "alcohol", "percent": ".1"}'
+    employer_json['db_str'] = s_dict
     return employer_json
