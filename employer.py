@@ -211,8 +211,7 @@ class Employer(BaseModel):
             self.make_period_calculations(period_index)
 
         score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
-        self.make_report()
-        return (score, self.generate_csv_report())
+        return (score, self.generate_csv_report(), self.make_report())
 
     def rerun_test_scenario(self, new_period_dates: list[date]):
         added_dates = self.reinitialize(new_period_dates)
@@ -281,37 +280,38 @@ class Employer(BaseModel):
     def format_float(f):
         return "{:6.2f}".format(float(f))
 
-    def make_report(self) -> None:
-        print('\n\n')
-        print(f'DATA KNOWN ON INCEPTION DATE:')
-        print(f'   Num employees  : {self.start_count}')
-        print(f'   Inception date : {self.pool_inception}')
-        print(f'   Fractional year: {self.fraction_of_year}')
-        print(f'\n   Wild guess at inception date for drug    : {self.guess_for("drug")}')
-        print(f'   Wild guess at inception date for alcoho  : {self.guess_for("alcohol")}')
-        print('\nPOPULATION DATA AT EACH PERIOD:')
+    def make_report(self) -> str:
+        s = 'DATA KNOWN ON INCEPTION DATE:\n'
+        s += f'   Num employees  : {self.start_count}\n'
+        s += f'   Inception date : {self.pool_inception}\n'
+        s += f'   Fractional year: {self.fraction_of_year}\n'
+        s += f'\n   Wild guess at inception date for drug    : {self.guess_for("drug")}\n'
+        s += f'   Wild guess at inception date for alcoho  : {self.guess_for("alcohol")}\n'
+        s += '\nPOPULATION DATA AT EACH PERIOD:\n'
 
         donor_query_set_for_period = []
 
-        print(f'   Period |          Date Range           | % of yr |  pop  | Avg pop |  period var')
+        s += '   Period |          Date Range           | % of yr |  pop  | Avg pop |  period var\n'
         for p in range(self.num_periods):
             start = self.period_start_dates[p]
             end = self.period_end_date(p)
             days = (end-start).days+1
             fract_of_year = float(days)/float(self.total_days_in_year)
-            percent_of_yr =  Employer.format_float(100.0*fract_of_year)
+            percent_of_yr = Employer.format_float(100.0*fract_of_year)
 
             p_data = self.fetch_donor_query_set_for_period(p)
-            avg =  float(sum(p_data))/float(days)
+            avg = float(sum(p_data))/float(days)
             avg_s = Employer.format_float(avg)
             w = min(p_data[0], avg) + 1
-            var = Employer.format_float( float(avg - p_data[0])/w )
-            print(f'        {p+1} | [{start} to {end}]={days} | {percent_of_yr}% |  {p_data[0]}  | {avg_s} | {var}')
+            var = Employer.format_float(float(avg-p_data[0])/w)
+            s += f'        {p+1} | [{start} to {end}]={days} | {percent_of_yr}% |  {p_data[0]}  | {avg_s} | {var}\n'
 
             donor_query_set_for_period.append(p_data)
 
-        self._dr.print_substance_report(self.total_days_in_year, donor_query_set_for_period)
-        self._al.print_substance_report(self.total_days_in_year, donor_query_set_for_period)
+        s += self._dr.generate_substance_report()
+        s += self._al.generate_substance_report()
+
+        return s
 
 
 # TODO:

@@ -138,7 +138,6 @@ class Substance(BaseModel):
     def format_float(f):
         return "{:7.2f}".format(float(f))
 
-
     @staticmethod
     def format_to_csv(array_of_numbers, int_val: bool = False):
         val = ''
@@ -148,10 +147,8 @@ class Substance(BaseModel):
             val += "{:9.2f}".format(float(p))
         return val
 
-    def print_substance_report(self, days_in_year: int, donor_list_by_period: list[int]) -> None:
-
-        print(f'\n{self.name.upper()} SUMMARY:')
-
+    def generate_substance_report(self) -> str:
+        s = f'\n{self.name.upper()} SUMMARY:\n'
         r_req = Substance.format_float(sum(self.aposteriori_truth))
         required = '[' + Substance.format_to_csv(self.aposteriori_truth) + '] summed -> ' + f'{r_req}'
         r_req = Substance.format_float(sum(self.required_tests_predicted))
@@ -160,28 +157,27 @@ class Substance(BaseModel):
         error = '[' + Substance.format_to_csv(self.overcount_error) + '] summed -> ' + f'{r_req}'
 
         oc_sum = sum(self.overcount_error)
-
-        print(f'   prescribed = {prescribed}')
-        print(f'   required   = {required}')
+        s += f'   prescribed = {prescribed}\n'
+        s += f'   required   = {required}\n'
         if oc_sum < 0:
-            print(f'   overcount  = {error} ! UNDER COUNT by {ceil(-oc_sum)}\n')
+            s += f'   overcount  = {error} ! UNDER COUNT by {ceil(-oc_sum)}\n\n'
         elif oc_sum < 1:
-            print(f'   overcount  = {error} CORRECT PREDICTION\n')
+            s += f'   overcount  = {error} CORRECT PREDICTION\n\n'
         else:
-            print(f'   overcount  = {error} ! OVER COUNT by {floor(oc_sum)}\n')
+            s += f'   overcount  = {error} ! OVER COUNT by {floor(oc_sum)}\n\n'
 
         final_error = floor(discretize_float(sum(self.overcount_error)))
-
-        print(f'   TOTAL PREDICTED: {sum(self.required_tests_predicted)}')
-        print(f'   TOTAL REQUIRED:  {ceil(discretize_float(sum(self.aposteriori_truth)))}')
-        print('   ---------------------')
+        s += f'   TOTAL PREDICTED: {sum(self.required_tests_predicted)}\n'
+        s += f'   TOTAL REQUIRED:  {ceil(discretize_float(sum(self.aposteriori_truth)))}\n'
+        s += '   ---------------------\n'
 
         if final_error < 0:
-            print(f'   TOTAL UNDERCOUNT: {-final_error}')
+            s += f'   TOTAL UNDERCOUNT: {-final_error}\n'
         elif final_error < 1:
-            print('   CORRECT NUMBER OF TESTS PRESCRIBED\n')
+            s += '   CORRECT NUMBER OF TESTS PRESCRIBED\n'
         else:
-            print(f'   TOTAL OVERCOUNT: {final_error}\n')
+            s += f'   TOTAL OVERCOUNT: {final_error}\n'
+        return s
 
 
 def generate_substance(json_str: str) -> Substance:
