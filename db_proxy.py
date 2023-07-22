@@ -10,13 +10,6 @@ from pydantic import BaseModel
 class DbConn(BaseModel):
     population: dict
 
-    def __str__(self) -> str:
-        return str(self.population)
-
-    @property
-    def get_inception_date(self):
-        return list(self.population.keys())[0]
-
     def get_population_report(self, start: date, end: date) -> list[int]:
         requested_population = []
         while start <= end:

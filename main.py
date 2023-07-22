@@ -149,11 +149,10 @@ def get_args() -> argparse.Namespace:
     #                     help='sum the integers (default: find the max)')
     # args = parser.parse_args()
     # print(args.accumulate(args.integers))
-    parser = argparse.ArgumentParser(description='Arguments: file_to_load, vp_format, output_directory, company_name')
+    parser = argparse.ArgumentParser(description='Arguments: file_to_load, vp_format, output_directory')
     parser.add_argument('--file', type=str, help='data file to load')
     parser.add_argument('--dir', type=str, help='output directory')
     parser.add_argument('--vp', type=bool, help='Whether this comes from VP or from this program', default=False)
-    parser.add_argument('--co', type=str, help='company name', default='fake_co')
     parser.add_argument('--iter', type=int, help='number of random iterations', default=10)
     args = parser.parse_args()
     return args
@@ -162,7 +161,8 @@ def get_args() -> argparse.Namespace:
 def tokenize_string(s: str, t: str = '\n') -> list[str]:
     return s.split(t)
 
-
+# TODO: Add weekly testing
+# Change to HTML report
 def store_data(text: str, csv: str, pop: dict, file_name: str = '', directory: str = 'run_output') -> None:
     csv = tokenize_string(csv)
     for line in csv:
@@ -178,14 +178,14 @@ def store_data(text: str, csv: str, pop: dict, file_name: str = '', directory: s
     # TODO get the file name figured out
 
 
-def load_data_set_from_file(company_name: str, data_file: str, vp_format: bool) -> tuple:
+def load_data_set_from_file(data_file: str, vp_format: bool) -> tuple:
     if vp_format:
         population = load_population_from_vp_file(data_file)
     else:
         population = load_population_from_natural_file(data_file)
     start = list(population.keys())[0]
     s_dic = DbConn.to_initialization_string(population)
-    employer_json = compile_json(company_name, start, Schedule.QUARTERLY, s_dic)
+    employer_json = compile_json(start, Schedule.QUARTERLY, s_dic)
     return (Employer(**employer_json), population)
 
 
@@ -193,13 +193,12 @@ def generate_data_set_randomly(run_count: int, num_tests: int, mu: float, sigma:
     population = generate_random_population_data(mu, sigma)
     start = list(population.keys())[0]
     s_dic = DbConn.to_initialization_string(population)
-    company_name = 'company_' + get_padded_string(run_count, num_tests)
-    employer_json = compile_json(company_name, start, Schedule.QUARTERLY, s_dic)
+    employer_json = compile_json(start, Schedule.QUARTERLY, s_dic)
     return (Employer(**employer_json), population)
 
 
-def run_from_file(company_name: str, filename: str, vp_format: bool):
-    (e, population) = load_data_set_from_file(company_name, filename, vp_format)
+def run_from_file(filename: str, vp_format: bool):
+    (e, population) = load_data_set_from_file(filename, vp_format)
     (err, csv, text) = e.run_test_scenario()
     if err >= 1:
         store_data(text, csv, population)

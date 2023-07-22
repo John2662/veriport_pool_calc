@@ -15,22 +15,40 @@ from substance import generate_substance
 
 
 class Schedule(Enum):
+    # For weekly: skip first and last weeks of the year
+    # so for example, the first period will contain up to two full weeks
+    # ending on a sunday (on or before Jan 14)
+
+    # WEEKLY = 50
+    SEMIMONTHLY = 24
     MONTHLY = 12
+    BIMONTHLY = 6
     QUARTERLY = 4
+    SEMIANNUALLY = 2
+    ANNUALLY = 1
     CUSTOM = 0
 
     @staticmethod
     def as_str(value):
+        # if value == Schedule.WEEKLY:
+        #     return 'weekly'
+        if value == Schedule.SEMIMONTHLY:
+            return 'semi-monthly'
         if value == Schedule.MONTHLY:
             return 'monthly'
+        if value == Schedule.BIMONTHLY:
+            return 'bi-monthly'
         if value == Schedule.QUARTERLY:
             return 'quarterly'
+        if value == Schedule.SEMIANNUALLY:
+            return 'semiannually'
+        if value == Schedule.ANNUALLY:
+            return 'annually'
         return 'custom'
 
 
 class Employer(BaseModel):
-    name: str
-    schedule: Schedule = Schedule.QUARTERLY
+    schedule: Schedule
 
     # These get auto filled in the initialize method
     pool_inception: date
@@ -90,45 +108,49 @@ class Employer(BaseModel):
     ########################################
     #    VARIOUS INITIALIZATION METHODS    #
     ########################################
-    def initialize_monthly_periods(self) -> None:
-        self.period_start_dates.append(self.pool_inception)
-        for m in range(12):
-            month = m+1
-            date = self.pool_inception.replace(month=month, day=1)
-            if date <= self.pool_inception:
-                continue
-            self.period_start_dates.append(date)
 
-    def initialize_quarterly_periods(self) -> None:
-        self.period_start_dates.append(self.pool_inception)
-        for m in range(4):
-            month = 3*m+1
-            date = self.pool_inception.replace(month=month, day=1)
-            if date <= self.pool_inception:
-                continue
-            self.period_start_dates.append(date)
+    def set_period_start_dates_by_month_list(self, month_list: list[int], bi: bool = False) -> None:
+        self.period_start_dates = [self.pool_inception]
+        year = self.pool_inception.year
+        for m in month_list:
+            d_1 = date(year=year, month=m, day=1)
+            if self.pool_inception < d_1:
+                self.period_start_dates.append(d_1)
+            if bi:
+                d_15 = date(year=year, month=m, day=15)
+                if self.pool_inception < d_15:
+                    self.period_start_dates.append(d_15)
 
-        dec_1 = self.pool_inception.replace(month=12, day=1)
-        if self.pool_inception < dec_1:
-            self.period_start_dates.append(dec_1)
+    def initialize_periods(self, custom_period_start_dates: list[date] = []) -> None:
+        if self.schedule == Schedule.SEMIMONTHLY:
+            self.set_period_start_dates_by_month_list([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], True)
+
+        elif self.schedule == Schedule.MONTHLY:
+            self.set_period_start_dates_by_month_list([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+
+        elif self.schedule == Schedule.BIMONTHLY:
+            self.set_period_start_dates_by_month_list([1, 3, 5, 7, 9, 11, 12])
+
+        elif self.schedule == Schedule.QUARTERLY:
+            self.set_period_start_dates_by_month_list([1, 4, 7, 10, 12])
+
+        elif self.schedule == Schedule.SEMIANNUALLY:
+            self.set_period_start_dates_by_month_list([1, 7, 12])
+
+        elif self.schedule == Schedule.ANNUALLY:
+            self.set_period_start_dates_by_month_list([1, 12])
+
+        else:
+            for d in sorted(custom_period_start_dates):
+                if d < self.pool_inception:
+                    continue
+                self.period_start_dates.append(d)
 
         # dec_15 = self.pool_inception.replace(month=12, day=15)
         # if self.pool_inception < dec_15:
         #     self.period_start_dates.append(dec_15)
 
-    def initialize_custom_periods(self, custom_period_start_dates: list) -> None:
-        self.period_start_dates = custom_period_start_dates
-
-    def initialize_periods(self, custom_period_start_dates: list) -> None:
-        if self.schedule == Schedule.MONTHLY:
-            self.initialize_monthly_periods()
-        elif self.schedule == Schedule.QUARTERLY:
-            self.initialize_quarterly_periods()
-        else:
-            self.initialize_custom_periods(custom_period_start_dates)
-
     def initialize(self, custom_period_start_dates: list = []) -> None:
-        self.period_start_dates = []
         self.initialize_periods(custom_period_start_dates)
         self._dr = generate_substance(self.sub_d)
         self._al = generate_substance(self.sub_a)
@@ -138,7 +160,6 @@ class Employer(BaseModel):
         mapping = {}
         mapping['population'] = dic
         self._db_conn = DbConn.generate_object(mapping)
-        self.pool_inception = self._db_conn.get_inception_date
 
     @staticmethod
     def extended_start_dates(old_dates, additional_dates):

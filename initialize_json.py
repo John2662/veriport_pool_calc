@@ -7,12 +7,10 @@ from datetime import date
 from employer import Schedule
 
 
-def compile_json(company_name: str,
-                 inception: date,
+def compile_json(inception: date,
                  schedule: Schedule,
                  s_dict: dict) -> dict:
     employer_json = {}
-    employer_json['name'] = company_name
     employer_json['schedule'] = schedule
     employer_json['pool_inception'] = f'{inception}'
     employer_json['period_start_dates'] = ['1900-01-01']
