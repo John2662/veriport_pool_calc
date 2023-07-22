@@ -147,7 +147,7 @@ class Substance(BaseModel):
             val += "{:9.2f}".format(float(p))
         return val
 
-    def generate_substance_report(self) -> str:
+    def make_text_substance_report(self) -> str:
         s = f'\n{self.name.upper()} SUMMARY:\n'
         r_req = Substance.format_float(sum(self.aposteriori_truth))
         required = '[' + Substance.format_to_csv(self.aposteriori_truth) + '] summed -> ' + f'{r_req}'
@@ -178,6 +178,9 @@ class Substance(BaseModel):
         else:
             s += f'   TOTAL OVERCOUNT: {final_error}\n'
         return s
+
+    def make_html_substance_report(self) -> str:
+        return ''
 
 
 def generate_substance(json_str: str) -> Substance:

@@ -161,8 +161,7 @@ def get_args() -> argparse.Namespace:
 def tokenize_string(s: str, t: str = '\n') -> list[str]:
     return s.split(t)
 
-# TODO: Add weekly testing
-# Change to HTML report
+
 def store_data(text: str, csv: str, pop: dict, file_name: str = '', directory: str = 'run_output') -> None:
     csv = tokenize_string(csv)
     for line in csv:

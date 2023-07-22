@@ -232,7 +232,7 @@ class Employer(BaseModel):
             self.make_period_calculations(period_index)
 
         score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
-        return (score, self.generate_csv_report(), self.make_report())
+        return (score, self.generate_csv_report(), self.make_text_report(), self.make_html_report())
 
     def rerun_test_scenario(self, new_period_dates: list[date]):
         added_dates = self.reinitialize(new_period_dates)
@@ -301,7 +301,7 @@ class Employer(BaseModel):
     def format_float(f):
         return "{:6.2f}".format(float(f))
 
-    def make_report(self) -> str:
+    def make_text_report(self) -> str:
         s = 'DATA KNOWN ON INCEPTION DATE:\n'
         s += f'   Num employees  : {self.start_count}\n'
         s += f'   Inception date : {self.pool_inception}\n'
@@ -329,13 +329,21 @@ class Employer(BaseModel):
 
             donor_query_set_for_period.append(p_data)
 
-        s += self._dr.generate_substance_report()
-        s += self._al.generate_substance_report()
+        s += self._dr.make_text_substance_report()
+        s += self._al.make_text_substance_report()
 
         return s
 
+    # TODO: FINISH THIS:
+    def make_html_report(self):
+        s = ''
+        s += self._dr.make_html_substance_report()
+        s += self._al.make_html_substance_report()
+
+        return s
 
 # TODO:
 # 0. write files to disk if we hit errors (finish main.store_data)
+# 1. write out HTML report instead of just text
 # 1. write a "driver" that pushes data in at the start of each period to mimic how it would be used in veriport
 # 2. Write "heal run" function by adding more periods and rerunning
