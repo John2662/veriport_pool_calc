@@ -174,7 +174,7 @@ def store_data(text: str, csv: str, pop: dict, html: str, file_name: str = '', d
     # TODO write to file
 
     html = tokenize_string(html)
-    with open ('foo.html', 'w') as f:
+    with open('foo.html', 'w') as f:
         for line in html:
             f.write(line+'\n')
 
@@ -224,7 +224,7 @@ def main() -> int:
 
     filename = args.file
     if filename is not None:
-        return run_from_file(args.co, filename, args.vp)
+        return run_from_file(filename, args.vp)
 
     i = 0
     errors = {}

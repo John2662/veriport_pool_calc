@@ -179,37 +179,76 @@ class Substance(BaseModel):
             s += f'   TOTAL OVERCOUNT: {final_error}\n'
         return s
 
+    def html_total_row(self) -> list[str]:
+        r_pre = sum(self.required_tests_predicted)
+        r_tru = Substance.format_float(sum(self.aposteriori_truth))
+        r_err = Substance.format_float(sum(self.overcount_error))
+
+        s = ['          <tr>\n']
+        s.append('              <td>TOTAL:</td>\n')
+        s.append(f'              <td>{r_pre}</td>\n')
+        s.append(f'              <td>{r_tru}</td>\n')
+        s.append(f'              <td>{r_err}</td>\n')
+        s.append('          </tr>\n')
+        return s
+
+    def overcount_summary(self):
+        final_error = floor(discretize_float(sum(self.overcount_error)))
+        if final_error < 0:
+            return f'  TOTAL UNDERCOUNT: {-final_error}. </br> <h6> Undercount due to gowing pool size </h6> </br>\n'
+        elif final_error < 1:
+            return '  CORRECT NUMBER OF TESTS PRESCRIBED!</br>\n'
+        else:
+            return f'  TOTAL OVERCOUNT: {final_error}. </br> <h6> Overcount due to shrinking pool size </h6></br>\n'
+
+    def html_period_row(self, p: int) -> list[str]:
+        r_pre = self.required_tests_predicted[p]
+        r_tru = Substance.format_float(self.aposteriori_truth[p])
+        r_err = Substance.format_float(self.overcount_error[p])
+
+        s = ['          <tr>\n']
+        s.append(f'              <td>{p+1}</td>\n')
+        s.append(f'              <td>{r_pre}</td>\n')
+        s.append(f'              <td>{r_tru}</td>\n')
+        s.append(f'              <td>{r_err}</td>\n')
+        s.append('          </tr>\n')
+        return s
+
     def make_html_substance_report(self) -> str:
-        s = '<div class="container">\n'
-        s += '  <h2>Striped Rows</h2>\n'
-        s += '  <p>The .table-striped class adds zebra-stripes to a table:</p>            \n'
-        s += '  <table class="table table-striped">\n'
-        s += '      <thead>\n'
-        s += '          <tr>\n'
-        s += '              <th>Firstname</th>\n'
-        s += '              <th>Lastname</th>\n'
-        s += '              <th>Email</th>\n'
-        s += '          </tr>\n'
-        s += '      </thead>\n'
-        s += '      <tbody>\n'
-        s += '          <tr>\n'
-        s += '              <td>John</td>\n'
-        s += '              <td>Doe</td>\n'
-        s += '              <td>john@example.com</td>\n'
-        s += '          </tr>\n'
-        s += '          <tr>\n'
-        s += '              <td>Mary</td>\n'
-        s += '              <td>Moe</td>\n'
-        s += '              <td>mary@example.com</td>\n'
-        s += '          </tr>\n'
-        s += '          <tr>\n'
-        s += '              <td>July</td>\n'
-        s += '              <td>Dooley</td>\n'
-        s += '              <td>july@example.com</td>\n'
-        s += '          </tr>\n'
-        s += '      </tbody>\n'
-        s += '  </table>\n'
-        s += '</div>\n'
+
+        s = ['<div class="container">\n']
+        s.append(f'  <h2>{self.name.upper()} SUMMARY:</h2>\n')
+        s.append('  <table class="table table-striped">\n')
+        s.append('      <thead>\n')
+        s.append('          <tr>\n')
+        s.append('              <th>Period</th>\n')
+        s.append('              <th>Tests Prescribed</th>\n')
+        s.append('              <th>Tests Required</th>\n')
+        s.append('              <th>Over Count</th>\n')
+        s.append('          </tr>\n')
+        s.append('      </thead>\n')
+        s.append('      <tbody>\n')
+
+        for p in range(len(self.aposteriori_truth)):
+            row_lines = self.html_period_row(p)
+            for line in row_lines:
+                s.append(line)
+
+        row_lines = self.html_total_row()
+        for line in row_lines:
+            s.append(line)
+
+        tot_pred = sum(self.required_tests_predicted)
+        tot_req = ceil(discretize_float(sum(self.aposteriori_truth)))
+
+        s.append('      </tbody>\n')
+        s.append('  </table>\n')
+        s.append('  <p>\n')
+        s.append(f'  TOTAL  PREDICTED: {tot_pred}</br>\n')
+        s.append(f'  ACTUAL REQUIRED: {tot_req}</br>\n')
+        s.append(self.overcount_summary())
+        s.append('  </p>\n')
+        s.append('</div>\n')
         return s
 
 

@@ -337,7 +337,32 @@ class Employer(BaseModel):
 
         return s
 
-    # TODO: FINISH THIS:
+    def html_period_row(self, p: int):
+        start = self.period_start_dates[p]
+        end = self.period_end_date(p)
+        days = (end-start).days+1
+        fract_of_year = float(days)/float(self.total_days_in_year)
+        percent_of_yr = Employer.format_float(100.0*fract_of_year)
+
+        p_data = self.fetch_donor_query_set_for_period(p)
+        avg = float(sum(p_data))/float(days)
+        avg_s = Employer.format_float(avg)
+        w = min(p_data[0], avg) + 1
+        var = Employer.format_float(float(avg-p_data[0])/w)
+        s = []
+        s.append('          <tr>\n')
+        s.append(f'              <td>{p+1}</td>\n')
+        s.append(f'              <td>{start}</td>\n')
+        s.append(f'              <td>{end}</td>\n')
+        s.append(f'              <td>{days}</td>\n')
+        s.append(f'              <td>{percent_of_yr}</td>\n')
+        s.append(f'              <td>{p_data[0]}</td>\n')
+        s.append(f'              <td>{avg_s}</td>\n')
+        s.append(f'              <td>{var}</td>\n')
+        s.append('          </tr>\n')
+        return s
+
+
     def make_html_report(self):
         s = ''
         s += '<!DOCTYPE html>\n'
@@ -353,38 +378,46 @@ class Employer(BaseModel):
         s += '<body>\n'
 
         s += '<div class="container">\n'
-        s += '  <h2>Striped Rows</h2>\n'
-        s += '  <p>The .table-striped class adds zebra-stripes to a table:</p>            \n'
+        s += '  <h2>INITIAL DATA ON INCEPTION DATE:</h2>\n'
+        s += f'  <p>Initial Pool Size: {self.start_count} </p>\n'
+        s += f'  <p>Inception Date: {self.pool_inception} </p>\n'
+        s += f'  <p>Percent of Year: {Employer.format_float(100.0 * self.fraction_of_year)}% </p>\n'
+        s += f'  <p>Initial Guess at Num Drug Tests: {self.guess_for("drug")} </p>\n'
+        s += f'  <p>Initial Guess at Num Alcohol Tests: {self.guess_for("alcohol")} </p>\n'
+        s += '   </br>\n'
+        s += '   </hr>\n'
+        s += '   </br>\n'
+        s += '  <h2>POPULATION DATA PER PERIOD:</h2>\n'
         s += '  <table class="table table-striped">\n'
         s += '      <thead>\n'
         s += '          <tr>\n'
-        s += '              <th>Firstname</th>\n'
-        s += '              <th>Lastname</th>\n'
-        s += '              <th>Email</th>\n'
+        s += '              <th>Period</th>\n'
+        s += '              <th>Start Date</th>\n'
+        s += '              <th>End Date</th>\n'
+        s += '              <th>Num Days</th>\n'
+        s += '              <th>% of Year</th>\n'
+        s += '              <th>Start Size</th>\n'
+        s += '              <th>Avg. Size</th>\n'
+        s += '              <th>Variation</th>\n'
         s += '          </tr>\n'
         s += '      </thead>\n'
         s += '      <tbody>\n'
-        s += '          <tr>\n'
-        s += '              <td>John</td>\n'
-        s += '              <td>Doe</td>\n'
-        s += '              <td>john@example.com</td>\n'
-        s += '          </tr>\n'
-        s += '          <tr>\n'
-        s += '              <td>Mary</td>\n'
-        s += '              <td>Moe</td>\n'
-        s += '              <td>mary@example.com</td>\n'
-        s += '          </tr>\n'
-        s += '          <tr>\n'
-        s += '              <td>July</td>\n'
-        s += '              <td>Dooley</td>\n'
-        s += '              <td>july@example.com</td>\n'
-        s += '          </tr>\n'
+
+        for p in range(self.num_periods):
+            row_lines = self.html_period_row(p)
+            for line in row_lines:
+                s += line
         s += '      </tbody>\n'
         s += '  </table>\n'
         s += '</div>\n'
 
-        s += self._dr.make_html_substance_report()
-        s += self._al.make_html_substance_report()
+        lines = self._dr.make_html_substance_report()
+        for line in lines:
+            s += line
+
+        lines = self._al.make_html_substance_report()
+        for line in lines:
+            s += line
 
         s += '</body>\n'
         s += '</html>\n'
