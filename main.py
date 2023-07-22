@@ -162,7 +162,7 @@ def tokenize_string(s: str, t: str = '\n') -> list[str]:
     return s.split(t)
 
 
-def store_data(text: str, csv: str, pop: dict, file_name: str = '', directory: str = 'run_output') -> None:
+def store_data(text: str, csv: str, pop: dict, html: str, file_name: str = '', directory: str = 'run_output') -> None:
     csv = tokenize_string(csv)
     for line in csv:
         print(line)
@@ -172,6 +172,11 @@ def store_data(text: str, csv: str, pop: dict, file_name: str = '', directory: s
     for line in text:
         print(line)
     # TODO write to file
+
+    html = tokenize_string(html)
+    with open ('foo.html', 'w') as f:
+        for line in html:
+            f.write(line+'\n')
 
     # write_population_to_natural_file(pop, filename)
     # TODO get the file name figured out
