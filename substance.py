@@ -180,13 +180,42 @@ class Substance(BaseModel):
         return s
 
     def make_html_substance_report(self) -> str:
-        return ''
+        s = '<div class="container">\n'
+        s += '  <h2>Striped Rows</h2>\n'
+        s += '  <p>The .table-striped class adds zebra-stripes to a table:</p>            \n'
+        s += '  <table class="table table-striped">\n'
+        s += '      <thead>\n'
+        s += '          <tr>\n'
+        s += '              <th>Firstname</th>\n'
+        s += '              <th>Lastname</th>\n'
+        s += '              <th>Email</th>\n'
+        s += '          </tr>\n'
+        s += '      </thead>\n'
+        s += '      <tbody>\n'
+        s += '          <tr>\n'
+        s += '              <td>John</td>\n'
+        s += '              <td>Doe</td>\n'
+        s += '              <td>john@example.com</td>\n'
+        s += '          </tr>\n'
+        s += '          <tr>\n'
+        s += '              <td>Mary</td>\n'
+        s += '              <td>Moe</td>\n'
+        s += '              <td>mary@example.com</td>\n'
+        s += '          </tr>\n'
+        s += '          <tr>\n'
+        s += '              <td>July</td>\n'
+        s += '              <td>Dooley</td>\n'
+        s += '              <td>july@example.com</td>\n'
+        s += '          </tr>\n'
+        s += '      </tbody>\n'
+        s += '  </table>\n'
+        s += '</div>\n'
+        return s
 
 
 def generate_substance(json_str: str) -> Substance:
     d_dict = json.loads(json_str)
     d_dict['percent'] = float(d_dict['percent'])
-    # d_dict['apriori_estimate'] = []
     d_dict['aposteriori_truth'] = []
     d_dict['required_tests_predicted'] = []
     d_dict['overcount_error'] = []

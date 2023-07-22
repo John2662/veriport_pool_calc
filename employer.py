@@ -340,9 +340,54 @@ class Employer(BaseModel):
     # TODO: FINISH THIS:
     def make_html_report(self):
         s = ''
+        s += '<!DOCTYPE html>\n'
+        s += '<html lang="en">\n'
+        s += '<head>\n'
+        s += '  <title>Bootstrap Example</title>\n'
+        s += '  <meta charset="utf-8">\n'
+        s += '  <meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        s += '  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">\n'
+        s += '  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>\n'
+        s += '  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>\n'
+        s += '</head>\n'
+        s += '<body>\n'
+
+        s += '<div class="container">\n'
+        s += '  <h2>Striped Rows</h2>\n'
+        s += '  <p>The .table-striped class adds zebra-stripes to a table:</p>            \n'
+        s += '  <table class="table table-striped">\n'
+        s += '      <thead>\n'
+        s += '          <tr>\n'
+        s += '              <th>Firstname</th>\n'
+        s += '              <th>Lastname</th>\n'
+        s += '              <th>Email</th>\n'
+        s += '          </tr>\n'
+        s += '      </thead>\n'
+        s += '      <tbody>\n'
+        s += '          <tr>\n'
+        s += '              <td>John</td>\n'
+        s += '              <td>Doe</td>\n'
+        s += '              <td>john@example.com</td>\n'
+        s += '          </tr>\n'
+        s += '          <tr>\n'
+        s += '              <td>Mary</td>\n'
+        s += '              <td>Moe</td>\n'
+        s += '              <td>mary@example.com</td>\n'
+        s += '          </tr>\n'
+        s += '          <tr>\n'
+        s += '              <td>July</td>\n'
+        s += '              <td>Dooley</td>\n'
+        s += '              <td>july@example.com</td>\n'
+        s += '          </tr>\n'
+        s += '      </tbody>\n'
+        s += '  </table>\n'
+        s += '</div>\n'
+
         s += self._dr.make_html_substance_report()
         s += self._al.make_html_substance_report()
 
+        s += '</body>\n'
+        s += '</html>\n'
         return s
 
 # TODO:
