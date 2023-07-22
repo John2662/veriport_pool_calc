@@ -239,10 +239,13 @@ class Employer(BaseModel):
         if added_dates:
             for period_index in range(len(self.period_start_dates)):
                 self.make_period_calculations(period_index)
-            return abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
+            score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
+            return (score, self.generate_csv_report(), self.make_text_report(), self.make_html_report())
+
         # No dates added so these numbers will not change
         print(f'WARNING: {new_period_dates} are contained in {self.period_start_dates} so no changes')
-        return abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
+        score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
+        return (score, self.generate_csv_report(), self.make_text_report(), self.make_html_report())
 
     ##############################
     #    GENERATE A CSV STRING   #

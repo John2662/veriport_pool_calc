@@ -196,13 +196,22 @@ def generate_data_set_randomly(run_count: int, num_tests: int, mu: float, sigma:
     return (Employer(**employer_json), population)
 
 
-def run_from_file(filename: str, vp_format: bool):
+def run_from_file(filename: str, vp_format: bool) -> int:
     (e, population) = load_data_set_from_file(filename, vp_format)
-    (err, csv, text) = e.run_test_scenario()
+    (err, csv, text, html) = e.run_test_scenario()
     if err >= 1:
-        store_data(text, csv, population)
+        store_data(text, csv, population, html)
         print(f'hit error of level {err}')
-    return 0
+    return err
+
+
+def run_from_random_data(i: int, num_tests: int, mu: float, sigma: float) -> int:
+    (e, population) = generate_data_set_randomly(i, num_tests, .1, 2.5)
+    (err, csv, text, html) = e.run_test_scenario()
+    if err >= 1:
+        store_data(text, csv, population, html)
+        print(f'hit error of level {err}')
+    return err
 
 
 def main() -> int:
@@ -215,14 +224,14 @@ def main() -> int:
     i = 0
     errors = {}
     num_tests = min(args.iter, MAX_NUM_TESTS)
+    mu = .1
+    sigma = 2.5
     while(i < num_tests):
-        (e, population) = generate_data_set_randomly(i, num_tests, .1, 2.5)
-        (err, csv, text) = e.run_test_scenario()
+        err = run_from_random_data(i, num_tests, mu, sigma)
         if err >= 1:
             if err not in errors:
                 errors[err] = 0
             errors[err] += 1
-            store_data(text, csv, population)
         i += 1
 
     for e in errors:
