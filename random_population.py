@@ -8,6 +8,9 @@ from random import randint
 import random
 import argparse
 
+# from file_io import write_population_to_natural_file
+from file_io import write_population_to_vp_file
+
 MAX_POP = 500
 
 
@@ -76,33 +79,6 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('--sig', type=float, help='Gaussian sigma parameter (data spread)', default=0.0)
     args = parser.parse_args()
     return args
-
-
-def write_population_to_natural_file(population, filename: str) -> None:
-    with open('file_name', 'w') as f:
-        for d in population:
-            f.write(f'{d},{population[d]}\n')
-
-
-def write_population_to_vp_file(population, filename: str) -> None:
-    last_date_processed = list(population.keys())[0]
-    last_pop_processed = population[last_date_processed]
-
-    with open(filename, 'w') as f:
-        f.write(f'{last_date_processed},{last_pop_processed}\n')
-        for d in population:
-            delta = population[d] - last_pop_processed
-            if delta != 0:
-                f.write(f'{d},{delta}\n')
-                last_pop_processed += delta
-
-
-def natural_to_vp(filename):
-    pass
-
-
-def vp_to_natural(filename):
-    pass
 
 
 def main() -> int:
