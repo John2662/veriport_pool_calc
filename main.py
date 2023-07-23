@@ -71,12 +71,6 @@ def process_line(line: str, i: int) -> tuple:
     return (d, pop)
 
 
-def write_population_to_natural_file(population, filename: str) -> None:
-    with open('file_name', 'w') as f:
-        for d in population:
-            f.write(f'{d},{population[d]}\n')
-
-
 def load_population_from_vp_file(filename: str) -> dict:
     inception_not_found = True
     population = {}
@@ -152,6 +146,7 @@ def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Arguments: file_to_load, vp_format, output_directory')
     parser.add_argument('--file', type=str, help='data file to load')
     parser.add_argument('--dir', type=str, help='output directory')
+    parser.add_argument('--sch', type=str, help='the testing schedule (MONTHLY, QUARTERLY, etc.)', default='quarterly')
     parser.add_argument('--vp', type=bool, help='Whether this comes from VP or from this program', default=False)
     parser.add_argument('--iter', type=int, help='number of random iterations', default=10)
     args = parser.parse_args()
@@ -182,27 +177,27 @@ def store_data(text: str, csv: str, pop: dict, html: str, file_name: str = '', d
     # TODO get the file name figured out
 
 
-def load_data_set_from_file(data_file: str, vp_format: bool) -> tuple:
+def load_data_set_from_file(data_file: str, vp_format: bool, schedule: Schedule) -> tuple:
     if vp_format:
         population = load_population_from_vp_file(data_file)
     else:
         population = load_population_from_natural_file(data_file)
     start = list(population.keys())[0]
     s_dic = DbConn.to_initialization_string(population)
-    employer_json = compile_json(start, Schedule.QUARTERLY, s_dic)
+    employer_json = compile_json(start, schedule, s_dic)
     return (Employer(**employer_json), population)
 
 
-def generate_data_set_randomly(run_count: int, num_tests: int, mu: float, sigma: float) -> tuple:
+def generate_data_set_randomly(run_count: int, num_tests: int, schedule: Schedule,  mu: float, sigma: float) -> tuple:
     population = generate_random_population_data(mu, sigma)
     start = list(population.keys())[0]
     s_dic = DbConn.to_initialization_string(population)
-    employer_json = compile_json(start, Schedule.QUARTERLY, s_dic)
+    employer_json = compile_json(start, schedule, s_dic)
     return (Employer(**employer_json), population)
 
 
-def run_from_file(filename: str, vp_format: bool) -> int:
-    (e, population) = load_data_set_from_file(filename, vp_format)
+def run_from_file(filename: str, vp_format: bool, schedule: Schedule) -> int:
+    (e, population) = load_data_set_from_file(filename, vp_format, schedule)
     (err, csv, text, html) = e.run_test_scenario()
     if err >= 1:
         store_data(text, csv, population, html)
@@ -210,21 +205,42 @@ def run_from_file(filename: str, vp_format: bool) -> int:
     return err
 
 
-def run_from_random_data(i: int, num_tests: int, mu: float, sigma: float) -> int:
-    (e, population) = generate_data_set_randomly(i, num_tests, .1, 2.5)
+def run_from_random_data(i: int, num_tests: int, schedule: Schedule, mu: float, sigma: float) -> int:
+    (e, population) = generate_data_set_randomly(i, num_tests, schedule, .1, 2.5)
     (err, csv, text, html) = e.run_test_scenario()
     if err >= 1:
         store_data(text, csv, population, html)
         print(f'hit error of level {err}')
     return err
+
+
+def from_string_to_schedule(s):
+    s = s.strip().lower()
+    print(f' PROCESS {s=}')
+    if s == 'semimonthly':
+        return Schedule.SEMIMONTHLY
+    if s == 'monthly':
+        return Schedule.MONTHLY
+    if s == 'bimonthly':
+        return Schedule.BIMONTHLY
+    if s == 'quarterly':
+        return Schedule.QUARTERLY
+    if s == 'semiannually':
+        return Schedule.SEMIANNUALLY
+    if s == 'annually':
+        return Schedule.ANNUALLY
+    print('hit default')
+    return Schedule.QUARTERLY
 
 
 def main() -> int:
     args = get_args()
 
+    schedule = from_string_to_schedule(args.sch)
+
     filename = args.file
     if filename is not None:
-        return run_from_file(filename, args.vp)
+        return run_from_file(filename, args.vp, schedule)
 
     i = 0
     errors = {}
@@ -232,7 +248,7 @@ def main() -> int:
     mu = .1
     sigma = 2.5
     while(i < num_tests):
-        err = run_from_random_data(i, num_tests, mu, sigma)
+        err = run_from_random_data(i, num_tests, schedule, mu, sigma)
         if err >= 1:
             if err not in errors:
                 errors[err] = 0

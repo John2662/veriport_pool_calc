@@ -195,11 +195,11 @@ class Substance(BaseModel):
     def overcount_summary(self):
         final_error = floor(discretize_float(sum(self.overcount_error)))
         if final_error < 0:
-            return f'  TOTAL UNDERCOUNT: {-final_error}. </br> <h6> Undercount due to gowing pool size </h6> </br>\n'
+            return f'  TOTAL UNDERCOUNT: {-final_error} </br> <h6> Undercount due to growing pool size </h6> </br>\n'
         elif final_error < 1:
             return '  CORRECT NUMBER OF TESTS PRESCRIBED!</br>\n'
         else:
-            return f'  TOTAL OVERCOUNT: {final_error}. </br> <h6> Overcount due to shrinking pool size </h6></br>\n'
+            return f'  TOTAL OVERCOUNT: {final_error} </br> <h6> Overcount due to shrinking pool size </h6></br>\n'
 
     def html_period_row(self, p: int) -> list[str]:
         r_pre = self.required_tests_predicted[p]

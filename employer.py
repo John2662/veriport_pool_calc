@@ -362,7 +362,6 @@ class Employer(BaseModel):
         s.append('          </tr>\n')
         return s
 
-
     def make_html_report(self):
         s = ''
         s += '<!DOCTYPE html>\n'
@@ -425,6 +424,7 @@ class Employer(BaseModel):
 
 # TODO:
 # 0. write files to disk if we hit errors (finish main.store_data)
-# 1. write out HTML report instead of just text
-# 1. write a "driver" that pushes data in at the start of each period to mimic how it would be used in veriport
-# 2. Write "heal run" function by adding more periods and rerunning
+# 1. Have reformat from native to vp format program
+# 4. Initilize DbConn just from a file on disc.
+# 5. write a "driver" that pushes data in at the start of each period to mimic how it would be used in veriport
+# 6. Write "heal run" function by adding more periods and rerunning

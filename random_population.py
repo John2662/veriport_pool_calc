@@ -6,6 +6,7 @@
 from datetime import date, timedelta
 from random import randint
 import random
+import argparse
 
 MAX_POP = 500
 
@@ -60,8 +61,61 @@ def generate_population(start: date, end: date, pop: int, mu: float = 0.0, sigma
     return population
 
 
-def generate_random_population_data(mu: float = 0, sigma: float = 0):
+def generate_random_population_data(mu: float, sigma: float):
     pop = get_random_population()
     start = get_random_date()
     end = date(year=start.year, month=12, day=31)
     return generate_population(start, end, pop, mu, sigma)
+
+
+def get_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description='Arguments: file path to write to, vp_format, mu, sigma')
+    parser.add_argument('--fp', type=str, help='filepath to write output to')
+    parser.add_argument('--vp', type=bool, help='Whether tp output in VP or native format', default=True)
+    parser.add_argument('--mu', type=float, help='Gaussian mu parameter (data drift)', default=0.0)
+    parser.add_argument('--sig', type=float, help='Gaussian sigma parameter (data spread)', default=0.0)
+    args = parser.parse_args()
+    return args
+
+
+def write_population_to_natural_file(population, filename: str) -> None:
+    with open('file_name', 'w') as f:
+        for d in population:
+            f.write(f'{d},{population[d]}\n')
+
+
+def write_population_to_vp_file(population, filename: str) -> None:
+    last_date_processed = list(population.keys())[0]
+    last_pop_processed = population[last_date_processed]
+
+    with open(filename, 'w') as f:
+        f.write(f'{last_date_processed},{last_pop_processed}\n')
+        for d in population:
+            delta = population[d] - last_pop_processed
+            if delta != 0:
+                f.write(f'{d},{delta}\n')
+                last_pop_processed += delta
+
+
+def natural_to_vp(filename):
+    pass
+
+
+def vp_to_natural(filename):
+    pass
+
+
+def main() -> int:
+    args = get_args()
+
+    mu = args.mu
+    sigma = args.sig
+    filepath = args.fp
+    population = generate_random_population_data(mu, sigma)
+    for d in population:
+        print(f'{d}->{population[d]}')
+    write_population_to_vp_file(population, filepath)
+
+
+if __name__ == "__main__":
+    main()
