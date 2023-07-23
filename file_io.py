@@ -7,6 +7,7 @@ from datetime import datetime, date, timedelta
 from dateutil.parser import parse
 # from dateutil.parser import ParseError
 # from dateutil.parser._parser import ParseError
+import argparse
 
 
 # Change to use dateutil.parser
@@ -101,13 +102,13 @@ def load_population_from_natural_file(filename: str) -> dict:
     return population
 
 
-def write_population_to_natural_file(population, filename: str) -> None:
-    with open('file_name', 'w') as f:
+def write_population_to_natural_file(population: dict, filename: str) -> None:
+    with open(filename, 'w') as f:
         for d in population:
             f.write(f'{d},{population[d]}\n')
 
 
-def write_population_to_vp_file(population, filename: str) -> None:
+def write_population_to_vp_file(population: dict, filename: str) -> None:
     last_date_processed = list(population.keys())[0]
     last_pop_processed = population[last_date_processed]
 
@@ -120,16 +121,43 @@ def write_population_to_vp_file(population, filename: str) -> None:
                 last_pop_processed += delta
 
 
-def natural_to_vp(filename):
-    pass
+def natural_to_vp(filename: str) -> str:
+    pop = load_population_from_natural_file(filename)
+    new_file = f'vp_{filename}'
+    write_population_to_vp_file(pop, new_file)
+    return new_file
 
 
-def vp_to_natural(filename):
-    pass
+def vp_to_natural(filename: str) -> None:
+    pop = load_population_from_vp_file(filename)
+    new_file = f'n_{filename}'
+    write_population_to_natural_file(pop, new_file)
+    return new_file
+
+
+def get_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description='Arguments: file path to write to, vp_format, mu, sigma')
+    parser.add_argument('--fp', type=str, help='filepath for input file')
+    parser.add_argument('--vp', type=str, help='Whether to read in VP or native format', default='false')
+    args = parser.parse_args()
+    return args
 
 
 def main() -> int:
-    pass
+    args = get_args()
+    print(f'{args.vp=}')
+    vp = True if args.vp.lower()[0] == 't' else False
+    filename = args.fp
+    if vp:
+        print(f'vp -> n with {filename}')
+        new_filename = vp_to_natural(filename)
+        print(f'n -> vp with {new_filename}')
+        natural_to_vp(new_filename)
+    else:
+        print(f'n -> vp with {filename}')
+        new_filename = natural_to_vp(filename)
+        print(f'vp -> n with {new_filename}')
+        vp_to_natural(new_filename)
 
 
 if __name__ == "__main__":
