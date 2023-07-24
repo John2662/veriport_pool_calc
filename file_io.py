@@ -8,6 +8,7 @@ from dateutil.parser import parse
 # from dateutil.parser import ParseError
 # from dateutil.parser._parser import ParseError
 import argparse
+from db_proxy import population_valid
 
 
 # Change to use dateutil.parser
@@ -54,7 +55,6 @@ def load_population_from_vp_file(filename: str) -> dict:
                 continue
             if year == 1900:
                 year = d.year
-                print(f'{year=}')
             elif year != d.year:
                 print(f'{filename} spans multiple years')
                 exit(0)
@@ -119,6 +119,15 @@ def write_population_to_vp_file(population: dict, filename: str) -> None:
             if delta != 0:
                 f.write(f'{d},{delta}\n')
                 last_pop_processed += delta
+
+    # Do a quick test to catch errors
+    new_pop = load_population_from_vp_file(filename)
+    if not population_valid(new_pop):
+        print('ERROR:')
+        print(f'{population}')
+        print('became\n')
+        print(f'{new_pop}')
+        exit(0)
 
 
 def natural_to_vp(filename: str) -> str:

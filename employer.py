@@ -12,8 +12,6 @@ from enum import Enum
 
 from db_proxy import DbConn
 from substance import generate_substance
-from file_io import load_population_from_vp_file
-# from file_io import load_population_from_natural_file
 
 
 class Schedule(Enum):
@@ -152,17 +150,29 @@ class Employer(BaseModel):
         # if self.pool_inception < dec_15:
         #     self.period_start_dates.append(dec_15)
 
+    def establish_db(self):
+        # The db string points to a file on disk, which we will read
+        # to set up the data
+        from file_io import load_population_from_vp_file
+        population = load_population_from_vp_file(self.db_str)
+        mapping = {}
+        mapping['population'] = population
+        db = DbConn(**mapping)
+        if not db.validate_data():
+            print('Data input is invalid:')
+            a = db.data_as_string_array()
+            for line in a:
+                print(line)
+            exit(0)
+        return db
+
     def initialize(self, custom_period_start_dates: list = []) -> None:
         self.initialize_periods(custom_period_start_dates)
         self._dr = generate_substance(self.sub_d)
         self._al = generate_substance(self.sub_a)
 
-        # This will initialize the "DB" but in a real world example, it would already exist
-        # The db string points to a file on disk, which we will read and then call:
-        population = load_population_from_vp_file(self.db_str)
-        mapping = {}
-        mapping['population'] = population
-        self._db_conn = DbConn(**mapping)
+        # Initialize the "DB". In a real world example, it would already exist
+        self._db_conn = self.establish_db()
 
     @staticmethod
     def extended_start_dates(old_dates, additional_dates):
@@ -349,19 +359,19 @@ class Employer(BaseModel):
 
         p_data = self.fetch_donor_query_set_for_period(p)
         avg = float(sum(p_data))/float(days)
-        avg_s = Employer.format_float(avg)
         w = min(p_data[0], avg) + 1
-        var = Employer.format_float(float(avg-p_data[0])/w)
+        # var = Employer.format_float(float(avg-p_data[0])/w)
+        avg_s = Employer.format_float(avg)
         s = []
         s.append('          <tr>\n')
         s.append(f'              <td>{p+1}</td>\n')
         s.append(f'              <td>{start}</td>\n')
-        s.append(f'              <td>{end}</td>\n')
+        # s.append(f'              <td>{end}</td>\n')
         s.append(f'              <td>{days}</td>\n')
         s.append(f'              <td>{percent_of_yr}</td>\n')
         s.append(f'              <td>{p_data[0]}</td>\n')
         s.append(f'              <td>{avg_s}</td>\n')
-        s.append(f'              <td>{var}</td>\n')
+        # s.append(f'              <td>{var}</td>\n')
         s.append('          </tr>\n')
         return s
 
@@ -395,12 +405,12 @@ class Employer(BaseModel):
         s += '          <tr>\n'
         s += '              <th>Period</th>\n'
         s += '              <th>Start Date</th>\n'
-        s += '              <th>End Date</th>\n'
+        # s += '              <th>End Date</th>\n'
         s += '              <th>Num Days</th>\n'
         s += '              <th>% of Year</th>\n'
         s += '              <th>Start Size</th>\n'
         s += '              <th>Avg. Size</th>\n'
-        s += '              <th>Variation</th>\n'
+        # s += '              <th>Variation</th>\n'
         s += '          </tr>\n'
         s += '      </thead>\n'
         s += '      <tbody>\n'

@@ -52,7 +52,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('--file', type=str, help='data file to load')
     parser.add_argument('--dir', type=str, help='output directory')
     parser.add_argument('--sch', type=str, help='the testing schedule (MONTHLY, QUARTERLY, etc.)', default='quarterly')
-    parser.add_argument('--vp', type=bool, help='Whether this comes from VP or from this program', default=False)
+    parser.add_argument('--vp', type=bool, help='Whether this comes from VP or from this program', default=True)
     parser.add_argument('--iter', type=int, help='number of random iterations', default=10)
     args = parser.parse_args()
     return args
@@ -123,7 +123,6 @@ def run_from_random_data(i: int, num_tests: int, schedule: Schedule, mu: float, 
 
 def from_string_to_schedule(s):
     s = s.strip().lower()
-    print(f' PROCESS {s=}')
     if s == 'semimonthly':
         return Schedule.SEMIMONTHLY
     if s == 'monthly':

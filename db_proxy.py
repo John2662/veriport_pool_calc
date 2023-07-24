@@ -19,3 +19,20 @@ class DbConn(BaseModel):
 
     def employee_count(self, day: date) -> int:
         return self.population[day]
+
+    def validate_data(self) -> bool:
+        return population_valid(self.population)
+
+    def data_as_string_array(self) -> list[str]:
+        s = []
+        for d in self.population:
+            s.append(f'{str(d)} -> {self.population[d]}')
+        return s
+
+
+def population_valid(population) -> bool:
+    for d in population:
+        if population[d] < 0:
+            print(f'On {str(d)} population is {population[d]} < 0')
+            return False
+    return True
