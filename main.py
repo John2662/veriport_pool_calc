@@ -8,10 +8,10 @@ from initialize_json import compile_json
 from math import log10, ceil
 import argparse
 
-from db_proxy import DbConn
 from random_population import generate_random_population_data
 from file_io import load_population_from_natural_file
 from file_io import load_population_from_vp_file
+from file_io import write_population_to_vp_file
 
 MAX_NUM_TESTS = 10000
 
@@ -83,21 +83,23 @@ def store_data(text: str, csv: str, pop: dict, html: str, file_name: str = '', d
 
 
 def load_data_set_from_file(data_file: str, vp_format: bool, schedule: Schedule) -> tuple:
+    filename = 'tmp_vp.csv'
     if vp_format:
         population = load_population_from_vp_file(data_file)
     else:
         population = load_population_from_natural_file(data_file)
+        write_population_to_vp_file(population, filename)
     start = list(population.keys())[0]
-    s_dic = DbConn.to_initialization_string(population)
-    employer_json = compile_json(start, schedule, s_dic)
+    employer_json = compile_json(start, schedule, filename)
     return (Employer(**employer_json), population)
 
 
 def generate_data_set_randomly(run_count: int, num_tests: int, schedule: Schedule,  mu: float, sigma: float) -> tuple:
+    filename = 'tmp_vp.csv'
     population = generate_random_population_data(mu, sigma)
+    write_population_to_vp_file(population, filename)
     start = list(population.keys())[0]
-    s_dic = DbConn.to_initialization_string(population)
-    employer_json = compile_json(start, schedule, s_dic)
+    employer_json = compile_json(start, schedule, filename)
     return (Employer(**employer_json), population)
 
 

@@ -12,6 +12,8 @@ from enum import Enum
 
 from db_proxy import DbConn
 from substance import generate_substance
+from file_io import load_population_from_vp_file
+# from file_io import load_population_from_natural_file
 
 
 class Schedule(Enum):
@@ -156,10 +158,11 @@ class Employer(BaseModel):
         self._al = generate_substance(self.sub_a)
 
         # This will initialize the "DB" but in a real world example, it would already exist
-        dic = DbConn.from_initialization_string(self.db_str)
+        # The db string points to a file on disk, which we will read and then call:
+        population = load_population_from_vp_file(self.db_str)
         mapping = {}
-        mapping['population'] = dic
-        self._db_conn = DbConn.generate_object(mapping)
+        mapping['population'] = population
+        self._db_conn = DbConn(**mapping)
 
     @staticmethod
     def extended_start_dates(old_dates, additional_dates):
@@ -424,7 +427,6 @@ class Employer(BaseModel):
 
 # TODO:
 # 0. write files to disk if we hit errors (finish main.store_data)
-# 1. Have reformat from native to vp format program
 # 4. Initilize DbConn just from a file on disc.
 # 5. write a "driver" that pushes data in at the start of each period to mimic how it would be used in veriport
 # 6. Write "heal run" function by adding more periods and rerunning
