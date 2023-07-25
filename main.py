@@ -51,13 +51,9 @@ def construct_employer(population: dict, schedule: Schedule) -> Employer:
     return Employer(**employer_json)
 
 
-def process_data(schedule: Schedule, output: os.path, basefilename: str, population: dict) -> int:
+def process_data(schedule: Schedule, population: dict) -> int:
     employer = construct_employer(population, schedule)
-    (err, csv, text, html) = employer.run_test_scenario()
-    if err >= 1:
-        store_data(population, html, output, basefilename)
-        print(f'hit error of level {err}')
-    return err
+    return employer.run_test_scenario()
 
 
 def from_string_to_schedule(s):
@@ -103,12 +99,26 @@ def main() -> int:
     schedule = from_string_to_schedule(args.sch)
     filename = args.file
     output = os.path.join(args.dir)
-    print(f'{output=} and {type(output)=}')
     os.makedirs(output, exist_ok=True)
 
     if filename is not None:
+        if not os.path.isfile(filename):
+            print(f'Cannot open {filename}')
+            return 0
+        print(f'{filename=}')
+        split_filepath = filename.split('/')
+        just_file_name = os.path.splitext(split_filepath[-1])[0]
+        print(f'{just_file_name=}')
+
         population = population_dict_from_file(filename, args.vp)
-        return process_data(schedule, output, 'Results', population)
+        (err, html) = process_data(schedule, population)
+        final_dir = os.path.join(output, just_file_name)
+        os.makedirs(final_dir, exist_ok=True)
+        print(f'{final_dir=}')
+        print(f'{just_file_name=}')
+        store_data(population, html, final_dir, just_file_name)
+        print(f'hit error of level {err}')
+        return err
 
     i = 0
     errors = {}
@@ -117,11 +127,18 @@ def main() -> int:
     sigma = 2.5
     while(i < num_tests):
         population = population_dict_from_rand(mu, sigma)
-        err = process_data(schedule, output, f'Results_{i}', population)
-        if err >= 1:
-            if err not in errors:
-                errors[err] = 0
-            errors[err] += 1
+        (err, html) = process_data(schedule, population)
+
+        if err not in errors:
+            errors[err] = 0
+        errors[err] += 1
+
+        output_err = os.path.join(output, f'err_{err}')
+        os.makedirs(output_err, exist_ok=True)
+        basefilename = f'results_{i}'
+        out_dir = os.path.join(output_err, f'run_{i}')
+        os.makedirs(out_dir, exist_ok=True)
+        store_data(population, html, out_dir, basefilename)
         i += 1
 
     for e in errors:

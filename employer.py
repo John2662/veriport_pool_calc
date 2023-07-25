@@ -239,21 +239,25 @@ class Employer(BaseModel):
         self._al.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
         self._dr.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
 
-    def run_test_scenario(self) -> int:
+    def run_test_scenario(self, all_data: bool = False) -> int:
         self.initialize()
         for period_index in range(len(self.period_start_dates)):
             self.make_period_calculations(period_index)
 
         score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
-        return (score, self.generate_csv_report(), self.make_text_report(), self.make_html_report())
+        if all_data:
+            return (score, self.generate_csv_report(), self.make_text_report(), self.make_html_report())
+        return (score, self.make_html_report())
 
-    def rerun_test_scenario(self, new_period_dates: list[date]):
+    def rerun_test_scenario(self, new_period_dates: list[date], all_data: bool = False):
         added_dates = self.reinitialize(new_period_dates)
         if added_dates:
             for period_index in range(len(self.period_start_dates)):
                 self.make_period_calculations(period_index)
             score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
-            return (score, self.generate_csv_report(), self.make_text_report(), self.make_html_report())
+            if all_data:
+                return (score, self.generate_csv_report(), self.make_text_report(), self.make_html_report())
+            return (score, self.make_html_report())
 
         # No dates added so these numbers will not change
         print(f'WARNING: {new_period_dates} are contained in {self.period_start_dates} so no changes')
@@ -436,7 +440,5 @@ class Employer(BaseModel):
         return s
 
 # TODO:
-# 0. write files to disk if we hit errors (finish main.store_data)
-# 4. Initilize DbConn just from a file on disc.
 # 5. write a "driver" that pushes data in at the start of each period to mimic how it would be used in veriport
 # 6. Write "heal run" function by adding more periods and rerunning
