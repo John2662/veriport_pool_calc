@@ -3,7 +3,7 @@
 # Proprietary and confidential
 # Written by John Read <john.read@colibri-software.com>, July 2023
 
-from datetime import datetime, date, timedelta
+from datetime import date, timedelta
 from dateutil.parser import parse
 # from dateutil.parser import ParseError
 # from dateutil.parser._parser import ParseError
@@ -11,20 +11,13 @@ import argparse
 from db_proxy import population_valid
 
 
-# Change to use dateutil.parser
+# TODO: figure out how to get rid of the bare except
 def string_to_date(s: str) -> date:
     try:
-        date1 = parse(s).date()
+        return parse(s).date()
     # except ParseError:
     except:
         return None
-
-    date2 = datetime.strptime(s, '%Y-%m-%d').date()
-    if date1 == date2:
-        return date1
-
-    print(f'{date1=} != {date2=}')
-    exit(0)
 
 
 def process_line(line: str, i: int) -> tuple:

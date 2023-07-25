@@ -239,6 +239,11 @@ class Employer(BaseModel):
         self._al.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
         self._dr.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
 
+    # TODO: break up the test by making predictions, then writing that to file,
+    # then flushing the  Employer data, then reloading, and calculating the aposteriori
+    # data and making the next predictions, etc.
+    # This would mimic how we could integrate this into veriport as a module
+
     def run_test_scenario(self, all_data: bool = False) -> int:
         self.initialize()
         for period_index in range(len(self.period_start_dates)):
@@ -438,7 +443,3 @@ class Employer(BaseModel):
         s += '</body>\n'
         s += '</html>\n'
         return s
-
-# TODO:
-# 5. write a "driver" that pushes data in at the start of each period to mimic how it would be used in veriport
-# 6. Write "heal run" function by adding more periods and rerunning
