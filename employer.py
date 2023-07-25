@@ -359,7 +359,7 @@ class Employer(BaseModel):
 
         p_data = self.fetch_donor_query_set_for_period(p)
         avg = float(sum(p_data))/float(days)
-        w = min(p_data[0], avg) + 1
+        # w = min(p_data[0], avg) + 1
         # var = Employer.format_float(float(avg-p_data[0])/w)
         avg_s = Employer.format_float(avg)
         s = []
