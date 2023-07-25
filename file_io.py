@@ -30,7 +30,7 @@ def string_to_date(s: str) -> date:
 def process_line(line: str, i: int) -> tuple:
     data = line.split(',')
     if len(data) != 2:
-        print(f'cannot process line number: {i+1} \"line\"')
+        # print(f'cannot process line number: {i+1} \"line\"')
         return [None, None]
     d = string_to_date(data[0])
     try:
@@ -51,7 +51,7 @@ def load_population_from_vp_file(filename: str) -> dict:
         for i, line in enumerate(lines):
             (d, pop) = process_line(line, i)
             if d is None:
-                print(f'cannot process line number: {i+1} \"{line}\"')
+                # print(f'cannot process line number: {i+1} \"{line}\"')
                 continue
             if year == 1900:
                 year = d.year
@@ -91,7 +91,7 @@ def load_population_from_natural_file(filename: str) -> dict:
         for i, line in enumerate(lines):
             (d, pop) = process_line(line, i)
             if d is None:
-                print(f'cannot process line number: {i+1} \"{line}\"')
+                # print(f'cannot process line number: {i+1} \"{line}\"')
                 continue
             if year == 1900:
                 year = d.year

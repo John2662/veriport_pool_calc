@@ -15,7 +15,9 @@ from file_io import load_population_from_vp_file
 from file_io import write_population_to_vp_file
 from file_io import write_population_to_natural_file
 
-MAX_NUM_TESTS = 10000
+# This is valid for the length of the run, then removed in main()
+TMP_POP_FILE = 'tmp_pop.csv'
+MAX_NUM_TESTS = 500
 
 
 def tokenize_string(s: str, t: str = '\n') -> list[str]:
@@ -45,7 +47,7 @@ def population_dict_from_rand(mu: float, sigma: float) -> dict:
 
 def construct_employer(population: dict, schedule: Schedule) -> Employer:
     start = list(population.keys())[0]
-    filename = 'tmp.csv'
+    filename = TMP_POP_FILE
     write_population_to_vp_file(population, filename)
     employer_json = compile_json(start, schedule, filename)
     return Employer(**employer_json)
@@ -93,10 +95,17 @@ def get_args() -> argparse.Namespace:
     return args
 
 
+def base_file_name_from_path(filepath: str) -> str:
+    split_filepath = filepath.split('/')
+    just_file_name = os.path.splitext(split_filepath[-1])[0]
+    return just_file_name
+
+
 def main() -> int:
     args = get_args()
 
     schedule = from_string_to_schedule(args.sch)
+    standard_schedule_str = Schedule.as_str(schedule)
     filename = args.file
     output = os.path.join(args.dir)
     os.makedirs(output, exist_ok=True)
@@ -105,20 +114,20 @@ def main() -> int:
         if not os.path.isfile(filename):
             print(f'Cannot open {filename}')
             return 0
-        print(f'{filename=}')
-        split_filepath = filename.split('/')
-        just_file_name = os.path.splitext(split_filepath[-1])[0]
-        print(f'{just_file_name=}')
+        base_file_name = base_file_name_from_path(filename)
+        base_file_name += f'_{standard_schedule_str}'
 
         population = population_dict_from_file(filename, args.vp)
         (err, html) = process_data(schedule, population)
-        final_dir = os.path.join(output, just_file_name)
+        final_dir = os.path.join(output, base_file_name)
         os.makedirs(final_dir, exist_ok=True)
-        print(f'{final_dir=}')
-        print(f'{just_file_name=}')
-        store_data(population, html, final_dir, just_file_name)
+        store_data(population, html, final_dir, base_file_name)
         print(f'hit error of level {err}')
+        os.remove(TMP_POP_FILE)
         return err
+
+    output = os.path.join(args.dir, 'random_trials')
+    os.makedirs(output, exist_ok=True)
 
     i = 0
     errors = {}
@@ -136,6 +145,7 @@ def main() -> int:
         output_err = os.path.join(output, f'err_{err}')
         os.makedirs(output_err, exist_ok=True)
         basefilename = f'results_{i}'
+        basefilename += f'_{standard_schedule_str}'
         out_dir = os.path.join(output_err, f'run_{i}')
         os.makedirs(out_dir, exist_ok=True)
         store_data(population, html, out_dir, basefilename)
@@ -143,6 +153,8 @@ def main() -> int:
 
     for e in errors:
         print(f'hit {errors[e]} errors of level {e} out of {num_tests}')
+
+    os.remove(TMP_POP_FILE)
     return 0
 
 
