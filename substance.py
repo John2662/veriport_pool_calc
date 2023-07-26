@@ -41,8 +41,7 @@ class Substance(BaseModel):
         s += 'ERROR:' + str(self.overcount_error) + '\n'
         return s
 
-
-    # If we want to increase the periods and rerun, we can do this first
+    #  If we want to increase the periods and rerun, we can do this first
     def clear_data(self):
         self.required_tests_predicted = []
         self.aposteriori_truth = []
