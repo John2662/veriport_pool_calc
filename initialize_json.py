@@ -4,7 +4,15 @@
 # Written by John Read <john.read@colibri-software.com>, July 2023
 
 from datetime import date
-from employer import Schedule
+from employer import Schedule, Employer
+
+
+def get_period_start_dates(inception: date, schedule: Schedule) -> list[date]:
+    sd = Employer.initialize_period_start_dates(inception, schedule)
+    sd_str = []
+    for d in sd:
+        sd_str.append(str(d))
+    return sd_str
 
 
 def compile_json(inception: date,
@@ -13,7 +21,7 @@ def compile_json(inception: date,
     employer_json = {}
     employer_json['schedule'] = schedule
     employer_json['pool_inception'] = f'{inception}'
-    employer_json['period_start_dates'] = ['1900-01-01']
+    employer_json['period_start_dates'] = get_period_start_dates(inception, schedule)
     employer_json['sub_d'] = '{"name": "drug", "percent": ".5"}'
     employer_json['sub_a'] = '{"name": "alcohol", "percent": ".1"}'
     employer_json['db_str'] = s_dict

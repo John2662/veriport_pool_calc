@@ -15,6 +15,7 @@ from file_io import load_population_from_natural_file
 from file_io import load_population_from_vp_file
 from file_io import write_population_to_vp_file
 from file_io import write_population_to_natural_file
+from file_io import string_to_date
 
 # This is valid for the length of the run, then removed in main()
 MAX_NUM_TESTS = 500
@@ -88,7 +89,7 @@ def base_file_name_from_path(filepath: str) -> str:
     return just_file_name
 
 
-def generate_employer_initialization_dict(population: dict, schedule: Schedule, write_file: str) -> str:
+def generate_initialization_data_files(population: dict, schedule: Schedule, write_file: str) -> tuple:
     start = list(population.keys())[0]
 
     nat_file = write_file + '_nat.csv'
@@ -98,11 +99,14 @@ def generate_employer_initialization_dict(population: dict, schedule: Schedule, 
     write_population_to_vp_file(population, vp_file)
 
     employer_dict = compile_json(start, schedule, vp_file)
+    start_dates = []
+    for d in employer_dict['period_start_dates']:
+        start_dates.append(string_to_date(d))
 
     employer_json_file = write_file + '_emp.json'
     write_employer_initialization_dict_to_file(employer_json_file, employer_dict)
 
-    return employer_json_file
+    return (employer_json_file, start_dates)
 
 
 def write_employer_initialization_dict_to_file(employer_json_file: str, employer_dict: dict) -> None:
@@ -127,7 +131,11 @@ def run_test_case(output: str, base_name: str, schedule: Schedule,  population: 
     os.makedirs(final_dir, exist_ok=True)
 
     write_file = os.path.join(final_dir, base_name)
-    employer_json_file = generate_employer_initialization_dict(population, schedule, write_file)
+    (employer_json_file, period_start_dates) = generate_initialization_data_files(population, schedule, write_file)
+
+    # Now we can loop over the period start dates, as we would in veriport
+    for i, d in enumerate(period_start_dates):
+        print(f'Period {i+1} is on {str(d)}')
 
     employer_dict = load_employer_initialization_dict_from_file(employer_json_file)
     employer = construct_employer(employer_dict)
