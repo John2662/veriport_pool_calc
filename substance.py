@@ -35,7 +35,12 @@ class Substance(BaseModel):
     overcount_error: Optional[list[float]]
 
     def __str__(self) -> str:
-        return f'{self.name=} and {self.percent=}'
+        s = f'{self.name=} and {self.percent=}\n'
+        s += 'PRED:' + str(self.required_tests_predicted) + '\n'
+        s += 'TRUE:' + str(self.aposteriori_truth) + '\n'
+        s += 'ERROR:' + str(self.overcount_error) + '\n'
+        return s
+
 
     # If we want to increase the periods and rerun, we can do this first
     def clear_data(self):
@@ -73,6 +78,15 @@ class Substance(BaseModel):
 
         # keep track of anything we missed through the estimate
         self.overcount_error.append(float(self.required_tests_predicted[-1]) - self.aposteriori_truth[-1])
+
+    def persist_data(self, tmpfile: str) -> None:
+        with open(tmpfile, 'w') as f:
+            f.write(self.model_dump_json())
+
+    @staticmethod
+    def load_data(tmpfile: str) -> str:
+        with open(tmpfile, 'r') as f:
+            return f.read()
 
     ##############################
     #    GENERATE A CSV STRING   #

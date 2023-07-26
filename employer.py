@@ -12,7 +12,9 @@ from enum import Enum
 
 from db_proxy import DbConn
 from substance import generate_substance
+from substance import Substance
 
+FLUSH_DATA = True
 
 class Schedule(Enum):
     # For weekly: skip first and last weeks of the year
@@ -218,56 +220,109 @@ class Employer(BaseModel):
     def period_start_end(self, period_index: int) -> tuple:
         return (self.period_start_dates[period_index], self.period_end_date(period_index))
 
-    # This method is the core of the calculations
-    def make_period_calculations(self, period_index: int) -> None:
+    def persist_interim_data(self, period_index: int) -> None:
+        if FLUSH_DATA:
+            self._dr.persist_data('drug.json')
+            self._al.persist_data('alcohol.json')
+        else:
+            pass
+
+    def flush_data(self) -> None:
+        if FLUSH_DATA:
+            self._dr = None
+            self._al = None
+        else:
+            pass
+
+    def load_interim_data(self, period_index: int) -> None:
+        if FLUSH_DATA:
+            _dr = Substance.load_data('drug.json')
+            _al = Substance.load_data('alcohol.json')
+            self._dr = Substance.model_validate_json(_dr)
+            self._al = Substance.model_validate_json(_al)
+        else:
+            pass
+
+    def make_estimates_save_then_flush_data(self, period_index: int) -> None:
         # find the start and end dates of the period
         (start, end) = self.period_start_end(period_index)
-
-        # make predictions based on:
-        #  1. the poolsize on the first day of the period
-        #  2. the % or the calendar year that is in this period
-        #  3. the % of the population that needs to be tested
-        #  4. any accumulated error from the guess we made last period
         self._al.make_apriori_predictions(self.donor_count_on(start), start, end, self.total_days_in_year)
         self._dr.make_apriori_predictions(self.donor_count_on(start), start, end, self.total_days_in_year)
+        self.persist_interim_data(period_index)
+        self.flush_data()  # This mimics the calling app shutting down till the next reporting period occurs
 
-        # At the end of the period, we need to get the actual average pool size of the period
+    def load_data_and_do_period_calculations(self, period_index: int) ->None:
+        (start, end) = self.period_start_end(period_index)
+        self.load_interim_data(period_index)
         period_donor_list = self.fetch_donor_queryset_by_interval(start, end)
 
         # using the actual (aposteriori) data, see how far off we were and keep that
         #  for the next prediction
         self._al.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
         self._dr.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
+        self.persist_interim_data(period_index)
 
-    # TODO: break up the test by making predictions, then writing that to file,
-    # then flushing the  Employer data, then reloading, and calculating the aposteriori
-    # data and making the next predictions, etc.
-    # This would mimic how we could integrate this into veriport as a module
+    def end_of_period_update(self, period_index: int) -> None:
+        self.load_data_and_do_period_calculations(period_index)
+        self.make_estimates_save_then_flush_data(period_index+1)
 
     def run_test_scenario(self, all_data: bool = False) -> int:
         self.initialize()
-        for period_index in range(len(self.period_start_dates)):
-            self.make_period_calculations(period_index)
+        self.make_estimates_save_then_flush_data(0)
+        for period_index in range(len(self.period_start_dates)-1):
+            self.end_of_period_update(period_index)
+        self.load_data_and_do_period_calculations(len(self.period_start_dates)-1)
 
         score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
         if all_data:
             return (score, self.generate_csv_report(), self.make_text_report(), self.make_html_report())
         return (score, self.make_html_report())
 
-    def rerun_test_scenario(self, new_period_dates: list[date], all_data: bool = False):
-        added_dates = self.reinitialize(new_period_dates)
-        if added_dates:
-            for period_index in range(len(self.period_start_dates)):
-                self.make_period_calculations(period_index)
-            score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
-            if all_data:
-                return (score, self.generate_csv_report(), self.make_text_report(), self.make_html_report())
-            return (score, self.make_html_report())
+    # This method is the core of the calculations
+    # def make_period_calculations(self, period_index: int) -> None:
+    #     # find the start and end dates of the period
+    #     (start, end) = self.period_start_end(period_index)
 
-        # No dates added so these numbers will not change
-        print(f'WARNING: {new_period_dates} are contained in {self.period_start_dates} so no changes')
-        score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
-        return (score, self.generate_csv_report(), self.make_text_report(), self.make_html_report())
+    #     # make predictions based on:
+    #     #  1. the poolsize on the first day of the period
+    #     #  2. the % or the calendar year that is in this period
+    #     #  3. the % of the population that needs to be tested
+    #     #  4. any accumulated error from the guess we made last period
+    #     self._al.make_apriori_predictions(self.donor_count_on(start), start, end, self.total_days_in_year)
+    #     self._dr.make_apriori_predictions(self.donor_count_on(start), start, end, self.total_days_in_year)
+
+    #     # At the end of the period, we need to get the actual average pool size of the period
+    #     period_donor_list = self.fetch_donor_queryset_by_interval(start, end)
+
+    #     # using the actual (aposteriori) data, see how far off we were and keep that
+    #     #  for the next prediction
+    #     self._al.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
+    #     self._dr.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
+
+    # def run_test_scenario(self, all_data: bool = False) -> int:
+    #     self.initialize()
+    #     for period_index in range(len(self.period_start_dates)):
+    #         self.make_period_calculations(period_index)
+
+    #     score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
+    #     if all_data:
+    #         return (score, self.generate_csv_report(), self.make_text_report(), self.make_html_report())
+    #     return (score, self.make_html_report())
+
+    # def rerun_test_scenario(self, new_period_dates: list[date], all_data: bool = False):
+    #     added_dates = self.reinitialize(new_period_dates)
+    #     if added_dates:
+    #         for period_index in range(len(self.period_start_dates)):
+    #             self.make_period_calculations(period_index)
+    #         score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
+    #         if all_data:
+    #             return (score, self.generate_csv_report(), self.make_text_report(), self.make_html_report())
+    #         return (score, self.make_html_report())
+
+    #     # No dates added so these numbers will not change
+    #     print(f'WARNING: {new_period_dates} are contained in {self.period_start_dates} so no changes')
+    #     score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
+    #     return (score, self.generate_csv_report(), self.make_text_report(), self.make_html_report())
 
     ##############################
     #    GENERATE A CSV STRING   #
