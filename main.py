@@ -8,6 +8,7 @@ from initialize_json import compile_json
 # from math import log10, ceil
 import argparse
 import os
+import json
 
 from random_population import generate_random_population_data
 from file_io import load_population_from_natural_file
@@ -16,7 +17,6 @@ from file_io import write_population_to_vp_file
 from file_io import write_population_to_natural_file
 
 # This is valid for the length of the run, then removed in main()
-TMP_POP_FILE = 'tmp_pop.csv'
 MAX_NUM_TESTS = 500
 
 
@@ -26,8 +26,6 @@ def tokenize_string(s: str, t: str = '\n') -> list[str]:
 
 def store_data(pop: dict, html: str, directory: os.path = 'run_output', file_name: str = '') -> None:
     outfile = os.path.join(directory, f'{file_name}')
-    write_population_to_natural_file(pop, f'{outfile}_nat.csv')
-    write_population_to_vp_file(pop, f'{outfile}_vp.csv')
     html = tokenize_string(html)
     with open(f'{outfile}.html', 'w') as f:
         for line in html:
@@ -43,19 +41,6 @@ def population_dict_from_file(datafile: str, vp_format: bool) -> dict:
 
 def population_dict_from_rand(mu: float, sigma: float) -> dict:
     return generate_random_population_data(mu, sigma)
-
-
-def construct_employer(population: dict, schedule: Schedule) -> Employer:
-    start = list(population.keys())[0]
-    filename = TMP_POP_FILE
-    write_population_to_vp_file(population, filename)
-    employer_json = compile_json(start, schedule, filename)
-    return Employer(**employer_json)
-
-
-def process_data(schedule: Schedule, population: dict) -> int:
-    employer = construct_employer(population, schedule)
-    return employer.run_test_scenario()
 
 
 def from_string_to_schedule(s):
@@ -103,27 +88,61 @@ def base_file_name_from_path(filepath: str) -> str:
     return just_file_name
 
 
-def run_test_case(output: str, base_name: str, schedule: Schedule,  population: dict) -> None:
-    (err, html) = process_data(schedule, population)
+def generate_employer_initialization_dict(population: dict, schedule: Schedule, write_file: str) -> str:
+    start = list(population.keys())[0]
 
+    nat_file = write_file + '_nat.csv'
+    write_population_to_natural_file(population, nat_file)
+
+    vp_file = write_file + '_vp.csv'
+    write_population_to_vp_file(population, vp_file)
+
+    employer_dict = compile_json(start, schedule, vp_file)
+
+    employer_json_file = write_file + '_emp.json'
+    write_employer_initialization_dict_to_file(employer_json_file, employer_dict)
+
+    return employer_json_file
+
+
+def write_employer_initialization_dict_to_file(employer_json_file: str, employer_dict: dict) -> None:
+    employer_json = json.dumps(employer_dict, indent=4)
+    with open(employer_json_file, 'w') as f:
+        f.write(employer_json)
+
+
+def load_employer_initialization_dict_from_file(filename: str) -> dict:
+    with open(filename, 'r') as f:
+        employer_dict = json.load(f)
+        return employer_dict
+
+
+def construct_employer(employer_json: str) -> Employer:
+    return Employer(**employer_json)
+
+
+def run_test_case(output: str, base_name: str, schedule: Schedule,  population: dict) -> None:
     # Where all data will land:
     final_dir = os.path.join(output, base_name)
     os.makedirs(final_dir, exist_ok=True)
 
+    write_file = os.path.join(final_dir, base_name)
+    employer_json_file = generate_employer_initialization_dict(population, schedule, write_file)
+
+    employer_dict = load_employer_initialization_dict_from_file(employer_json_file)
+    employer = construct_employer(employer_dict)
+    (err, html) = employer.run_test_scenario()
+
     # Add the periodicity to the file name
     standard_schedule_str = Schedule.as_str(schedule)
     base_name += f'_{standard_schedule_str}'
-
     store_data(population, html, final_dir, base_name)
-    os.remove(TMP_POP_FILE)
     return err
 
 
 def main() -> int:
     args = get_args()
-
     schedule = from_string_to_schedule(args.sch)
-    standard_schedule_str = Schedule.as_str(schedule)
     filename = args.file
 
     if filename is not None:
@@ -154,12 +173,12 @@ def main() -> int:
         err = run_test_case(output, base_name, schedule, population)
 
         if err not in errors:
-            errors[err] = 0
-        errors[err] += 1
+            errors[err] = []
+        errors[err].append(i)
         i += 1
 
     for e in errors:
-        print(f'hit {errors[e]} errors of level {e} out of {num_tests}')
+        print(f'hit {len(errors[e])} errors of level {e} out of {num_tests}: Runs: {errors[e]}')
 
     return 0
 

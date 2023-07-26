@@ -17,7 +17,7 @@ from substance import Substance
 SKIP_FLUSH_DATA = False
 
 
-class Schedule(Enum):
+class Schedule(int, Enum):
     # For weekly: skip first and last weeks of the year
     # so for example, the first period will contain up to two full weeks
     # ending on a sunday (on or before Jan 14)
