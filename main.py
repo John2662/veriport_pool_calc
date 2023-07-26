@@ -87,10 +87,12 @@ def get_args() -> argparse.Namespace:
     # print(args.accumulate(args.integers))
     parser = argparse.ArgumentParser(description='Arguments: file_to_load, vp_format, output_directory')
     parser.add_argument('--file', type=str, help='data file to load')
-    parser.add_argument('--dir', type=str, help='output directory', default='test_out')
+    parser.add_argument('--dir', type=str, help='output directory', default='test_run')
     parser.add_argument('--sch', type=str, help='the testing schedule (MONTHLY, QUARTERLY, etc.)', default='quarterly')
     parser.add_argument('--vp', type=bool, help='Whether this comes from VP or from this program', default=True)
     parser.add_argument('--iter', type=int, help='number of random iterations', default=4)
+    parser.add_argument('--mu', type=float, help='mu value of gaussian', default=.1)
+    parser.add_argument('--sig', type=float, help='sigma value of gaussian', default=2.5)
     args = parser.parse_args()
     return args
 
@@ -101,60 +103,64 @@ def base_file_name_from_path(filepath: str) -> str:
     return just_file_name
 
 
+def run_test_case(output: str, base_name: str, schedule: Schedule,  population: dict) -> None:
+    (err, html) = process_data(schedule, population)
+
+    # Where all data will land:
+    final_dir = os.path.join(output, base_name)
+    os.makedirs(final_dir, exist_ok=True)
+
+    # Add the periodicity to the file name
+    standard_schedule_str = Schedule.as_str(schedule)
+    base_name += f'_{standard_schedule_str}'
+
+    store_data(population, html, final_dir, base_name)
+    os.remove(TMP_POP_FILE)
+    return err
+
+
 def main() -> int:
     args = get_args()
 
     schedule = from_string_to_schedule(args.sch)
     standard_schedule_str = Schedule.as_str(schedule)
     filename = args.file
-    output = os.path.join(args.dir)
-    os.makedirs(output, exist_ok=True)
 
     if filename is not None:
         if not os.path.isfile(filename):
             print(f'Cannot open {filename}')
             return 0
-        base_file_name = base_file_name_from_path(filename)
-        base_file_name += f'_{standard_schedule_str}'
+        output = os.path.join(args.dir, 'fixed_trials')
+        os.makedirs(output, exist_ok=True)
 
         population = population_dict_from_file(filename, args.vp)
-        (err, html) = process_data(schedule, population)
-        final_dir = os.path.join(output, base_file_name)
-        os.makedirs(final_dir, exist_ok=True)
-        store_data(population, html, final_dir, base_file_name)
-        print(f'hit error of level {err}')
-        os.remove(TMP_POP_FILE)
-        return err
 
-    output = os.path.join(args.dir, 'random_trials')
-    os.makedirs(output, exist_ok=True)
+        base_name = base_file_name_from_path(filename)
+        return run_test_case(output, base_name, schedule, population)
+
+    num_tests = min(args.iter, MAX_NUM_TESTS)
+    mu = args.mu
+    sigma = args.sig
 
     i = 0
     errors = {}
-    num_tests = min(args.iter, MAX_NUM_TESTS)
-    mu = .1
-    sigma = 2.5
     while(i < num_tests):
+        output = os.path.join(args.dir, 'random_trials')
+        os.makedirs(output, exist_ok=True)
+
         population = population_dict_from_rand(mu, sigma)
-        (err, html) = process_data(schedule, population)
+
+        base_name = f'run_{i}'
+        err = run_test_case(output, base_name, schedule, population)
 
         if err not in errors:
             errors[err] = 0
         errors[err] += 1
-
-        output_err = os.path.join(output, f'err_{err}')
-        os.makedirs(output_err, exist_ok=True)
-        basefilename = f'results_{i}'
-        basefilename += f'_{standard_schedule_str}'
-        out_dir = os.path.join(output_err, f'run_{i}')
-        os.makedirs(out_dir, exist_ok=True)
-        store_data(population, html, out_dir, basefilename)
         i += 1
 
     for e in errors:
         print(f'hit {errors[e]} errors of level {e} out of {num_tests}')
 
-    os.remove(TMP_POP_FILE)
     return 0
 
 

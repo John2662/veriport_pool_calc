@@ -14,7 +14,7 @@ from db_proxy import DbConn
 from substance import generate_substance
 from substance import Substance
 
-FLUSH_DATA = True
+SKIP_FLUSH_DATA = False
 
 
 class Schedule(Enum):
@@ -221,22 +221,25 @@ class Employer(BaseModel):
     def period_start_end(self, period_index: int) -> tuple:
         return (self.period_start_dates[period_index], self.period_end_date(period_index))
 
-    def persist_interim_data(self, period_index: int) -> None:
-        if FLUSH_DATA:
-            self._dr.persist_data('drug.json')
-            self._al.persist_data('alcohol.json')
-
     def flush_data(self) -> None:
-        if FLUSH_DATA:
-            self._dr = None
-            self._al = None
+        if SKIP_FLUSH_DATA:
+            return
+        self._dr = None
+        self._al = None
+
+    def persist_interim_data(self, period_index: int) -> None:
+        if SKIP_FLUSH_DATA:
+            return
+        self._dr.persist_data('tmp_drug.json')
+        self._al.persist_data('tmp_alcohol.json')
 
     def load_interim_data(self, period_index: int) -> None:
-        if FLUSH_DATA:
-            _dr = Substance.load_data('drug.json')
-            _al = Substance.load_data('alcohol.json')
-            self._dr = Substance.model_validate_json(_dr)
-            self._al = Substance.model_validate_json(_al)
+        if SKIP_FLUSH_DATA:
+            return
+        _dr = Substance.load_data('tmp_drug.json')
+        _al = Substance.load_data('tmp_alcohol.json')
+        self._dr = Substance.model_validate_json(_dr)
+        self._al = Substance.model_validate_json(_al)
 
     def make_estimates_save_then_flush_data(self, period_index: int) -> None:
         # find the start and end dates of the period
@@ -261,6 +264,9 @@ class Employer(BaseModel):
         self.load_data_and_do_period_calculations(period_index)
         self.make_estimates_save_then_flush_data(period_index+1)
 
+    # The only thing left to do to add this to veriport is:
+    #  1. reload the Employer object from the stored json initializer
+    #  2. Break this loop up as a function call that increments the period calculations
     def run_test_scenario(self, all_data: bool = False) -> int:
         self.initialize()
         self.make_estimates_save_then_flush_data(0)
