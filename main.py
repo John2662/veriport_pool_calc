@@ -214,6 +214,16 @@ class run_man:
         store_data(self.population, html, self.storage_dir, base_name)
         return err
 
+    def persist_json(self, tmp_json, file_name) -> None:
+        json_file = os.path.join(self.storage_dir, file_name)
+        with open(json_file, 'w') as f:
+            f.write(tmp_json)
+
+    def retrieve_json(self, file_name) -> str:
+        json_file = os.path.join(self.storage_dir, file_name)
+        with open(json_file, 'r') as f:
+            return f.read()
+
     def run_like_veriport_would(self):
         # Generate a dictionary needed to construct an instance of the Employer class
         # Hint: The json version of this is stored in the output directory of the run
@@ -224,7 +234,9 @@ class run_man:
         e.initialize()
 
         # Make the initial estimates for the employer
-        e.make_estimates_save_then_flush_data(0)
+        (dr_tmp_json, al_tmp_json) = e.make_estimates_save_then_flush_data(0)
+        self.persist_json(dr_tmp_json, 'tmp_dr_0.json')
+        self.persist_json(al_tmp_json, 'tmp_al_0.json')
 
         # Now loop over the periods, for each period, we initialize a new employer
         # Then make the calculations, and the estimates for the next period,
@@ -233,8 +245,15 @@ class run_man:
         for period_index in range(len(period_start_dates)-1):
             initializing_dict = self.get_initializing_dict()
             e1 = Employer(**initializing_dict)
-            e1.initialize()
-            e1.end_of_period_update(period_index)
+
+            tmp_dr_json = self.retrieve_json(f'tmp_dr_{period_index}.json')
+            tmp_al_json = self.retrieve_json(f'tmp_al_{period_index}.json')
+            e1.initialize(tmp_dr_json, tmp_al_json)
+            # e1.initialize()
+
+            (dr_tmp_json, al_tmp_json) = e1.end_of_period_update(period_index)
+            self.persist_json(dr_tmp_json, f'tmp_dr_{period_index+1}.json')
+            self.persist_json(al_tmp_json, f'tmp_al_{period_index+1}.json')
 
         # Finally we calculate the final period's true values,
         # calculate our score and write the html report

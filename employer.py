@@ -129,10 +129,18 @@ class Employer(BaseModel):
             exit(0)
         return db
 
-    def initialize(self, custom_period_start_dates: list = []) -> None:
+    def initialize(self, dr_tmp_json: str = None, al_tmp_json: str = None, custom_period_start_dates: list = []) -> None:
         self.initialize_periods(custom_period_start_dates)
-        self._dr = generate_substance(self.sub_d)
-        self._al = generate_substance(self.sub_a)
+
+        if dr_tmp_json is not None:
+            self._dr = Substance.model_validate_json(dr_tmp_json)
+        else:
+            self._dr = generate_substance(self.sub_d)
+
+        if al_tmp_json is not None:
+            self._al = Substance.model_validate_json(al_tmp_json)
+        else:
+            self._al = generate_substance(self.sub_a)
 
         # Initialize the "DB". In a real world example, it would already exist
         self._db_conn = self.establish_db()
@@ -185,9 +193,10 @@ class Employer(BaseModel):
         self._dr = None
         self._al = None
 
-    def persist_interim_data(self, period_index: int) -> None:
-        self._dr.persist_data('tmp_drug.json')
-        self._al.persist_data('tmp_alcohol.json')
+    def persist_interim_data(self, period_index: int) -> tuple:
+        dr_tmp_json = self._dr.persist_data('tmp_drug.json')
+        al_tmp_json = self._al.persist_data('tmp_alcohol.json')
+        return (dr_tmp_json, al_tmp_json)
 
     def load_interim_data(self, period_index: int) -> None:
         _dr = Substance.load_data('tmp_drug.json')
@@ -195,13 +204,14 @@ class Employer(BaseModel):
         self._dr = Substance.model_validate_json(_dr)
         self._al = Substance.model_validate_json(_al)
 
-    def make_estimates_save_then_flush_data(self, period_index: int) -> None:
+    def make_estimates_save_then_flush_data(self, period_index: int) -> tuple:
         # find the start and end dates of the period
         (start, end) = self.period_start_end(period_index)
         self._al.make_apriori_predictions(self.donor_count_on(start), start, end, self.total_days_in_year)
         self._dr.make_apriori_predictions(self.donor_count_on(start), start, end, self.total_days_in_year)
-        self.persist_interim_data(period_index)
+        (dr_tmp_json, al_tmp_json) = self.persist_interim_data(period_index)
         self.flush_data()  # This mimics the calling app shutting down till the next reporting period occurs
+        return (dr_tmp_json, al_tmp_json)
 
     def load_data_and_do_period_calculations(self, period_index: int) -> None:
         (start, end) = self.period_start_end(period_index)
@@ -214,9 +224,9 @@ class Employer(BaseModel):
         self._dr.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
         self.persist_interim_data(period_index)
 
-    def end_of_period_update(self, period_index: int) -> None:
+    def end_of_period_update(self, period_index: int) -> tuple:
         self.load_data_and_do_period_calculations(period_index)
-        self.make_estimates_save_then_flush_data(period_index+1)
+        return self.make_estimates_save_then_flush_data(period_index+1)
 
     # def rerun_test_scenario(self, new_period_dates: list[date], all_data: bool = False):
     #     added_dates = self.reinitialize(new_period_dates)

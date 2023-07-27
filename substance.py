@@ -81,6 +81,7 @@ class Substance(BaseModel):
     def persist_data(self, tmpfile: str) -> None:
         with open(tmpfile, 'w') as f:
             f.write(self.model_dump_json())
+        return self.model_dump_json()
 
     @staticmethod
     def load_data(tmpfile: str) -> str:
