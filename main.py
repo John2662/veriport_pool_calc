@@ -229,14 +229,12 @@ class run_man:
         # Hint: The json version of this is stored in the output directory of the run
         initializing_dict = self.get_initializing_dict()
         e = Employer(**initializing_dict)
-
-        # Set up initial data in the Employer instance
         e.initialize()
 
         # Make the initial estimates for the employer
-        (dr_tmp_json, al_tmp_json) = e.make_estimates_save_then_flush_data(0)
-        self.persist_json(dr_tmp_json, 'tmp_dr_0.json')
-        self.persist_json(al_tmp_json, 'tmp_al_0.json')
+        (dr_tmp_json, al_tmp_json) = e.make_estimates_and_return_data_to_persist(0)
+        self.persist_json(dr_tmp_json, 'tmp_dr.json')
+        self.persist_json(al_tmp_json, 'tmp_al.json')
 
         # Now loop over the periods, for each period, we initialize a new employer
         # Then make the calculations, and the estimates for the next period,
@@ -246,14 +244,15 @@ class run_man:
             initializing_dict = self.get_initializing_dict()
             e1 = Employer(**initializing_dict)
 
-            tmp_dr_json = self.retrieve_json(f'tmp_dr_{period_index}.json')
-            tmp_al_json = self.retrieve_json(f'tmp_al_{period_index}.json')
+            # INITIALIZE
+            tmp_dr_json = self.retrieve_json(f'tmp_dr.json')
+            tmp_al_json = self.retrieve_json(f'tmp_al.json')
             e1.initialize(tmp_dr_json, tmp_al_json)
+            e1.load_persisted_data_and_do_period_calculations(period_index)
 
-            (dr_tmp_json, al_tmp_json) = e1.end_of_period_update(period_index)
-
-            self.persist_json(dr_tmp_json, f'tmp_dr_{period_index+1}.json')
-            self.persist_json(al_tmp_json, f'tmp_al_{period_index+1}.json')
+            (dr_tmp_json, al_tmp_json) = e1.make_estimates_and_return_data_to_persist(period_index+1)
+            self.persist_json(dr_tmp_json, f'tmp_dr.json')
+            self.persist_json(al_tmp_json, f'tmp_al.json')
 
         # Finally we calculate the final period's true values,
         # calculate our score and write the html report
@@ -261,11 +260,10 @@ class run_man:
         final_period_index = len(period_start_dates)-1
         e2 = Employer(**initializing_dict)
 
-        tmp_dr_json = self.retrieve_json(f'tmp_dr_{final_period_index}.json')
-        tmp_al_json = self.retrieve_json(f'tmp_al_{final_period_index}.json')
+        tmp_dr_json = self.retrieve_json(f'tmp_dr.json')
+        tmp_al_json = self.retrieve_json(f'tmp_al.json')
         e2.initialize(tmp_dr_json, tmp_al_json)
-
-        e2.load_data_and_do_period_calculations(final_period_index)
+        e2.load_persisted_data_and_do_period_calculations(final_period_index)
 
         score = abs(e2._dr.final_overcount()) + abs(e2._al.final_overcount())
         return self.store_reports(score, e2.make_html_report())

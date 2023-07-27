@@ -189,21 +189,21 @@ class Employer(BaseModel):
     def period_start_end(self, period_index: int) -> tuple:
         return (self.period_start_dates[period_index], self.period_end_date(period_index))
 
-    def make_estimates_save_then_flush_data(self, period_index: int) -> tuple:
+    def make_estimates_and_return_data_to_persist(self, period_index: int) -> tuple:
         (start, end) = self.period_start_end(period_index)
         self._al.make_apriori_predictions(self.donor_count_on(start), start, end, self.total_days_in_year)
         self._dr.make_apriori_predictions(self.donor_count_on(start), start, end, self.total_days_in_year)
         return (self._dr.persist_data(), self._al.persist_data())
 
-    def load_data_and_do_period_calculations(self, period_index: int) -> None:
+    def load_persisted_data_and_do_period_calculations(self, period_index: int) -> None:
         (start, end) = self.period_start_end(period_index)
         period_donor_list = self.fetch_donor_queryset_by_interval(start, end)
         self._al.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
         self._dr.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
 
-    def end_of_period_update(self, period_index: int) -> tuple:
-        self.load_data_and_do_period_calculations(period_index)
-        return self.make_estimates_save_then_flush_data(period_index+1)
+    # def end_of_period_update(self, period_index: int) -> tuple:
+    #     self.load_data_and_do_period_calculations(period_index)
+    #     return self.make_estimates_save_then_flush_data(period_index+1)
 
     ##############################
     #    GENERATE A CSV STRING   #
