@@ -14,8 +14,6 @@ from db_proxy import DbConn
 from substance import generate_substance
 from substance import Substance
 
-SKIP_FLUSH_DATA = False
-
 
 class Schedule(int, Enum):
     # For weekly: skip first and last weeks of the year
@@ -184,20 +182,14 @@ class Employer(BaseModel):
         return (self.period_start_dates[period_index], self.period_end_date(period_index))
 
     def flush_data(self) -> None:
-        if SKIP_FLUSH_DATA:
-            return
         self._dr = None
         self._al = None
 
     def persist_interim_data(self, period_index: int) -> None:
-        if SKIP_FLUSH_DATA:
-            return
         self._dr.persist_data('tmp_drug.json')
         self._al.persist_data('tmp_alcohol.json')
 
     def load_interim_data(self, period_index: int) -> None:
-        if SKIP_FLUSH_DATA:
-            return
         _dr = Substance.load_data('tmp_drug.json')
         _al = Substance.load_data('tmp_alcohol.json')
         self._dr = Substance.model_validate_json(_dr)
@@ -226,41 +218,23 @@ class Employer(BaseModel):
         self.load_data_and_do_period_calculations(period_index)
         self.make_estimates_save_then_flush_data(period_index+1)
 
-    # The only thing left to do to add this to veriport is:
-    #  1. reload the Employer object from the stored json initializer
-    #  2. Break this loop up as a function call that increments the period calculations
-    def run_test_scenario(self, all_data: bool = False) -> int:
-        self.initialize()
-        self.make_estimates_save_then_flush_data(0)
-        for period_index in range(len(self.period_start_dates)-1):
-            # print(f'End period {period_index} and start period {period_index+1}')
-            self.end_of_period_update(period_index)
-        final_period_index = len(self.period_start_dates)-1
-        # print(f'End period {final_period_index} and generate reports')
-        self.load_data_and_do_period_calculations(final_period_index)
+    # def rerun_test_scenario(self, new_period_dates: list[date], all_data: bool = False):
+    #     added_dates = self.reinitialize(new_period_dates)
+    #     if added_dates:
+    #         self.make_estimates_save_then_flush_data(0)
+    #         for period_index in range(len(self.period_start_dates)-1):
+    #             self.end_of_period_update(period_index)
+    #         self.load_data_and_do_period_calculations(len(self.period_start_dates)-1)
 
-        score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
-        if all_data:
-            return (score, self.generate_csv_report(), self.make_text_report(), self.make_html_report())
-        return (score, self.make_html_report())
+    #         score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
+    #         if all_data:
+    #             return (score, self.generate_csv_report(), self.make_text_report(), self.make_html_report())
+    #         return (score, self.make_html_report())
 
-    def rerun_test_scenario(self, new_period_dates: list[date], all_data: bool = False):
-        added_dates = self.reinitialize(new_period_dates)
-        if added_dates:
-            self.make_estimates_save_then_flush_data(0)
-            for period_index in range(len(self.period_start_dates)-1):
-                self.end_of_period_update(period_index)
-            self.load_data_and_do_period_calculations(len(self.period_start_dates)-1)
-
-            score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
-            if all_data:
-                return (score, self.generate_csv_report(), self.make_text_report(), self.make_html_report())
-            return (score, self.make_html_report())
-
-        # No dates added so these numbers will not change
-        print(f'WARNING: {new_period_dates} are contained in {self.period_start_dates} so no changes')
-        score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
-        return (score, self.generate_csv_report(), self.make_text_report(), self.make_html_report())
+    #     # No dates added so these numbers will not change
+    #     print(f'WARNING: {new_period_dates} are contained in {self.period_start_dates} so no changes')
+    #     score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
+    #     return (score, self.generate_csv_report(), self.make_text_report(), self.make_html_report())
 
     ##############################
     #    GENERATE A CSV STRING   #

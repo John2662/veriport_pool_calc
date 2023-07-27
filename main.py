@@ -197,17 +197,55 @@ class run_man:
     def get_period_start_dates(self) -> list[date]:
         return self.period_start_dates
 
+    def get_initializing_dict(self) -> dict:
+        return load_employer_initialization_dict_from_file(self.employer_json_file)
+
     # def run_test_case(self, period_index: int, period_start: date) -> int:
     def run_test_case(self) -> int:
         employer_dict = load_employer_initialization_dict_from_file(self.employer_json_file)
         employer = construct_employer(employer_dict)
         (err, html) = employer.run_test_scenario()
+        return self.store_reports(err, html)
 
+    def store_reports(self, err: int, html: str) -> int:
         # Add the periodicity to the file name
         standard_schedule_str = Schedule.as_str(self.schedule)
         base_name = self.base_name + f'_{standard_schedule_str}'
         store_data(self.population, html, self.storage_dir, base_name)
         return err
+
+    def run_like_veriport_would(self):
+        # Generate a dictionary needed to construct an instance of the Employer class
+        # Hint: The json version of this is stored in the output directory of the run
+        initializing_dict = self.get_initializing_dict()
+        e = Employer(**initializing_dict)
+
+        # Set up initial data in the Employer instance
+        e.initialize()
+
+        # Make the initial estimates for the employer
+        e.make_estimates_save_then_flush_data(0)
+
+        # Now loop over the periods, for each period, we initialize a new employer
+        # Then make the calculations, and the estimates for the next period,
+        # then flush the data
+        period_start_dates = self.get_period_start_dates()
+        for period_index in range(len(period_start_dates)-1):
+            initializing_dict = self.get_initializing_dict()
+            e1 = Employer(**initializing_dict)
+            e1.initialize()
+            e1.end_of_period_update(period_index)
+
+        # Finally we calculate the final period's true values,
+        # calculate our score and write the html report
+        # returning the score
+        final_period_index = len(period_start_dates)-1
+        e2 = Employer(**initializing_dict)
+        e2.initialize()
+        e2.load_data_and_do_period_calculations(final_period_index)
+
+        score = abs(e2._dr.final_overcount()) + abs(e2._al.final_overcount())
+        return self.store_reports(score, e2.make_html_report())
 
 
 def main() -> int:
@@ -220,23 +258,14 @@ def main() -> int:
             print(f'Cannot open {filename}')
             return 0
         rm = run_man(schedule, args.dir, 'fixed_trials', filename, args.vp)
-        # period_start_dates = rm.get_period_start_dates()
-        # for i, d in enumerate(period_start_dates):
-        #   rm.run_test_case(i,d)
-        return rm.run_test_case()
-
-    num_tests = min(args.iter, MAX_NUM_TESTS)
-    mu = args.mu
-    sigma = args.sig
+        return rm.run_like_veriport_would()
 
     i = 0
     errors = {}
+    num_tests = min(args.iter, MAX_NUM_TESTS)
     while(i < num_tests):
         rm = run_man(schedule, args.dir, 'random_trials', '', False, i, args.mu, args.sig)
-        # period_start_dates = rm.get_period_start_dates()
-        # for i, d in enumerate(period_start_dates):
-        #   rm.run_test_case(i,d)
-        err = rm.run_test_case()
+        err = rm.run_like_veriport_would()
 
         if err not in errors:
             errors[err] = []
