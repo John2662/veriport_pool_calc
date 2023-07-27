@@ -166,15 +166,6 @@ class run_man:
 
     def __init__(self, schedule: Schedule, base_dir: str, sub_dir: str, input_data_file: str, vp_format: bool = True, run_number: int = -1, mu: float = 0.0, sigma: float = 0.0) -> None:
         self.schedule = schedule
-        # self.base_dir = base_dir
-        # self.sub_dir = sub_dir
-        # self.input_data_file = input_data_file
-        # self.run_number = run_number
-        # self.mu = mu
-        # self.sigma = sigma
-
-        # self.output_dir = os.path.join(base_dir, sub_dir)
-        # os.makedirs(self.output_dir, exist_ok=True)
 
         output_dir = os.path.join(base_dir, sub_dir)
         os.makedirs(output_dir, exist_ok=True)
@@ -186,11 +177,9 @@ class run_man:
             self.population = population_dict_from_rand(mu, sigma)
             self.base_name = f'run_{run_number}'
 
-        # self.storage_dir = os.path.join(self.output_dir, self.base_name)
         self.storage_dir = os.path.join(output_dir, self.base_name)
         os.makedirs(self.storage_dir, exist_ok=True)
 
-        # self.output_file_basename = os.path.join(self.storage_dir, self.base_name)
         output_file_basename = os.path.join(self.storage_dir, self.base_name)
         (self.employer_json_file, self.period_start_dates) = generate_initialization_data_files(self.population, self.schedule, output_file_basename)
 
@@ -200,7 +189,6 @@ class run_man:
     def get_initializing_dict(self) -> dict:
         return load_employer_initialization_dict_from_file(self.employer_json_file)
 
-    # def run_test_case(self, period_index: int, period_start: date) -> int:
     def run_test_case(self) -> int:
         employer_dict = load_employer_initialization_dict_from_file(self.employer_json_file)
         employer = construct_employer(employer_dict)
@@ -224,6 +212,21 @@ class run_man:
         with open(json_file, 'r') as f:
             return f.read()
 
+    def num_periods(self) -> int:
+        return len(self.period_start_dates)
+
+
+    def period_start_estimates(self, e: Employer, period_index: int) -> None:
+        (dr_tmp_json, al_tmp_json) = e.make_estimates_and_return_data_to_persist(period_index)
+        self.persist_json(dr_tmp_json, 'tmp_dr.json')
+        self.persist_json(al_tmp_json, 'tmp_al.json')
+
+    def period_end_calculations(self, e: Employer, period_index: int) -> None:
+        tmp_dr_json = self.retrieve_json(f'tmp_dr.json')
+        tmp_al_json = self.retrieve_json(f'tmp_al.json')
+        e.initialize(tmp_dr_json, tmp_al_json)
+        e.load_persisted_data_and_do_period_calculations(period_index)
+
     def run_like_veriport_would(self):
         # Generate a dictionary needed to construct an instance of the Employer class
         # Hint: The json version of this is stored in the output directory of the run
@@ -232,41 +235,27 @@ class run_man:
         e.initialize()
 
         # Make the initial estimates for the employer
-        (dr_tmp_json, al_tmp_json) = e.make_estimates_and_return_data_to_persist(0)
-        self.persist_json(dr_tmp_json, 'tmp_dr.json')
-        self.persist_json(al_tmp_json, 'tmp_al.json')
+        self.period_start_estimates(e, period_index=0)
 
         # Now loop over the periods, for each period, we initialize a new employer
         # Then make the calculations, and the estimates for the next period,
-        # then flush the data
-        period_start_dates = self.get_period_start_dates()
-        for period_index in range(len(period_start_dates)-1):
+        # persisting the data as we go
+        for period_index in range(self.num_periods()-1):
             initializing_dict = self.get_initializing_dict()
-            e1 = Employer(**initializing_dict)
-
-            # INITIALIZE
-            tmp_dr_json = self.retrieve_json(f'tmp_dr.json')
-            tmp_al_json = self.retrieve_json(f'tmp_al.json')
-            e1.initialize(tmp_dr_json, tmp_al_json)
-            e1.load_persisted_data_and_do_period_calculations(period_index)
-
-            (dr_tmp_json, al_tmp_json) = e1.make_estimates_and_return_data_to_persist(period_index+1)
-            self.persist_json(dr_tmp_json, f'tmp_dr.json')
-            self.persist_json(al_tmp_json, f'tmp_al.json')
+            e = Employer(**initializing_dict)
+            self.period_end_calculations(e, period_index=period_index)
+            self.period_start_estimates(e, period_index=period_index+1)
 
         # Finally we calculate the final period's true values,
         # calculate our score and write the html report
         # returning the score
-        final_period_index = len(period_start_dates)-1
-        e2 = Employer(**initializing_dict)
+        initializing_dict = self.get_initializing_dict()
+        e = Employer(**initializing_dict)
+        final_period_index = self.num_periods()-1
+        self.period_end_calculations(e, period_index=final_period_index)
 
-        tmp_dr_json = self.retrieve_json(f'tmp_dr.json')
-        tmp_al_json = self.retrieve_json(f'tmp_al.json')
-        e2.initialize(tmp_dr_json, tmp_al_json)
-        e2.load_persisted_data_and_do_period_calculations(final_period_index)
-
-        score = abs(e2._dr.final_overcount()) + abs(e2._al.final_overcount())
-        return self.store_reports(score, e2.make_html_report())
+        score = abs(e._dr.final_overcount()) + abs(e._al.final_overcount())
+        return self.store_reports(score, e.make_html_report())
 
 
 def main() -> int:
