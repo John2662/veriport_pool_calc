@@ -5,7 +5,7 @@
 
 from employer import Schedule, Employer
 from initialize_json import compile_json
-# from math import log10, ceil
+from datetime import date
 import argparse
 import os
 import json
@@ -125,27 +125,89 @@ def construct_employer(employer_json: str) -> Employer:
     return Employer(**employer_json)
 
 
-def run_test_case(output: str, base_name: str, schedule: Schedule,  population: dict) -> None:
-    # Where all data will land:
-    final_dir = os.path.join(output, base_name)
-    os.makedirs(final_dir, exist_ok=True)
+# # Pass off all the storage to the db conn to "manage" to make this more like the use of an app
+# def run_test_case(output: str, base_name: str, schedule: Schedule,  population: dict) -> None:
+#     # Where all data will land:
+#     final_dir = os.path.join(output, base_name)
+#     os.makedirs(final_dir, exist_ok=True)
+#
+#     write_file = os.path.join(final_dir, base_name)
+#     (employer_json_file, period_start_dates) = generate_initialization_data_files(population, schedule, write_file)
+#
+#     # Now we can loop over the period start dates, as we would in veriport
+#     # call make estimates for first period, persist, flush
+#     for i, d in enumerate(period_start_dates):
+#         print(f'Period {i+1} is on {str(d)}')
+#         # call load data for period
+#         # call make calculations
+#         #  if final period
+#         #       generate reports
+#         #   else
+#         #       call make estimates for coming period, persist, flush
+#
+#     employer_dict = load_employer_initialization_dict_from_file(employer_json_file)
+#     employer = construct_employer(employer_dict)
+#     (err, html) = employer.run_test_scenario()
+#
+#     # Add the periodicity to the file name
+#     standard_schedule_str = Schedule.as_str(schedule)
+#     base_name += f'_{standard_schedule_str}'
+#     store_data(population, html, final_dir, base_name)
+#     return err
 
-    write_file = os.path.join(final_dir, base_name)
-    (employer_json_file, period_start_dates) = generate_initialization_data_files(population, schedule, write_file)
 
-    # Now we can loop over the period start dates, as we would in veriport
-    for i, d in enumerate(period_start_dates):
-        print(f'Period {i+1} is on {str(d)}')
+class run_man:
+    base_dir: str
+    sub_dir: str
+    input_data_file: str
+    run_number: str
+    mu: float
+    sigma: float
 
-    employer_dict = load_employer_initialization_dict_from_file(employer_json_file)
-    employer = construct_employer(employer_dict)
-    (err, html) = employer.run_test_scenario()
+    def __init__(self, schedule: Schedule, base_dir: str, sub_dir: str, input_data_file: str, vp_format: bool = True, run_number: int = -1, mu: float = 0.0, sigma: float = 0.0) -> None:
+        self.schedule = schedule
+        # self.base_dir = base_dir
+        # self.sub_dir = sub_dir
+        # self.input_data_file = input_data_file
+        # self.run_number = run_number
+        # self.mu = mu
+        # self.sigma = sigma
 
-    # Add the periodicity to the file name
-    standard_schedule_str = Schedule.as_str(schedule)
-    base_name += f'_{standard_schedule_str}'
-    store_data(population, html, final_dir, base_name)
-    return err
+        # self.output_dir = os.path.join(base_dir, sub_dir)
+        # os.makedirs(self.output_dir, exist_ok=True)
+
+        output_dir = os.path.join(base_dir, sub_dir)
+        os.makedirs(output_dir, exist_ok=True)
+
+        if run_number < 0:
+            self.population = population_dict_from_file(input_data_file, vp_format)
+            self.base_name = base_file_name_from_path(input_data_file)
+        else:
+            self.population = population_dict_from_rand(mu, sigma)
+            self.base_name = f'run_{run_number}'
+
+        # self.storage_dir = os.path.join(self.output_dir, self.base_name)
+        self.storage_dir = os.path.join(output_dir, self.base_name)
+        os.makedirs(self.storage_dir, exist_ok=True)
+
+        # self.output_file_basename = os.path.join(self.storage_dir, self.base_name)
+        output_file_basename = os.path.join(self.storage_dir, self.base_name)
+        (self.employer_json_file, self.period_start_dates) = generate_initialization_data_files(self.population, self.schedule, output_file_basename)
+
+    def get_period_start_dates(self) -> list[date]:
+        return self.period_start_dates
+
+    # def run_test_case(self, period_index: int, period_start: date) -> int:
+    def run_test_case(self) -> int:
+        employer_dict = load_employer_initialization_dict_from_file(self.employer_json_file)
+        employer = construct_employer(employer_dict)
+        (err, html) = employer.run_test_scenario()
+
+        # Add the periodicity to the file name
+        standard_schedule_str = Schedule.as_str(self.schedule)
+        base_name = self.base_name + f'_{standard_schedule_str}'
+        store_data(self.population, html, self.storage_dir, base_name)
+        return err
 
 
 def main() -> int:
@@ -157,13 +219,11 @@ def main() -> int:
         if not os.path.isfile(filename):
             print(f'Cannot open {filename}')
             return 0
-        output = os.path.join(args.dir, 'fixed_trials')
-        os.makedirs(output, exist_ok=True)
-
-        population = population_dict_from_file(filename, args.vp)
-
-        base_name = base_file_name_from_path(filename)
-        return run_test_case(output, base_name, schedule, population)
+        rm = run_man(schedule, args.dir, 'fixed_trials', filename, args.vp)
+        # period_start_dates = rm.get_period_start_dates()
+        # for i, d in enumerate(period_start_dates):
+        #   rm.run_test_case(i,d)
+        return rm.run_test_case()
 
     num_tests = min(args.iter, MAX_NUM_TESTS)
     mu = args.mu
@@ -172,13 +232,11 @@ def main() -> int:
     i = 0
     errors = {}
     while(i < num_tests):
-        output = os.path.join(args.dir, 'random_trials')
-        os.makedirs(output, exist_ok=True)
-
-        population = population_dict_from_rand(mu, sigma)
-
-        base_name = f'run_{i}'
-        err = run_test_case(output, base_name, schedule, population)
+        rm = run_man(schedule, args.dir, 'random_trials', '', False, i, args.mu, args.sig)
+        # period_start_dates = rm.get_period_start_dates()
+        # for i, d in enumerate(period_start_dates):
+        #   rm.run_test_case(i,d)
+        err = rm.run_test_case()
 
         if err not in errors:
             errors[err] = []

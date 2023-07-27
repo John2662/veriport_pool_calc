@@ -112,47 +112,6 @@ class Employer(BaseModel):
     #    VARIOUS INITIALIZATION METHODS    #
     ########################################
 
-    # def set_period_start_dates_by_month_list(self, month_list: list[int], bi: bool = False) -> None:
-    #     self.period_start_dates = [self.pool_inception]
-    #     year = self.pool_inception.year
-    #     for m in month_list:
-    #         d_1 = date(year=year, month=m, day=1)
-    #         if self.pool_inception < d_1:
-    #             self.period_start_dates.append(d_1)
-    #         if bi:
-    #             d_15 = date(year=year, month=m, day=15)
-    #             if self.pool_inception < d_15:
-    #                 self.period_start_dates.append(d_15)
-
-    # def initialize_periods(self, custom_period_start_dates: list[date] = []) -> None:
-    #     if self.schedule == Schedule.SEMIMONTHLY:
-    #         self.set_period_start_dates_by_month_list([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], True)
-
-    #     elif self.schedule == Schedule.MONTHLY:
-    #         self.set_period_start_dates_by_month_list([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
-
-    #     elif self.schedule == Schedule.BIMONTHLY:
-    #         self.set_period_start_dates_by_month_list([1, 3, 5, 7, 9, 11, 12])
-
-    #     elif self.schedule == Schedule.QUARTERLY:
-    #         self.set_period_start_dates_by_month_list([1, 4, 7, 10, 12])
-
-    #     elif self.schedule == Schedule.SEMIANNUALLY:
-    #         self.set_period_start_dates_by_month_list([1, 7, 12])
-
-    #     elif self.schedule == Schedule.ANNUALLY:
-    #         self.set_period_start_dates_by_month_list([1, 12])
-
-    #     else:
-    #         for d in sorted(custom_period_start_dates):
-    #             if d < self.pool_inception:
-    #                 continue
-    #             self.period_start_dates.append(d)
-
-    #     # dec_15 = self.pool_inception.replace(month=12, day=15)
-    #     # if self.pool_inception < dec_15:
-    #     #     self.period_start_dates.append(dec_15)
-
     def initialize_periods(self, custom_period_start_dates: list[date] = []) -> None:
         self.period_start_dates = Employer.initialize_period_start_dates(self.pool_inception, self.schedule)
 
