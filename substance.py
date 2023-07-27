@@ -42,10 +42,10 @@ class Substance(BaseModel):
         return s
 
     #  If we want to increase the periods and rerun, we can do this first
-    def clear_data(self):
-        self.required_tests_predicted = []
-        self.aposteriori_truth = []
-        self.overcount_error = []
+    # def clear_data(self):
+    #     self.required_tests_predicted = []
+    #     self.aposteriori_truth = []
+    #     self.overcount_error = []
 
     @property
     def actual_num_tests_required(self) -> int:
@@ -78,15 +78,15 @@ class Substance(BaseModel):
         # keep track of anything we missed through the estimate
         self.overcount_error.append(float(self.required_tests_predicted[-1]) - self.aposteriori_truth[-1])
 
-    def persist_data(self, tmpfile: str) -> None:
-        with open(tmpfile, 'w') as f:
-            f.write(self.model_dump_json())
+    def persist_data(self) -> str:
+        # with open(tmpfile, 'w') as f:
+        #     f.write(self.model_dump_json())
         return self.model_dump_json()
 
-    @staticmethod
-    def load_data(tmpfile: str) -> str:
-        with open(tmpfile, 'r') as f:
-            return f.read()
+    # @staticmethod
+    # def load_data(tmpfile: str) -> str:
+    #     with open(tmpfile, 'r') as f:
+    #         return f.read()
 
     ##############################
     #    GENERATE A CSV STRING   #

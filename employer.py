@@ -162,15 +162,15 @@ class Employer(BaseModel):
     # This will add some new period boundries and reset the substance counters to empty
     #  we can then call this again to re-calculate the error to attempt to 'heal' the
     #  predictions made and get a correct answer
-    def reinitialize(self, new_period_dates: list[date]):
-        new_date_set = Employer.extended_start_dates(self.period_start_dates, new_period_dates)
-        if len(new_date_set) <= len(self.period_start_dates):
-            return False   # no new dates added
+    # def reinitialize(self, new_period_dates: list[date]):
+    #     new_date_set = Employer.extended_start_dates(self.period_start_dates, new_period_dates)
+    #     if len(new_date_set) <= len(self.period_start_dates):
+    #         return False   # no new dates added
 
-        self.period_start_dates = new_date_set
-        self._dr.clear_data()
-        self._al.clear_data()
-        return True
+    #     self.period_start_dates = new_date_set
+    #     self._dr.clear_data()
+    #     self._al.clear_data()
+    #     return True
 
     ########################################
     #  END VARIOUS INITIALIZATION METHODS  #
@@ -189,62 +189,21 @@ class Employer(BaseModel):
     def period_start_end(self, period_index: int) -> tuple:
         return (self.period_start_dates[period_index], self.period_end_date(period_index))
 
-    def flush_data(self) -> None:
-        self._dr = None
-        self._al = None
-
-    def persist_interim_data(self, period_index: int) -> tuple:
-        dr_tmp_json = self._dr.persist_data('tmp_drug.json')
-        al_tmp_json = self._al.persist_data('tmp_alcohol.json')
-        return (dr_tmp_json, al_tmp_json)
-
-    def load_interim_data(self, period_index: int) -> None:
-        _dr = Substance.load_data('tmp_drug.json')
-        _al = Substance.load_data('tmp_alcohol.json')
-        self._dr = Substance.model_validate_json(_dr)
-        self._al = Substance.model_validate_json(_al)
-
     def make_estimates_save_then_flush_data(self, period_index: int) -> tuple:
-        # find the start and end dates of the period
         (start, end) = self.period_start_end(period_index)
         self._al.make_apriori_predictions(self.donor_count_on(start), start, end, self.total_days_in_year)
         self._dr.make_apriori_predictions(self.donor_count_on(start), start, end, self.total_days_in_year)
-        (dr_tmp_json, al_tmp_json) = self.persist_interim_data(period_index)
-        self.flush_data()  # This mimics the calling app shutting down till the next reporting period occurs
-        return (dr_tmp_json, al_tmp_json)
+        return (self._dr.persist_data(), self._al.persist_data())
 
     def load_data_and_do_period_calculations(self, period_index: int) -> None:
         (start, end) = self.period_start_end(period_index)
-        self.load_interim_data(period_index)
         period_donor_list = self.fetch_donor_queryset_by_interval(start, end)
-
-        # using the actual (aposteriori) data, see how far off we were and keep that
-        #  for the next prediction
         self._al.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
         self._dr.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
-        self.persist_interim_data(period_index)
 
     def end_of_period_update(self, period_index: int) -> tuple:
         self.load_data_and_do_period_calculations(period_index)
         return self.make_estimates_save_then_flush_data(period_index+1)
-
-    # def rerun_test_scenario(self, new_period_dates: list[date], all_data: bool = False):
-    #     added_dates = self.reinitialize(new_period_dates)
-    #     if added_dates:
-    #         self.make_estimates_save_then_flush_data(0)
-    #         for period_index in range(len(self.period_start_dates)-1):
-    #             self.end_of_period_update(period_index)
-    #         self.load_data_and_do_period_calculations(len(self.period_start_dates)-1)
-
-    #         score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
-    #         if all_data:
-    #             return (score, self.generate_csv_report(), self.make_text_report(), self.make_html_report())
-    #         return (score, self.make_html_report())
-
-    #     # No dates added so these numbers will not change
-    #     print(f'WARNING: {new_period_dates} are contained in {self.period_start_dates} so no changes')
-    #     score = abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
-    #     return (score, self.generate_csv_report(), self.make_text_report(), self.make_html_report())
 
     ##############################
     #    GENERATE A CSV STRING   #

@@ -249,9 +249,9 @@ class run_man:
             tmp_dr_json = self.retrieve_json(f'tmp_dr_{period_index}.json')
             tmp_al_json = self.retrieve_json(f'tmp_al_{period_index}.json')
             e1.initialize(tmp_dr_json, tmp_al_json)
-            # e1.initialize()
 
             (dr_tmp_json, al_tmp_json) = e1.end_of_period_update(period_index)
+
             self.persist_json(dr_tmp_json, f'tmp_dr_{period_index+1}.json')
             self.persist_json(al_tmp_json, f'tmp_al_{period_index+1}.json')
 
@@ -260,7 +260,11 @@ class run_man:
         # returning the score
         final_period_index = len(period_start_dates)-1
         e2 = Employer(**initializing_dict)
-        e2.initialize()
+
+        tmp_dr_json = self.retrieve_json(f'tmp_dr_{final_period_index}.json')
+        tmp_al_json = self.retrieve_json(f'tmp_al_{final_period_index}.json')
+        e2.initialize(tmp_dr_json, tmp_al_json)
+
         e2.load_data_and_do_period_calculations(final_period_index)
 
         score = abs(e2._dr.final_overcount()) + abs(e2._al.final_overcount())
