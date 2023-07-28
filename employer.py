@@ -129,18 +129,11 @@ class Employer(BaseModel):
             exit(0)
         return db
 
-    def initialize(self, dr_tmp_json: str = None, al_tmp_json: str = None, custom_period_start_dates: list = []) -> None:
+    def initialize(self, custom_period_start_dates: list = []) -> None:
         self.initialize_periods(custom_period_start_dates)
 
-        if dr_tmp_json is not None:
-            self._dr = Substance.model_validate_json(dr_tmp_json)
-        else:
-            self._dr = generate_substance(self.sub_d)
-
-        if al_tmp_json is not None:
-            self._al = Substance.model_validate_json(al_tmp_json)
-        else:
-            self._al = generate_substance(self.sub_a)
+        self._dr = generate_substance(self.sub_d)
+        self._al = generate_substance(self.sub_a)
 
         # Initialize the "DB". In a real world example, it would already exist
         self._db_conn = self.establish_db()
@@ -158,19 +151,6 @@ class Employer(BaseModel):
             new_date_set.add(d)
 
         return list[sorted(new_date_set)]
-
-    # This will add some new period boundries and reset the substance counters to empty
-    #  we can then call this again to re-calculate the error to attempt to 'heal' the
-    #  predictions made and get a correct answer
-    # def reinitialize(self, new_period_dates: list[date]):
-    #     new_date_set = Employer.extended_start_dates(self.period_start_dates, new_period_dates)
-    #     if len(new_date_set) <= len(self.period_start_dates):
-    #         return False   # no new dates added
-
-    #     self.period_start_dates = new_date_set
-    #     self._dr.clear_data()
-    #     self._al.clear_data()
-    #     return True
 
     ########################################
     #  END VARIOUS INITIALIZATION METHODS  #
@@ -193,17 +173,16 @@ class Employer(BaseModel):
         (start, end) = self.period_start_end(period_index)
         self._al.make_apriori_predictions(self.donor_count_on(start), start, end, self.total_days_in_year)
         self._dr.make_apriori_predictions(self.donor_count_on(start), start, end, self.total_days_in_year)
-        return (self._dr.persist_data(), self._al.persist_data())
+        return (self._dr.data_to_persist(), self._al.data_to_persist())
 
-    def load_persisted_data_and_do_period_calculations(self, period_index: int) -> None:
+    def load_persisted_data_and_do_period_calculations(self, period_index: int, dr_tmp_json: str, al_tmp_json: str) -> None:
         (start, end) = self.period_start_end(period_index)
+        self._dr = Substance.model_validate_json(dr_tmp_json)
+        self._al = Substance.model_validate_json(al_tmp_json)
         period_donor_list = self.fetch_donor_queryset_by_interval(start, end)
         self._al.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
         self._dr.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
-
-    # def end_of_period_update(self, period_index: int) -> tuple:
-    #     self.load_data_and_do_period_calculations(period_index)
-    #     return self.make_estimates_save_then_flush_data(period_index+1)
+        return abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
 
     ##############################
     #    GENERATE A CSV STRING   #

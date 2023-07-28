@@ -52,7 +52,7 @@ def load_population_from_vp_file(filename: str) -> dict:
                 print(f'{filename} spans multiple years')
                 exit(0)
 
-            if inception_not_found and pop >= 0:
+            if inception_not_found and pop > 0:
                 inception_not_found = False
                 last_date_processed = d
                 # print(f'Inception: {str(d)} -> {pop=}')

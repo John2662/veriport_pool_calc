@@ -77,8 +77,8 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('--sch', type=str, help='the testing schedule (MONTHLY, QUARTERLY, etc.)', default='quarterly')
     parser.add_argument('--vp', type=bool, help='Whether this comes from VP or from this program', default=True)
     parser.add_argument('--iter', type=int, help='number of random iterations', default=4)
-    parser.add_argument('--mu', type=float, help='mu value of gaussian', default=.1)
-    parser.add_argument('--sig', type=float, help='sigma value of gaussian', default=2.5)
+    parser.add_argument('--mu', type=float, help='mu value of gaussian', default=0.0)
+    parser.add_argument('--sig', type=float, help='sigma value of gaussian', default=0.0)
     args = parser.parse_args()
     return args
 
@@ -125,37 +125,6 @@ def construct_employer(employer_json: str) -> Employer:
     return Employer(**employer_json)
 
 
-# # Pass off all the storage to the db conn to "manage" to make this more like the use of an app
-# def run_test_case(output: str, base_name: str, schedule: Schedule,  population: dict) -> None:
-#     # Where all data will land:
-#     final_dir = os.path.join(output, base_name)
-#     os.makedirs(final_dir, exist_ok=True)
-#
-#     write_file = os.path.join(final_dir, base_name)
-#     (employer_json_file, period_start_dates) = generate_initialization_data_files(population, schedule, write_file)
-#
-#     # Now we can loop over the period start dates, as we would in veriport
-#     # call make estimates for first period, persist, flush
-#     for i, d in enumerate(period_start_dates):
-#         print(f'Period {i+1} is on {str(d)}')
-#         # call load data for period
-#         # call make calculations
-#         #  if final period
-#         #       generate reports
-#         #   else
-#         #       call make estimates for coming period, persist, flush
-#
-#     employer_dict = load_employer_initialization_dict_from_file(employer_json_file)
-#     employer = construct_employer(employer_dict)
-#     (err, html) = employer.run_test_scenario()
-#
-#     # Add the periodicity to the file name
-#     standard_schedule_str = Schedule.as_str(schedule)
-#     base_name += f'_{standard_schedule_str}'
-#     store_data(population, html, final_dir, base_name)
-#     return err
-
-
 class run_man:
     base_dir: str
     sub_dir: str
@@ -195,12 +164,11 @@ class run_man:
         (err, html) = employer.run_test_scenario()
         return self.store_reports(err, html)
 
-    def store_reports(self, err: int, html: str) -> int:
+    def store_reports(self, html: str) -> int:
         # Add the periodicity to the file name
         standard_schedule_str = Schedule.as_str(self.schedule)
         base_name = self.base_name + f'_{standard_schedule_str}'
         store_data(self.population, html, self.storage_dir, base_name)
-        return err
 
     def persist_json(self, tmp_json, file_name) -> None:
         json_file = os.path.join(self.storage_dir, file_name)
@@ -215,6 +183,8 @@ class run_man:
     def num_periods(self) -> int:
         return len(self.period_start_dates)
 
+    def final_period_index(self) -> int:
+        return self.num_periods() - 1
 
     def period_start_estimates(self, e: Employer, period_index: int) -> None:
         (dr_tmp_json, al_tmp_json) = e.make_estimates_and_return_data_to_persist(period_index)
@@ -222,40 +192,58 @@ class run_man:
         self.persist_json(al_tmp_json, 'tmp_al.json')
 
     def period_end_calculations(self, e: Employer, period_index: int) -> None:
-        tmp_dr_json = self.retrieve_json(f'tmp_dr.json')
-        tmp_al_json = self.retrieve_json(f'tmp_al.json')
-        e.initialize(tmp_dr_json, tmp_al_json)
-        e.load_persisted_data_and_do_period_calculations(period_index)
+        tmp_dr_json = self.retrieve_json('tmp_dr.json')
+        tmp_al_json = self.retrieve_json('tmp_al.json')
+        return e.load_persisted_data_and_do_period_calculations(period_index, tmp_dr_json, tmp_al_json)
 
-    def run_like_veriport_would(self):
+    def get_employer_instance(self):
         # Generate a dictionary needed to construct an instance of the Employer class
         # Hint: The json version of this is stored in the output directory of the run
         initializing_dict = self.get_initializing_dict()
         e = Employer(**initializing_dict)
         e.initialize()
+        return e
 
-        # Make the initial estimates for the employer
-        self.period_start_estimates(e, period_index=0)
+    def process_period(self, period_index: int) -> None:
+        e = self.get_employer_instance()
+        if period_index == 0:
+            self.period_start_estimates(e, period_index=period_index)
+        if period_index == self.final_period_index()+1:
+            score = self.period_end_calculations(e, period_index=period_index-1)
+            self.store_reports(e.make_html_report())
+            return score
+        if period_index > 0 and period_index <= self.final_period_index():
+            self.period_end_calculations(e, period_index=period_index-1)
+            self.period_start_estimates(e, period_index=period_index)
+            return 0
+        return 0
 
-        # Now loop over the periods, for each period, we initialize a new employer
-        # Then make the calculations, and the estimates for the next period,
-        # persisting the data as we go
-        for period_index in range(self.num_periods()-1):
-            initializing_dict = self.get_initializing_dict()
-            e = Employer(**initializing_dict)
-            self.period_end_calculations(e, period_index=period_index)
-            self.period_start_estimates(e, period_index=period_index+1)
+    def run_like_veriport_would(self):
+        score = 0
+        for period_index in range(self.num_periods()+2):
+            score += self.process_period(period_index)
+        return score
 
-        # Finally we calculate the final period's true values,
-        # calculate our score and write the html report
-        # returning the score
-        initializing_dict = self.get_initializing_dict()
-        e = Employer(**initializing_dict)
-        final_period_index = self.num_periods()-1
-        self.period_end_calculations(e, period_index=final_period_index)
+    # def run_like_veriport_would_old(self):
+    #     # Make the initial estimates for the employer
+    #     e = self.get_employer_instance()
+    #     self.period_start_estimates(e, period_index=0)
 
-        score = abs(e._dr.final_overcount()) + abs(e._al.final_overcount())
-        return self.store_reports(score, e.make_html_report())
+    #     # Now loop over the periods, for each period, we initialize a new employer
+    #     # Then make the calculations, and the estimates for the next period,
+    #     # persisting the data as we go
+    #     for period_index in range(self.num_periods()-1):
+    #         e = self.get_employer_instance()
+    #         self.period_end_calculations(e, period_index=period_index)
+    #         self.period_start_estimates(e, period_index=period_index+1)
+
+    #     # Finally we calculate the final period's true values,
+    #     # calculate our score and write the html report
+    #     # returning the score
+    #     e = self.get_employer_instance()
+    #     score = self.period_end_calculations(e, period_index=self.final_period_index())
+    #     self.store_reports(e.make_html_report())
+    #     return score
 
 
 def main() -> int:
@@ -282,8 +270,8 @@ def main() -> int:
         errors[err].append(i)
         i += 1
 
-    for e in errors:
-        print(f'hit {len(errors[e])} errors of level {e} out of {num_tests}: Runs: {errors[e]}')
+    for e in sorted(errors):
+        print(f'level {e} errors: hit {len(errors[e])} errors out of {num_tests}: Runs: {errors[e]}')
 
     return 0
 
