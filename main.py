@@ -220,7 +220,7 @@ class run_man:
 
     def run_like_veriport_would(self):
         score = 0
-        for period_index in range(self.num_periods()+2):
+        for period_index in range(self.num_periods()+1):
             score += self.process_period(period_index)
         return score
 
