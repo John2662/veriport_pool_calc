@@ -89,13 +89,13 @@ def base_file_name_from_path(filepath: str) -> str:
     return just_file_name
 
 
-def generate_initialization_data_files(population: dict, schedule: Schedule, write_file: str) -> tuple:
+def generate_initialization_data_files(population: dict, schedule: Schedule, generic_filepath: str) -> tuple:
     start = list(population.keys())[0]
 
-    nat_file = write_file + '_nat.csv'
+    nat_file = generic_filepath + '_nat.csv'
     write_population_to_natural_file(population, nat_file)
 
-    vp_file = write_file + '_vp.csv'
+    vp_file = generic_filepath + '_vp.csv'
     write_population_to_vp_file(population, vp_file)
 
     employer_dict = compile_json(start, schedule, vp_file)
@@ -103,7 +103,7 @@ def generate_initialization_data_files(population: dict, schedule: Schedule, wri
     for d in employer_dict['period_start_dates']:
         start_dates.append(string_to_date(d))
 
-    employer_json_file = write_file + '_emp.json'
+    employer_json_file = generic_filepath + '_emp.json'
     write_employer_initialization_dict_to_file(employer_json_file, employer_dict)
 
     return (employer_json_file, start_dates)
@@ -121,35 +121,51 @@ def load_employer_initialization_dict_from_file(filename: str) -> dict:
         return employer_dict
 
 
-def construct_employer(employer_json: str) -> Employer:
-    return Employer(**employer_json)
-
-
 class run_man:
-    base_dir: str
-    sub_dir: str
-    input_data_file: str
-    run_number: str
-    mu: float
-    sigma: float
 
-    def __init__(self, schedule: Schedule, base_dir: str, sub_dir: str, input_data_file: str, vp_format: bool = True, run_number: int = -1, mu: float = 0.0, sigma: float = 0.0) -> None:
+    population: dict
+    base_name: str
+    storage_dir: str
+    employer_json_file: str
+    period_start_dates: list
+
+    def __init__(
+                self,
+                schedule: Schedule,
+
+                # needed to store data for the run:
+                base_dir: str,
+                sub_dir: str,
+
+                # needed to load the population from a file:
+                input_data_file: str,
+                vp_format: bool = True,
+
+                # needed if we are running the random tests:
+                run_number: int = -1,
+                mu: float = 0.0,
+                sigma: float = 0.0
+                ) -> None:
+
         self.schedule = schedule
 
         output_dir = os.path.join(base_dir, sub_dir)
         os.makedirs(output_dir, exist_ok=True)
 
-        if run_number < 0:
+        if run_number < 0:  # This is the kludgy (but effective) way to indicate we should load from a file
             self.population = population_dict_from_file(input_data_file, vp_format)
             self.base_name = base_file_name_from_path(input_data_file)
         else:
             self.population = population_dict_from_rand(mu, sigma)
             self.base_name = f'run_{run_number}'
 
+        # set up the storage directory to plop all the data in
         self.storage_dir = os.path.join(output_dir, self.base_name)
         os.makedirs(self.storage_dir, exist_ok=True)
 
+        # make a 'generic' file name for all output (to which we can add the proper extension)
         output_file_basename = os.path.join(self.storage_dir, self.base_name)
+
         (self.employer_json_file, self.period_start_dates) = generate_initialization_data_files(self.population, self.schedule, output_file_basename)
 
     def get_period_start_dates(self) -> list[date]:
@@ -157,12 +173,6 @@ class run_man:
 
     def get_initializing_dict(self) -> dict:
         return load_employer_initialization_dict_from_file(self.employer_json_file)
-
-    def run_test_case(self) -> int:
-        employer_dict = load_employer_initialization_dict_from_file(self.employer_json_file)
-        employer = construct_employer(employer_dict)
-        (err, html) = employer.run_test_scenario()
-        return self.store_reports(err, html)
 
     def store_reports(self, html: str) -> int:
         # Add the periodicity to the file name
