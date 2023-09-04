@@ -169,10 +169,10 @@ class TpaEmployer(BaseModel):
     def period_start_end(self, period_index: int) -> tuple:
         return (self.period_start_dates[period_index], self.period_end_date(period_index))
 
-    def make_estimates_and_return_data_to_persist(self, period_index: int) -> tuple:
+    def make_estimates_and_return_data_to_persist(self, start_count: int, period_index: int) -> tuple:
         (start, end) = self.period_start_end(period_index)
-        self._al.make_apriori_predictions(self.donor_count_on(start), start, end, self.total_days_in_year)
-        self._dr.make_apriori_predictions(self.donor_count_on(start), start, end, self.total_days_in_year)
+        self._al.make_apriori_predictions(start_count, start, end, self.total_days_in_year)
+        self._dr.make_apriori_predictions(start_count, start, end, self.total_days_in_year)
         return (self._dr.data_to_persist(), self._al.data_to_persist())
 
     def load_persisted_data_and_do_period_calculations(self, period_index: int, dr_tmp_json: str, al_tmp_json: str) -> None:

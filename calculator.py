@@ -59,8 +59,16 @@ class Calculator:
     def make_html_report(self):
         return self.employer.make_html_report()
 
+    def donor_count_on(self, day: date) -> int:
+        return self.population[day]
+
+    def period_start_end(self, period_index: int) -> tuple:
+        return self.employer.period_start_end(period_index)
+
     def make_estimates_and_return_data_to_persist(self, period_index: int) -> tuple:
-        return self.employer.make_estimates_and_return_data_to_persist(period_index)
+        start_date = self.employer.period_start_dates[period_index]
+        start_count = self.donor_count_on(start_date)
+        return self.employer.make_estimates_and_return_data_to_persist(start_count, period_index)
 
     def load_persisted_data_and_do_period_calculations(self, period_index: int, tmp_dr_json: str, tmp_al_json: str) -> None:
         return self.employer.load_persisted_data_and_do_period_calculations(period_index, tmp_dr_json, tmp_al_json)
