@@ -274,6 +274,10 @@ class Employer(BaseModel):
 
         return s
 
+    ##############################
+    #         HTML  REPORT       #
+    ##############################
+
     def html_period_row(self, p: int):
         start = self.period_start_dates[p]
         end = self.period_end_date(p)
@@ -383,16 +387,16 @@ class Employer(BaseModel):
             return Employer.set_period_start_dates_by_month_list(pool_inception, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
 
         if schedule == Schedule.BIMONTHLY:
-            return Employer.set_period_start_dates_by_month_list(pool_inception, [1, 3, 5, 7, 9, 11, 12])
+            return Employer.set_period_start_dates_by_month_list(pool_inception, [1, 3, 5, 7, 9, 11])
 
         if schedule == Schedule.QUARTERLY:
-            return Employer.set_period_start_dates_by_month_list(pool_inception, [1, 4, 7, 10, 12])
+            return Employer.set_period_start_dates_by_month_list(pool_inception, [1, 4, 7, 10])
 
         if schedule == Schedule.SEMIANNUALLY:
-            return Employer.set_period_start_dates_by_month_list(pool_inception, [1, 7, 12])
+            return Employer.set_period_start_dates_by_month_list(pool_inception, [1, 7])
 
         if schedule == Schedule.ANNUALLY:
-            return Employer.set_period_start_dates_by_month_list(pool_inception, [1, 12])
+            return Employer.set_period_start_dates_by_month_list(pool_inception, [1])
 
         period_start_dates = [pool_inception]
         for d in sorted(custom_period_start_dates):

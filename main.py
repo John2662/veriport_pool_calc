@@ -3,6 +3,7 @@
 # Proprietary and confidential
 # Written by John Read <john.read@colibri-software.com>, July 2023
 
+from calculator import Calculator
 from employer import Schedule, Employer
 from initialize_json import compile_json
 from datetime import date
@@ -77,8 +78,8 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('--sch', type=str, help='the testing schedule (MONTHLY, QUARTERLY, etc.)', default='quarterly')
     parser.add_argument('--vp', type=bool, help='Whether this comes from VP or from this program', default=True)
     parser.add_argument('--iter', type=int, help='number of random iterations', default=4)
-    parser.add_argument('--mu', type=float, help='mu value of gaussian', default=0.0)
-    parser.add_argument('--sig', type=float, help='sigma value of gaussian', default=0.0)
+    parser.add_argument('--mu', type=float, help='mu value of gaussian', default=0.01)
+    parser.add_argument('--sig', type=float, help='sigma value of gaussian', default=2.0)
     args = parser.parse_args()
     return args
 
@@ -167,6 +168,9 @@ class run_man:
         output_file_basename = os.path.join(self.storage_dir, self.base_name)
 
         (self.employer_json_file, self.period_start_dates) = generate_initialization_data_files(self.population, self.schedule, output_file_basename)
+
+        to_depricate__vp_file = output_file_basename + '_vp.csv'
+        self.calculator = Calculator(self.population, self.period_start_dates[0], self.schedule, to_depricate__vp_file)
 
     def get_period_start_dates(self) -> list[date]:
         return self.period_start_dates
