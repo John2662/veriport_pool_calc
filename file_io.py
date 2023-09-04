@@ -8,7 +8,10 @@ from dateutil.parser import parse
 # from dateutil.parser import ParseError
 # from dateutil.parser._parser import ParseError
 import argparse
-from db_proxy import population_valid
+import os
+import json
+
+from schedule import Schedule
 
 
 # TODO: figure out how to get rid of the bare except
@@ -18,6 +21,14 @@ def string_to_date(s: str) -> date:
     # except ParseError:
     except:
         return None
+
+
+def population_valid(population) -> bool:
+    for d in population:
+        if population[d] < 0:
+            print(f'On {str(d)} population is {population[d]} < 0')
+            return False
+    return True
 
 
 def process_line(line: str, i: int) -> tuple:
@@ -135,6 +146,91 @@ def vp_to_natural(filename: str) -> None:
     new_file = f'n_{filename}'
     write_population_to_natural_file(pop, new_file)
     return new_file
+
+
+class DataPersist:
+
+    def __init__(self,
+                 base_dir: str,
+                 sub_dir: str,
+                 base_name: str,
+                 input_data_file: str,
+                 vp_format: bool = True):
+
+        self.base_name = base_name
+        self.output_dir = os.path.join(base_dir, sub_dir)
+        os.makedirs(self.output_dir, exist_ok=True)
+
+        # set up the storage directory to plop all the data in
+        self.storage_dir = os.path.join(self.output_dir, self.base_name)
+        os.makedirs(self.storage_dir, exist_ok=True)
+
+        # make a 'generic' file name for all output (to which we can add the proper extension)
+        self.output_file_basename = os.path.join(self.storage_dir, self.base_name)
+
+        # needed to load the population from a file:
+        self.input_data_file = input_data_file
+        self.vp_format = vp_format
+
+    @staticmethod
+    def tokenize_string(s: str, t: str = '\n') -> list[str]:
+        return s.split(t)
+
+    @staticmethod
+    def store_data(pop: dict, html: str, directory: os.path = 'run_output', file_name: str = '') -> None:
+        outfile = os.path.join(directory, f'{file_name}')
+        html = DataPersist.tokenize_string(html)
+        with open(f'{outfile}.html', 'w') as f:
+            for line in html:
+                f.write(line+'\n')
+
+    @staticmethod
+    def generate_initialization_data_files(population: dict, schedule: Schedule, generic_filepath: str) -> tuple:
+        start = list(population.keys())[0]
+
+        nat_file = generic_filepath + '_nat.csv'
+        write_population_to_natural_file(population, nat_file)
+
+        vp_file = generic_filepath + '_vp.csv'
+        write_population_to_vp_file(population, vp_file)
+
+        employer_dict = DataPersist.compile_json(start, schedule)
+        start_dates = []
+        for d in employer_dict['period_start_dates']:
+            start_dates.append(string_to_date(d))
+
+        employer_json_file = generic_filepath + '_emp.json'
+        DataPersist.write_employer_initialization_dict_to_file(employer_json_file, employer_dict)
+
+        return (employer_json_file, start_dates)
+
+    @staticmethod
+    def write_employer_initialization_dict_to_file(employer_json_file: str, employer_dict: dict) -> None:
+        employer_json = json.dumps(employer_dict, indent=4)
+        with open(employer_json_file, 'w') as f:
+            f.write(employer_json)
+
+    @staticmethod
+    def load_employer_initialization_dict_from_file(filename: str) -> dict:
+        with open(filename, 'r') as f:
+            employer_dict = json.load(f)
+            return employer_dict
+
+    def store_reports(self, html: str, schedule: Schedule, population: dict) -> int:
+        # Add the periodicity to the file name
+        standard_schedule_str = Schedule.as_str(schedule)
+        base_name = self.base_name + f'_{standard_schedule_str}'
+        DataPersist.store_data(population, html, self.storage_dir, base_name)
+
+    def persist_json(self, tmp_json, file_name) -> None:
+        json_file = os.path.join(self.storage_dir, file_name)
+        with open(json_file, 'w') as f:
+            f.write(tmp_json)
+
+    def retrieve_json(self, file_name) -> str:
+        json_file = os.path.join(self.storage_dir, file_name)
+        with open(json_file, 'r') as f:
+            return f.read()
 
 
 def get_args() -> argparse.Namespace:
