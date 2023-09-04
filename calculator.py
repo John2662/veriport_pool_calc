@@ -35,6 +35,7 @@ class Calculator:
                  to_depricate__vp_file: str):
 
         self.population = population
+        self.pool_inception = inception
 
         # print('\nIn Calculator:')
         # print(f'\n{population=}')
@@ -46,7 +47,7 @@ class Calculator:
         # print(f'\n{employer_json=}')
 
         self.employer = TpaEmployer(**employer_json)
-        self.employer.initialize()
+        self.employer.initialize(self.population)
 
         # print(f'{self.employer=}')
 
@@ -56,8 +57,12 @@ class Calculator:
     # That that point, we just need to give this class the actual veriport
     # object that allows it to query the DB
 
+    @property
+    def start_count(self):
+        return self.donor_count_on(self.pool_inception)
+
     def make_html_report(self):
-        return self.employer.make_html_report()
+        return self.employer.make_html_report(self.start_count)
 
     def donor_count_on(self, day: date) -> int:
         return self.population[day]
@@ -71,7 +76,9 @@ class Calculator:
         return self.employer.make_estimates_and_return_data_to_persist(start_count, period_index)
 
     def load_persisted_data_and_do_period_calculations(self, period_index: int, tmp_dr_json: str, tmp_al_json: str) -> None:
-        return self.employer.load_persisted_data_and_do_period_calculations(period_index, tmp_dr_json, tmp_al_json)
+        (start, end) = self.period_start_end(period_index)
+        period_donor_list = self.get_population_report(start, end)
+        return self.employer.load_persisted_data_and_do_period_calculations(period_donor_list, period_index, tmp_dr_json, tmp_al_json)
 
     # These functions fetch the data we need from the DB
 

@@ -10,7 +10,7 @@ from math import ceil
 import calendar
 from enum import Enum
 
-from db_proxy import DbConn
+# from db_proxy import DbConn
 from substance import generate_substance
 from substance import Substance
 
@@ -96,10 +96,10 @@ class TpaEmployer(BaseModel):
     def drug_percent(self) -> float:
         return self._dr.percent
 
-    def guess_for(self, type: str) -> int:
+    def guess_for(self, start_count: int, type: str) -> int:
         if type == 'drug':
-            return ceil(self.fraction_of_year*self.start_count*self.drug_percent)
-        return ceil(self.fraction_of_year*self.start_count*self.alcohol_percent)
+            return ceil(self.fraction_of_year*start_count*self.drug_percent)
+        return ceil(self.fraction_of_year*start_count*self.alcohol_percent)
 
     def period_end_date(self, period_index: int) -> int:
         if period_index == len(self.period_start_dates)-1:
@@ -113,30 +113,31 @@ class TpaEmployer(BaseModel):
     def initialize_periods(self, custom_period_start_dates: list[date] = []) -> None:
         self.period_start_dates = TpaEmployer.initialize_period_start_dates(self.pool_inception, self.schedule)
 
-    def establish_db(self):
-        # The db string points to a file on disk, which we will read
-        # to set up the data
-        from file_io import load_population_from_vp_file
-        population = load_population_from_vp_file(self.db_str)
-        mapping = {}
-        mapping['population'] = population
-        db = DbConn(**mapping)
-        if not db.validate_data():
-            print('Data input is invalid:')
-            a = db.data_as_string_array()
-            for line in a:
-                print(line)
-            exit(0)
-        return db
+    # def establish_db(self):
+    #     # The db string points to a file on disk, which we will read
+    #     # to set up the data
+    #     from file_io import load_population_from_vp_file
+    #     population = load_population_from_vp_file(self.db_str)
+    #     mapping = {}
+    #     mapping['population'] = population
+    #     db = DbConn(**mapping)
+    #     if not db.validate_data():
+    #         print('Data input is invalid:')
+    #         a = db.data_as_string_array()
+    #         for line in a:
+    #             print(line)
+    #         exit(0)
+    #     return db
 
-    def initialize(self, custom_period_start_dates: list = []) -> None:
+    def initialize(self, population: dict, custom_period_start_dates: list = []) -> None:
+        self._population = population
         self.initialize_periods(custom_period_start_dates)
 
         self._dr = generate_substance(self.sub_d)
         self._al = generate_substance(self.sub_a)
 
         # Initialize the "DB". In a real world example, it would already exist
-        self._db_conn = self.establish_db()
+        # self._db_conn = self.establish_db()
 
     @staticmethod
     def extended_start_dates(old_dates, additional_dates):
@@ -156,30 +157,37 @@ class TpaEmployer(BaseModel):
     #  END VARIOUS INITIALIZATION METHODS  #
     ########################################
 
+    def get_population_report(self, start: date, end: date) -> list[int]:
+        requested_population = []
+        while start <= end:
+            requested_population.append(self._population[start])
+            start += timedelta(days=1)
+        return requested_population
+
     # This is the only code that needs to pull data from the DB
     def fetch_donor_queryset_by_interval(self, start: date, end: date) -> list[int]:
-        return self._db_conn.get_population_report(start, end)
+        return self.get_population_report(start, end)
 
-    def donor_count_on(self, day: date) -> int:
-        query_set = self.fetch_donor_queryset_by_interval(day, day)
-        if len(query_set) > 0:
-            return query_set[0]
-        return 0
+    # def donor_count_on(self, day: date) -> int:
+    #     query_set = self.fetch_donor_queryset_by_interval(day, day)
+    #     if len(query_set) > 0:
+    #         return query_set[0]
+    #     return 0
 
     def period_start_end(self, period_index: int) -> tuple:
         return (self.period_start_dates[period_index], self.period_end_date(period_index))
 
-    def make_estimates_and_return_data_to_persist(self, start_count: int, period_index: int) -> tuple:
+    def make_estimates_and_return_data_to_persist(self, period_start_count: int, period_index: int) -> tuple:
         (start, end) = self.period_start_end(period_index)
-        self._al.make_apriori_predictions(start_count, start, end, self.total_days_in_year)
-        self._dr.make_apriori_predictions(start_count, start, end, self.total_days_in_year)
+        self._al.make_apriori_predictions(period_start_count, start, end, self.total_days_in_year)
+        self._dr.make_apriori_predictions(period_start_count, start, end, self.total_days_in_year)
         return (self._dr.data_to_persist(), self._al.data_to_persist())
 
-    def load_persisted_data_and_do_period_calculations(self, period_index: int, dr_tmp_json: str, al_tmp_json: str) -> None:
-        (start, end) = self.period_start_end(period_index)
+    def load_persisted_data_and_do_period_calculations(self, period_donor_list: list[int], period_index: int, dr_tmp_json: str, al_tmp_json: str) -> None:
+        # (start, end) = self.period_start_end(period_index)
         self._dr = Substance.model_validate_json(dr_tmp_json)
         self._al = Substance.model_validate_json(al_tmp_json)
-        period_donor_list = self.fetch_donor_queryset_by_interval(start, end)
+        # period_donor_list = self.fetch_donor_queryset_by_interval(start, end)
         self._al.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
         self._dr.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
         return abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
@@ -194,7 +202,7 @@ class TpaEmployer(BaseModel):
         pop = self.fetch_donor_queryset_by_interval(start, end)
         return float(sum(pop))/float(len(pop))
 
-    def generate_csv_report(self) -> str:
+    def generate_csv_report(self, start_count) -> str:
         initial_pop = []
         avg_pop = []
         percent_of_year = []
@@ -209,7 +217,7 @@ class TpaEmployer(BaseModel):
 
         s = 'Company stats\n'
         s += f'Schedule:, {Schedule.as_str(self.schedule)}\n'
-        s += f'Initial Size:, {self.start_count}\n'
+        s += f'Initial Size:, {start_count}\n'
         s += f'Number of periods:, {len(self.period_start_dates)}\n'
         s += ', PERIOD,START DATE,PERIOD START POOL SIZE,AVG. POOL SIZE,% of YEAR, weighted pop, error\n'
         for i, d in enumerate(self.period_start_dates):
@@ -220,9 +228,9 @@ class TpaEmployer(BaseModel):
         s += f'pool as % of year:, {100.0 * self.fraction_of_year}\n'
         s += '\nApriori test predictions:\n'
         s += f'\n,drug % required:, {100.0*self.drug_percent}\n'
-        s += f',initial drug guess:, {self.guess_for("drug")}\n'
+        s += f',initial drug guess:, {self.guess_for(start_count, "drug")}\n'
         s += f'\n,alcohol % required:, {100.0*self.alcohol_percent}\n'
-        s += f',initial alcohol guess:, {self.guess_for("alcohol")}\n'
+        s += f',initial alcohol guess:, {self.guess_for(start_count, "alcohol")}\n'
         s += '\n\nDrug summary:\n'
         s += f'{self._dr.generate_csv_report(initial_pop, avg_pop, percent_of_year)}'
         s += '\n\nAlcohol summary:\n'
@@ -241,13 +249,13 @@ class TpaEmployer(BaseModel):
     def format_float(f):
         return "{:6.2f}".format(float(f))
 
-    def make_text_report(self) -> str:
+    def make_text_report(self, start_count: int) -> str:
         s = 'DATA KNOWN ON INCEPTION DATE:\n'
-        s += f'   Num employees  : {self.start_count}\n'
+        s += f'   Num employees  : {start_count}\n'
         s += f'   Inception date : {self.pool_inception}\n'
         s += f'   Fractional year: {self.fraction_of_year}\n'
-        s += f'\n   Wild guess at inception date for drug    : {self.guess_for("drug")}\n'
-        s += f'   Wild guess at inception date for alcoho  : {self.guess_for("alcohol")}\n'
+        s += f'\n   Wild guess at inception date for drug    : {self.guess_for(start_count, "drug")}\n'
+        s += f'   Wild guess at inception date for alcoho  : {self.guess_for(start_count, "alcohol")}\n'
         s += '\nPOPULATION DATA AT EACH PERIOD:\n'
 
         donor_query_set_for_period = []
@@ -303,7 +311,7 @@ class TpaEmployer(BaseModel):
         s.append('          </tr>\n')
         return s
 
-    def make_html_report(self):
+    def make_html_report(self, start_count: int):
         s = ''
         s += '<!DOCTYPE html>\n'
         s += '<html lang="en">\n'
@@ -319,11 +327,11 @@ class TpaEmployer(BaseModel):
 
         s += '<div class="container">\n'
         s += '  <h2>INITIAL DATA ON INCEPTION DATE:</h2>\n'
-        s += f'  <p>Initial Pool Size: {self.start_count} </p>\n'
+        s += f'  <p>Initial Pool Size: {start_count} </p>\n'
         s += f'  <p>Inception Date: {self.pool_inception} </p>\n'
         s += f'  <p>Percent of Year: {TpaEmployer.format_float(100.0 * self.fraction_of_year)}% </p>\n'
-        s += f'  <p>Initial Guess at Num Drug Tests: {self.guess_for("drug")} </p>\n'
-        s += f'  <p>Initial Guess at Num Alcohol Tests: {self.guess_for("alcohol")} </p>\n'
+        s += f'  <p>Initial Guess at Num Drug Tests: {self.guess_for(start_count, "drug")} </p>\n'
+        s += f'  <p>Initial Guess at Num Alcohol Tests: {self.guess_for(start_count, "alcohol")} </p>\n'
         s += '   </br>\n'
         s += '   </hr>\n'
         s += '   </br>\n'
