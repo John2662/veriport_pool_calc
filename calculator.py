@@ -4,10 +4,10 @@
 # Written by John Read <john.read@colibri-software.com>, September 2023
 
 
-from db_proxy import DbConn
 from datetime import timedelta, date
-from employer import Schedule, Employer
+from employer import Schedule, TpaEmployer
 from initialize_json import compile_json
+
 
 def from_int_to_schedule(i):
     if i == 24:
@@ -26,33 +26,44 @@ def from_int_to_schedule(i):
     return Schedule.QUARTERLY
 
 
-
-
 class Calculator:
 
-    def __init__(self, population: dict,
-                       inception: date,
-                       schedule: Schedule,
-                       to_depricate__vp_file: str):
+    def __init__(self,
+                 population: dict,
+                 inception: date,
+                 schedule: Schedule,
+                 to_depricate__vp_file: str):
 
         self.population = population
 
-        print('\nIn Calculator:')
-        print(f'\n{population=}')
-        print(f'\n{inception=}')
-        print(f'\n{schedule=}')
+        # print('\nIn Calculator:')
+        # print(f'\n{population=}')
+        # print(f'\n{inception=}')
+        # print(f'\n{schedule=}')
 
         # initialize the employer
         employer_json = compile_json(inception, schedule, to_depricate__vp_file)
-        print(f'\n{employer_json=}')
+        # print(f'\n{employer_json=}')
 
-        self.employer = Employer(**employer_json)
+        self.employer = TpaEmployer(**employer_json)
+        self.employer.initialize()
 
-        print(f'{self.employer=}')
+        # print(f'{self.employer=}')
 
+    # Next write the interface that hides all the calls to employer in the old code
+    # Once we have that we can remove the employer from everywhere except here,
+    # and we can remove the DbConn object all together.
+    # That that point, we just need to give this class the actual veriport
+    # object that allows it to query the DB
 
+    def make_html_report(self):
+        return self.employer.make_html_report()
 
+    def make_estimates_and_return_data_to_persist(self, period_index: int) -> tuple:
+        return self.employer.make_estimates_and_return_data_to_persist(period_index)
 
+    def load_persisted_data_and_do_period_calculations(self, period_index: int, tmp_dr_json: str, tmp_al_json: str) -> None:
+        return self.employer.load_persisted_data_and_do_period_calculations(period_index, tmp_dr_json, tmp_al_json)
 
     # These functions fetch the data we need from the DB
 

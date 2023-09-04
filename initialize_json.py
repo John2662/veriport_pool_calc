@@ -4,11 +4,11 @@
 # Written by John Read <john.read@colibri-software.com>, July 2023
 
 from datetime import date
-from employer import Schedule, Employer
+from employer import Schedule, TpaEmployer
 
 
 def get_period_start_dates(inception: date, schedule: Schedule) -> list[date]:
-    sd = Employer.initialize_period_start_dates(inception, schedule)
+    sd = TpaEmployer.initialize_period_start_dates(inception, schedule)
     sd_str = []
     for d in sd:
         sd_str.append(str(d))

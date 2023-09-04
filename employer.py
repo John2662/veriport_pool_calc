@@ -48,7 +48,7 @@ class Schedule(int, Enum):
         return 'custom'
 
 
-class Employer(BaseModel):
+class TpaEmployer(BaseModel):
     schedule: Schedule
 
     # These get auto filled in the initialize method
@@ -111,7 +111,7 @@ class Employer(BaseModel):
     ########################################
 
     def initialize_periods(self, custom_period_start_dates: list[date] = []) -> None:
-        self.period_start_dates = Employer.initialize_period_start_dates(self.pool_inception, self.schedule)
+        self.period_start_dates = TpaEmployer.initialize_period_start_dates(self.pool_inception, self.schedule)
 
     def establish_db(self):
         # The db string points to a file on disk, which we will read
@@ -258,13 +258,13 @@ class Employer(BaseModel):
             end = self.period_end_date(p)
             days = (end-start).days+1
             fract_of_year = float(days)/float(self.total_days_in_year)
-            percent_of_yr = Employer.format_float(100.0*fract_of_year)
+            percent_of_yr = TpaEmployer.format_float(100.0*fract_of_year)
 
             p_data = self.fetch_donor_query_set_for_period(p)
             avg = float(sum(p_data))/float(days)
-            avg_s = Employer.format_float(avg)
+            avg_s = TpaEmployer.format_float(avg)
             w = min(p_data[0], avg) + 1
-            var = Employer.format_float(float(avg-p_data[0])/w)
+            var = TpaEmployer.format_float(float(avg-p_data[0])/w)
             s += f'        {p+1} | [{start} to {end}]={days} | {percent_of_yr}% |  {p_data[0]}  | {avg_s} | {var}\n'
 
             donor_query_set_for_period.append(p_data)
@@ -283,13 +283,13 @@ class Employer(BaseModel):
         end = self.period_end_date(p)
         days = (end-start).days+1
         fract_of_year = float(days)/float(self.total_days_in_year)
-        percent_of_yr = Employer.format_float(100.0*fract_of_year)
+        percent_of_yr = TpaEmployer.format_float(100.0*fract_of_year)
 
         p_data = self.fetch_donor_query_set_for_period(p)
         avg = float(sum(p_data))/float(days)
         # w = min(p_data[0], avg) + 1
-        # var = Employer.format_float(float(avg-p_data[0])/w)
-        avg_s = Employer.format_float(avg)
+        # var = TpaEmployer.format_float(float(avg-p_data[0])/w)
+        avg_s = TpaEmployer.format_float(avg)
         s = []
         s.append('          <tr>\n')
         s.append(f'              <td>{p+1}</td>\n')
@@ -321,7 +321,7 @@ class Employer(BaseModel):
         s += '  <h2>INITIAL DATA ON INCEPTION DATE:</h2>\n'
         s += f'  <p>Initial Pool Size: {self.start_count} </p>\n'
         s += f'  <p>Inception Date: {self.pool_inception} </p>\n'
-        s += f'  <p>Percent of Year: {Employer.format_float(100.0 * self.fraction_of_year)}% </p>\n'
+        s += f'  <p>Percent of Year: {TpaEmployer.format_float(100.0 * self.fraction_of_year)}% </p>\n'
         s += f'  <p>Initial Guess at Num Drug Tests: {self.guess_for("drug")} </p>\n'
         s += f'  <p>Initial Guess at Num Alcohol Tests: {self.guess_for("alcohol")} </p>\n'
         s += '   </br>\n'
@@ -381,22 +381,22 @@ class Employer(BaseModel):
     @staticmethod
     def initialize_period_start_dates(pool_inception: date, schedule: Schedule, custom_period_start_dates: list[date] = []) -> list[date]:
         if schedule == Schedule.SEMIMONTHLY:
-            return Employer.set_period_start_dates_by_month_list(pool_inception, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], True)
+            return TpaEmployer.set_period_start_dates_by_month_list(pool_inception, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], True)
 
         if schedule == Schedule.MONTHLY:
-            return Employer.set_period_start_dates_by_month_list(pool_inception, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+            return TpaEmployer.set_period_start_dates_by_month_list(pool_inception, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
 
         if schedule == Schedule.BIMONTHLY:
-            return Employer.set_period_start_dates_by_month_list(pool_inception, [1, 3, 5, 7, 9, 11])
+            return TpaEmployer.set_period_start_dates_by_month_list(pool_inception, [1, 3, 5, 7, 9, 11])
 
         if schedule == Schedule.QUARTERLY:
-            return Employer.set_period_start_dates_by_month_list(pool_inception, [1, 4, 7, 10])
+            return TpaEmployer.set_period_start_dates_by_month_list(pool_inception, [1, 4, 7, 10])
 
         if schedule == Schedule.SEMIANNUALLY:
-            return Employer.set_period_start_dates_by_month_list(pool_inception, [1, 7])
+            return TpaEmployer.set_period_start_dates_by_month_list(pool_inception, [1, 7])
 
         if schedule == Schedule.ANNUALLY:
-            return Employer.set_period_start_dates_by_month_list(pool_inception, [1])
+            return TpaEmployer.set_period_start_dates_by_month_list(pool_inception, [1])
 
         period_start_dates = [pool_inception]
         for d in sorted(custom_period_start_dates):

@@ -4,7 +4,7 @@
 # Written by John Read <john.read@colibri-software.com>, July 2023
 
 from calculator import Calculator
-from employer import Schedule, Employer
+from employer import Schedule
 from initialize_json import compile_json
 from datetime import date
 import argparse
@@ -200,35 +200,46 @@ class run_man:
     def final_period_index(self) -> int:
         return self.num_periods() - 1
 
-    def period_start_estimates(self, e: Employer, period_index: int) -> None:
+    def _period_start_estimates(self, e: Calculator, period_index: int) -> None:
         (dr_tmp_json, al_tmp_json) = e.make_estimates_and_return_data_to_persist(period_index)
         self.persist_json(dr_tmp_json, 'tmp_dr.json')
         self.persist_json(al_tmp_json, 'tmp_al.json')
 
-    def period_end_calculations(self, e: Employer, period_index: int) -> None:
+    def _period_end_calculations(self, e: Calculator, period_index: int) -> None:
         tmp_dr_json = self.retrieve_json('tmp_dr.json')
         tmp_al_json = self.retrieve_json('tmp_al.json')
         return e.load_persisted_data_and_do_period_calculations(period_index, tmp_dr_json, tmp_al_json)
 
-    def get_employer_instance(self):
-        # Generate a dictionary needed to construct an instance of the Employer class
+    # def _get_employer_instance(self):
+    #     # Generate a dictionary needed to construct an instance of the Employer class
+    #     # Hint: The json version of this is stored in the output directory of the run
+    #     initializing_dict = self.get_initializing_dict()
+    #     e = Employer(**initializing_dict)
+    #     e.initialize()
+    #     return e
+
+    def get_calculator_instance(self) -> None:
+        # Generate a dictionary needed to construct an instance of the Calculator class
         # Hint: The json version of this is stored in the output directory of the run
         initializing_dict = self.get_initializing_dict()
-        e = Employer(**initializing_dict)
-        e.initialize()
-        return e
+        inception = string_to_date(initializing_dict['pool_inception'])
+        from calculator import from_int_to_schedule
+        schedule = from_int_to_schedule(int(initializing_dict['schedule']))
+        to_depricate__vp_file = initializing_dict['db_str']
+        c = Calculator(self.population, inception, schedule, to_depricate__vp_file)
+        return c
 
     def process_period(self, period_index: int) -> None:
-        e = self.get_employer_instance()
+        c = self.get_calculator_instance()
         if period_index == 0:
-            self.period_start_estimates(e, period_index=period_index)
+            self._period_start_estimates(c, period_index=period_index)
         if period_index == self.final_period_index()+1:
-            score = self.period_end_calculations(e, period_index=period_index-1)
-            self.store_reports(e.make_html_report())
+            score = self._period_end_calculations(c, period_index=period_index-1)
+            self.store_reports(c.make_html_report())
             return score
         if period_index > 0 and period_index <= self.final_period_index():
-            self.period_end_calculations(e, period_index=period_index-1)
-            self.period_start_estimates(e, period_index=period_index)
+            self._period_end_calculations(c, period_index=period_index-1)
+            self._period_start_estimates(c, period_index=period_index)
             return 0
         return 0
 
