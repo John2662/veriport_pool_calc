@@ -33,21 +33,20 @@ class Calculator:
                  inception: date,
                  schedule: Schedule):
 
-        self.population = population
         self.pool_inception = inception
 
         # initialize the employer
         employer_json = compile_json(inception, schedule)
 
         self.employer = TpaEmployer(**employer_json)
-        self.employer.initialize(self.population)
+        self.employer.initialize(population)
 
     @property
     def start_count(self):
         return self.donor_count_on(self.pool_inception)
 
     def make_html_report(self):
-        return self.employer.make_html_report(self.start_count)
+        return self.employer.make_html_report()
 
     def donor_count_on(self, day: date) -> int:
         return self.employer.donor_count_on(day)

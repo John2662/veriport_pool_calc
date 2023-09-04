@@ -58,7 +58,6 @@ class TpaEmployer(BaseModel):
     # These are used to load ancillary data
     sub_d: str
     sub_a: str
-    # db_str: str
 
     @property
     def start_count(self):
@@ -96,10 +95,10 @@ class TpaEmployer(BaseModel):
     def drug_percent(self) -> float:
         return self._dr.percent
 
-    def guess_for(self, start_count: int, type: str) -> int:
+    def guess_for(self, type: str) -> int:
         if type == 'drug':
-            return ceil(self.fraction_of_year*start_count*self.drug_percent)
-        return ceil(self.fraction_of_year*start_count*self.alcohol_percent)
+            return ceil(self.fraction_of_year*self.start_count*self.drug_percent)
+        return ceil(self.fraction_of_year*self.start_count*self.alcohol_percent)
 
     def period_end_date(self, period_index: int) -> int:
         if period_index == len(self.period_start_dates)-1:
@@ -192,7 +191,7 @@ class TpaEmployer(BaseModel):
         pop = self.fetch_donor_queryset_by_interval(start, end)
         return float(sum(pop))/float(len(pop))
 
-    def generate_csv_report(self, start_count) -> str:
+    def generate_csv_report(self) -> str:
         initial_pop = []
         avg_pop = []
         percent_of_year = []
@@ -207,7 +206,7 @@ class TpaEmployer(BaseModel):
 
         s = 'Company stats\n'
         s += f'Schedule:, {Schedule.as_str(self.schedule)}\n'
-        s += f'Initial Size:, {start_count}\n'
+        s += f'Initial Size:, {self.start_count}\n'
         s += f'Number of periods:, {len(self.period_start_dates)}\n'
         s += ', PERIOD,START DATE,PERIOD START POOL SIZE,AVG. POOL SIZE,% of YEAR, weighted pop, error\n'
         for i, d in enumerate(self.period_start_dates):
@@ -218,9 +217,9 @@ class TpaEmployer(BaseModel):
         s += f'pool as % of year:, {100.0 * self.fraction_of_year}\n'
         s += '\nApriori test predictions:\n'
         s += f'\n,drug % required:, {100.0*self.drug_percent}\n'
-        s += f',initial drug guess:, {self.guess_for(start_count, "drug")}\n'
+        s += f',initial drug guess:, {self.guess_for("drug")}\n'
         s += f'\n,alcohol % required:, {100.0*self.alcohol_percent}\n'
-        s += f',initial alcohol guess:, {self.guess_for(start_count, "alcohol")}\n'
+        s += f',initial alcohol guess:, {self.guess_for("alcohol")}\n'
         s += '\n\nDrug summary:\n'
         s += f'{self._dr.generate_csv_report(initial_pop, avg_pop, percent_of_year)}'
         s += '\n\nAlcohol summary:\n'
@@ -239,13 +238,13 @@ class TpaEmployer(BaseModel):
     def format_float(f):
         return "{:6.2f}".format(float(f))
 
-    def make_text_report(self, start_count: int) -> str:
+    def make_text_report(self) -> str:
         s = 'DATA KNOWN ON INCEPTION DATE:\n'
-        s += f'   Num employees  : {start_count}\n'
+        s += f'   Num employees  : {self.start_count}\n'
         s += f'   Inception date : {self.pool_inception}\n'
         s += f'   Fractional year: {self.fraction_of_year}\n'
-        s += f'\n   Wild guess at inception date for drug    : {self.guess_for(start_count, "drug")}\n'
-        s += f'   Wild guess at inception date for alcoho  : {self.guess_for(start_count, "alcohol")}\n'
+        s += f'\n   Wild guess at inception date for drug    : {self.guess_for("drug")}\n'
+        s += f'   Wild guess at inception date for alcoho  : {self.guess_for("alcohol")}\n'
         s += '\nPOPULATION DATA AT EACH PERIOD:\n'
 
         donor_query_set_for_period = []
@@ -301,7 +300,7 @@ class TpaEmployer(BaseModel):
         s.append('          </tr>\n')
         return s
 
-    def make_html_report(self, start_count: int):
+    def make_html_report(self):
         s = ''
         s += '<!DOCTYPE html>\n'
         s += '<html lang="en">\n'
@@ -317,11 +316,11 @@ class TpaEmployer(BaseModel):
 
         s += '<div class="container">\n'
         s += '  <h2>INITIAL DATA ON INCEPTION DATE:</h2>\n'
-        s += f'  <p>Initial Pool Size: {start_count} </p>\n'
+        s += f'  <p>Initial Pool Size: {self.start_count} </p>\n'
         s += f'  <p>Inception Date: {self.pool_inception} </p>\n'
         s += f'  <p>Percent of Year: {TpaEmployer.format_float(100.0 * self.fraction_of_year)}% </p>\n'
-        s += f'  <p>Initial Guess at Num Drug Tests: {self.guess_for(start_count, "drug")} </p>\n'
-        s += f'  <p>Initial Guess at Num Alcohol Tests: {self.guess_for(start_count, "alcohol")} </p>\n'
+        s += f'  <p>Initial Guess at Num Drug Tests: {self.guess_for("drug")} </p>\n'
+        s += f'  <p>Initial Guess at Num Alcohol Tests: {self.guess_for("alcohol")} </p>\n'
         s += '   </br>\n'
         s += '   </hr>\n'
         s += '   </br>\n'
