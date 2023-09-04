@@ -4,7 +4,7 @@
 # Written by John Read <john.read@colibri-software.com>, September 2023
 
 
-from datetime import timedelta, date
+from datetime import date
 from employer import Schedule, TpaEmployer
 from initialize_json import compile_json
 
@@ -42,12 +42,6 @@ class Calculator:
         self.employer = TpaEmployer(**employer_json)
         self.employer.initialize(self.population)
 
-
-    # Next write the interface that hides all the calls to employer in the old code
-    # Once we have that we can remove the employer from everywhere except here,
-    # we just need to give this class the actual veriport
-    # object that allows it to query the DB
-
     @property
     def start_count(self):
         return self.donor_count_on(self.pool_inception)
@@ -62,14 +56,10 @@ class Calculator:
         return self.employer.period_start_end(period_index)
 
     def make_estimates_and_return_data_to_persist(self, period_index: int) -> tuple:
-        start_date = self.employer.period_start_dates[period_index]
-        start_count = self.donor_count_on(start_date)
-        return self.employer.make_estimates_and_return_data_to_persist(start_count, period_index)
+        return self.employer.make_estimates_and_return_data_to_persist(period_index)
 
     def load_persisted_data_and_do_period_calculations(self, period_index: int, tmp_dr_json: str, tmp_al_json: str) -> None:
-        (start, end) = self.period_start_end(period_index)
-        period_donor_list = self.get_population_report(start, end)
-        return self.employer.load_persisted_data_and_do_period_calculations(period_donor_list, period_index, tmp_dr_json, tmp_al_json)
+        return self.employer.load_persisted_data_and_do_period_calculations(period_index, tmp_dr_json, tmp_al_json)
 
     # These functions fetch the data we need from the DB
 

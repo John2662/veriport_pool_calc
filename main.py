@@ -199,15 +199,17 @@ class run_man:
     def final_period_index(self) -> int:
         return self.num_periods() - 1
 
-    def _period_start_estimates(self, e: Calculator, period_index: int) -> None:
+    # Turn this into a method on Calculator
+    def period_start_estimates(self, e: Calculator, period_index: int) -> None:
         (dr_tmp_json, al_tmp_json) = e.make_estimates_and_return_data_to_persist(period_index)
         self.persist_json(dr_tmp_json, 'tmp_dr.json')
         self.persist_json(al_tmp_json, 'tmp_al.json')
 
-    def _period_end_calculations(self, e: Calculator, period_index: int) -> None:
+    # Turn this into a method on Calculator
+    def period_end_calculations(self, calc: Calculator, period_index: int) -> None:
         tmp_dr_json = self.retrieve_json('tmp_dr.json')
         tmp_al_json = self.retrieve_json('tmp_al.json')
-        return e.load_persisted_data_and_do_period_calculations(period_index, tmp_dr_json, tmp_al_json)
+        return calc.load_persisted_data_and_do_period_calculations(period_index, tmp_dr_json, tmp_al_json)
 
     def get_calculator_instance(self) -> None:
         # Generate a dictionary needed to construct an instance of the Calculator class
@@ -218,17 +220,18 @@ class run_man:
         schedule = from_int_to_schedule(int(initializing_dict['schedule']))
         return Calculator(self.population, inception, schedule)
 
+    # Turn this into a method on Calculator
     def process_period(self, period_index: int) -> None:
         c = self.get_calculator_instance()
         if period_index == 0:
-            self._period_start_estimates(c, period_index=period_index)
+            self.period_start_estimates(c, period_index=period_index)
         if period_index == self.final_period_index()+1:
-            score = self._period_end_calculations(c, period_index=period_index-1)
+            score = self.period_end_calculations(c, period_index=period_index-1)
             self.store_reports(c.make_html_report())
             return score
         if period_index > 0 and period_index <= self.final_period_index():
-            self._period_end_calculations(c, period_index=period_index-1)
-            self._period_start_estimates(c, period_index=period_index)
+            self.period_end_calculations(c, period_index=period_index-1)
+            self.period_start_estimates(c, period_index=period_index)
             return 0
         return 0
 

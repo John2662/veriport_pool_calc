@@ -166,17 +166,18 @@ class TpaEmployer(BaseModel):
     def period_start_end(self, period_index: int) -> tuple:
         return (self.period_start_dates[period_index], self.period_end_date(period_index))
 
-    def make_estimates_and_return_data_to_persist(self, period_start_count: int, period_index: int) -> tuple:
-        (start, end) = self.period_start_end(period_index)
-        self._al.make_apriori_predictions(period_start_count, start, end, self.total_days_in_year)
-        self._dr.make_apriori_predictions(period_start_count, start, end, self.total_days_in_year)
+    def make_estimates_and_return_data_to_persist(self, period_index: int) -> tuple:
+        (start_date, end_date) = self.period_start_end(period_index)
+        period_start_count = self.donor_count_on(start_date)
+        self._al.make_apriori_predictions(period_start_count, start_date, end_date, self.total_days_in_year)
+        self._dr.make_apriori_predictions(period_start_count, start_date, end_date, self.total_days_in_year)
         return (self._dr.data_to_persist(), self._al.data_to_persist())
 
-    def load_persisted_data_and_do_period_calculations(self, period_donor_list: list[int], period_index: int, dr_tmp_json: str, al_tmp_json: str) -> None:
-        # (start, end) = self.period_start_end(period_index)
+    def load_persisted_data_and_do_period_calculations(self, period_index: int, dr_tmp_json: str, al_tmp_json: str) -> None:
+        (start_date, end_date) = self.period_start_end(period_index)
         self._dr = Substance.model_validate_json(dr_tmp_json)
         self._al = Substance.model_validate_json(al_tmp_json)
-        # period_donor_list = self.fetch_donor_queryset_by_interval(start, end)
+        period_donor_list = self.fetch_donor_queryset_by_interval(start_date, end_date)
         self._al.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
         self._dr.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
         return abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
