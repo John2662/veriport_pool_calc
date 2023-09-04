@@ -58,7 +58,7 @@ class TpaEmployer(BaseModel):
     # These are used to load ancillary data
     sub_d: str
     sub_a: str
-    db_str: str
+    # db_str: str
 
     @property
     def start_count(self):
@@ -113,31 +113,12 @@ class TpaEmployer(BaseModel):
     def initialize_periods(self, custom_period_start_dates: list[date] = []) -> None:
         self.period_start_dates = TpaEmployer.initialize_period_start_dates(self.pool_inception, self.schedule)
 
-    # def establish_db(self):
-    #     # The db string points to a file on disk, which we will read
-    #     # to set up the data
-    #     from file_io import load_population_from_vp_file
-    #     population = load_population_from_vp_file(self.db_str)
-    #     mapping = {}
-    #     mapping['population'] = population
-    #     db = DbConn(**mapping)
-    #     if not db.validate_data():
-    #         print('Data input is invalid:')
-    #         a = db.data_as_string_array()
-    #         for line in a:
-    #             print(line)
-    #         exit(0)
-    #     return db
-
     def initialize(self, population: dict, custom_period_start_dates: list = []) -> None:
         self._population = population
         self.initialize_periods(custom_period_start_dates)
 
         self._dr = generate_substance(self.sub_d)
         self._al = generate_substance(self.sub_a)
-
-        # Initialize the "DB". In a real world example, it would already exist
-        # self._db_conn = self.establish_db()
 
     @staticmethod
     def extended_start_dates(old_dates, additional_dates):
@@ -157,6 +138,14 @@ class TpaEmployer(BaseModel):
     #  END VARIOUS INITIALIZATION METHODS  #
     ########################################
 
+    def population_valid(self, start: date, end: date) -> bool:
+        population = self.get_population_report(start, end)
+        for d in population:
+            if population[d] < 0:
+                print(f'On {str(d)} population is {population[d]} < 0')
+                return False
+        return True
+
     def get_population_report(self, start: date, end: date) -> list[int]:
         requested_population = []
         while start <= end:
@@ -168,11 +157,11 @@ class TpaEmployer(BaseModel):
     def fetch_donor_queryset_by_interval(self, start: date, end: date) -> list[int]:
         return self.get_population_report(start, end)
 
-    # def donor_count_on(self, day: date) -> int:
-    #     query_set = self.fetch_donor_queryset_by_interval(day, day)
-    #     if len(query_set) > 0:
-    #         return query_set[0]
-    #     return 0
+    def donor_count_on(self, day: date) -> int:
+        query_set = self.fetch_donor_queryset_by_interval(day, day)
+        if len(query_set) > 0:
+            return query_set[0]
+        return 0
 
     def period_start_end(self, period_index: int) -> tuple:
         return (self.period_start_dates[period_index], self.period_end_date(period_index))

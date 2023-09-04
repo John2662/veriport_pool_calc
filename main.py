@@ -99,7 +99,7 @@ def generate_initialization_data_files(population: dict, schedule: Schedule, gen
     vp_file = generic_filepath + '_vp.csv'
     write_population_to_vp_file(population, vp_file)
 
-    employer_dict = compile_json(start, schedule, vp_file)
+    employer_dict = compile_json(start, schedule)
     start_dates = []
     for d in employer_dict['period_start_dates']:
         start_dates.append(string_to_date(d))
@@ -169,8 +169,7 @@ class run_man:
 
         (self.employer_json_file, self.period_start_dates) = generate_initialization_data_files(self.population, self.schedule, output_file_basename)
 
-        to_depricate__vp_file = output_file_basename + '_vp.csv'
-        self.calculator = Calculator(self.population, self.period_start_dates[0], self.schedule, to_depricate__vp_file)
+        self.calculator = Calculator(self.population, self.period_start_dates[0], self.schedule)
 
     def get_period_start_dates(self) -> list[date]:
         return self.period_start_dates
@@ -210,14 +209,6 @@ class run_man:
         tmp_al_json = self.retrieve_json('tmp_al.json')
         return e.load_persisted_data_and_do_period_calculations(period_index, tmp_dr_json, tmp_al_json)
 
-    # def _get_employer_instance(self):
-    #     # Generate a dictionary needed to construct an instance of the Employer class
-    #     # Hint: The json version of this is stored in the output directory of the run
-    #     initializing_dict = self.get_initializing_dict()
-    #     e = Employer(**initializing_dict)
-    #     e.initialize()
-    #     return e
-
     def get_calculator_instance(self) -> None:
         # Generate a dictionary needed to construct an instance of the Calculator class
         # Hint: The json version of this is stored in the output directory of the run
@@ -225,9 +216,7 @@ class run_man:
         inception = string_to_date(initializing_dict['pool_inception'])
         from calculator import from_int_to_schedule
         schedule = from_int_to_schedule(int(initializing_dict['schedule']))
-        to_depricate__vp_file = initializing_dict['db_str']
-        c = Calculator(self.population, inception, schedule, to_depricate__vp_file)
-        return c
+        return Calculator(self.population, inception, schedule)
 
     def process_period(self, period_index: int) -> None:
         c = self.get_calculator_instance()

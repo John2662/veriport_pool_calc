@@ -31,30 +31,21 @@ class Calculator:
     def __init__(self,
                  population: dict,
                  inception: date,
-                 schedule: Schedule,
-                 to_depricate__vp_file: str):
+                 schedule: Schedule):
 
         self.population = population
         self.pool_inception = inception
 
-        # print('\nIn Calculator:')
-        # print(f'\n{population=}')
-        # print(f'\n{inception=}')
-        # print(f'\n{schedule=}')
-
         # initialize the employer
-        employer_json = compile_json(inception, schedule, to_depricate__vp_file)
-        # print(f'\n{employer_json=}')
+        employer_json = compile_json(inception, schedule)
 
         self.employer = TpaEmployer(**employer_json)
         self.employer.initialize(self.population)
 
-        # print(f'{self.employer=}')
 
     # Next write the interface that hides all the calls to employer in the old code
     # Once we have that we can remove the employer from everywhere except here,
-    # and we can remove the DbConn object all together.
-    # That that point, we just need to give this class the actual veriport
+    # we just need to give this class the actual veriport
     # object that allows it to query the DB
 
     @property
@@ -65,7 +56,7 @@ class Calculator:
         return self.employer.make_html_report(self.start_count)
 
     def donor_count_on(self, day: date) -> int:
-        return self.population[day]
+        return self.employer.donor_count_on(day)
 
     def period_start_end(self, period_index: int) -> tuple:
         return self.employer.period_start_end(period_index)
@@ -84,21 +75,12 @@ class Calculator:
 
     # The first function that will retrieve data from the DB
     def get_population_report(self, start: date, end: date) -> list[int]:
-        requested_population = []
-        while start <= end:
-            requested_population.append(self.employee_count(start))
-            start += timedelta(days=1)
-        return requested_population
+        return self.employer.get_population_report(start, end)
 
     # The second function that will retrieve data from the DB
     def employee_count(self, day: date) -> int:
-        return self.population[day]
+        return self.employer.employee_count(day)
 
     # Check validity of the data from the DB
     def population_valid(self, start: date, end: date) -> bool:
-        population = self.get_population_report(start, end)
-        for d in population:
-            if population[d] < 0:
-                print(f'On {str(d)} population is {population[d]} < 0')
-                return False
-        return True
+        return self.employer.population_valid(start, end)
