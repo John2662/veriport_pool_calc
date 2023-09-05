@@ -12,6 +12,8 @@ import os
 import json
 
 from schedule import Schedule
+from initialize_json import compile_json
+# from random_population import generate_random_population_data
 
 
 # TODO: figure out how to get rid of the bare except
@@ -215,6 +217,44 @@ class DataPersist:
         with open(filename, 'r') as f:
             employer_dict = json.load(f)
             return employer_dict
+
+    @staticmethod
+    def generate_initialization_data_files(population: dict, schedule: Schedule, generic_filepath: str) -> tuple:
+        start = list(population.keys())[0]
+
+        nat_file = generic_filepath + '_nat.csv'
+        write_population_to_natural_file(population, nat_file)
+
+        vp_file = generic_filepath + '_vp.csv'
+        write_population_to_vp_file(population, vp_file)
+
+        employer_dict = compile_json(start, schedule)
+        start_dates = []
+        for d in employer_dict['period_start_dates']:
+            start_dates.append(string_to_date(d))
+
+        employer_json_file = generic_filepath + '_emp.json'
+        DataPersist.write_employer_initialization_dict_to_file(employer_json_file, employer_dict)
+
+        return (employer_json_file, start_dates)
+
+    @staticmethod
+    def base_file_name_from_path(filepath: str) -> str:
+        split_filepath = filepath.split('/')
+        just_file_name = os.path.splitext(split_filepath[-1])[0]
+        return just_file_name
+
+    @staticmethod
+    def population_dict_from_file(datafile: str, vp_format: bool) -> dict:
+        if vp_format:
+            return load_population_from_vp_file(datafile)
+        else:
+            return load_population_from_natural_file(datafile)
+
+    # @staticmethod
+    # def population_dict_from_rand(mu: float, sigma: float) -> dict:
+    #     return generate_random_population_data(mu, sigma)
+
 
     def store_reports(self, html: str, schedule: Schedule, population: dict) -> int:
         # Add the periodicity to the file name

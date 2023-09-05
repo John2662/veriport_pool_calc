@@ -71,6 +71,10 @@ def generate_random_population_data(mu: float, sigma: float):
     return generate_population(start, end, pop, mu, sigma)
 
 
+def population_dict_from_rand(mu: float, sigma: float) -> dict:
+    return generate_random_population_data(mu, sigma)
+
+
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Arguments: file path to write to, vp_format, mu, sigma')
     parser.add_argument('--fp', type=str, help='filepath to write output to')

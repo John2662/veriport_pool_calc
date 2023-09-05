@@ -37,3 +37,21 @@ class Schedule(int, Enum):
         if value == Schedule.ANNUALLY:
             return 'annually'
         return 'custom'
+
+    @staticmethod
+    def from_string_to_schedule(s):
+        s = s.strip().lower()
+        if s == 'semimonthly':
+            return Schedule.SEMIMONTHLY
+        if s == 'monthly':
+            return Schedule.MONTHLY
+        if s == 'bimonthly':
+            return Schedule.BIMONTHLY
+        if s == 'quarterly':
+            return Schedule.QUARTERLY
+        if s == 'semiannually':
+            return Schedule.SEMIANNUALLY
+        if s == 'annually':
+            return Schedule.ANNUALLY
+        print('hit default: QUARTERLY')
+        return Schedule.QUARTERLY

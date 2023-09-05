@@ -5,7 +5,7 @@
 
 
 from datetime import date
-from employer import Schedule, TpaEmployer
+from employer import Schedule, Employer
 from initialize_json import compile_json
 
 
@@ -38,7 +38,7 @@ class Calculator:
         # initialize the employer
         employer_json = compile_json(inception, schedule)
 
-        self.employer = TpaEmployer(**employer_json)
+        self.employer = Employer(**employer_json)
         self.employer.initialize(population)
 
     @property

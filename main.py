@@ -4,64 +4,65 @@
 # Written by John Read <john.read@colibri-software.com>, July 2023
 
 from calculator import Calculator
-from employer import Schedule
-from initialize_json import compile_json
+from schedule import Schedule
+# from initialize_json import compile_json
 from datetime import date
 import argparse
 import os
-import json
+# import json
 
-from random_population import generate_random_population_data
-from file_io import load_population_from_natural_file
-from file_io import load_population_from_vp_file
-from file_io import write_population_to_vp_file
-from file_io import write_population_to_natural_file
+from random_population import population_dict_from_rand
+# from file_io import load_population_from_natural_file
+# from file_io import load_population_from_vp_file
+# from file_io import write_population_to_vp_file
+# from file_io import write_population_to_natural_file
 from file_io import string_to_date
+from file_io import DataPersist
 
 # This is valid for the length of the run, then removed in main()
 MAX_NUM_TESTS = 500
 
 
-def tokenize_string(s: str, t: str = '\n') -> list[str]:
-    return s.split(t)
+# def tokenize_string(s: str, t: str = '\n') -> list[str]:
+#     return s.split(t)
 
 
-def store_data(pop: dict, html: str, directory: os.path = 'run_output', file_name: str = '') -> None:
-    outfile = os.path.join(directory, f'{file_name}')
-    html = tokenize_string(html)
-    with open(f'{outfile}.html', 'w') as f:
-        for line in html:
-            f.write(line+'\n')
+# def store_data(pop: dict, html: str, directory: os.path = 'run_output', file_name: str = '') -> None:
+#     outfile = os.path.join(directory, f'{file_name}')
+#     html = tokenize_string(html)
+#     with open(f'{outfile}.html', 'w') as f:
+#         for line in html:
+#             f.write(line+'\n')
 
 
-def population_dict_from_file(datafile: str, vp_format: bool) -> dict:
-    if vp_format:
-        return load_population_from_vp_file(datafile)
-    else:
-        return load_population_from_natural_file(datafile)
+# def population_dict_from_file(datafile: str, vp_format: bool) -> dict:
+#     if vp_format:
+#         return load_population_from_vp_file(datafile)
+#     else:
+#         return load_population_from_natural_file(datafile)
 
 
-def population_dict_from_rand(mu: float, sigma: float) -> dict:
-    return generate_random_population_data(mu, sigma)
+# def population_dict_from_rand(mu: float, sigma: float) -> dict:
+#     return generate_random_population_data(mu, sigma)
 
 
-def from_string_to_schedule(s):
-    s = s.strip().lower()
-    if s == 'semimonthly':
-        return Schedule.SEMIMONTHLY
-    if s == 'monthly':
-        return Schedule.MONTHLY
-    if s == 'bimonthly':
-        return Schedule.BIMONTHLY
-    if s == 'quarterly':
-        return Schedule.QUARTERLY
-    if s == 'semiannually':
-        return Schedule.SEMIANNUALLY
-    if s == 'annually':
-        return Schedule.ANNUALLY
-    print('hit default: QUARTERLY')
-    return Schedule.QUARTERLY
-
+# def from_string_to_schedule(s):
+#     s = s.strip().lower()
+#     if s == 'semimonthly':
+#         return Schedule.SEMIMONTHLY
+#     if s == 'monthly':
+#         return Schedule.MONTHLY
+#     if s == 'bimonthly':
+#         return Schedule.BIMONTHLY
+#     if s == 'quarterly':
+#         return Schedule.QUARTERLY
+#     if s == 'semiannually':
+#         return Schedule.SEMIANNUALLY
+#     if s == 'annually':
+#         return Schedule.ANNUALLY
+#     print('hit default: QUARTERLY')
+#     return Schedule.QUARTERLY
+#
 
 def get_args() -> argparse.Namespace:
     # parser = argparse.ArgumentParser(description='Process some integers.')
@@ -84,42 +85,40 @@ def get_args() -> argparse.Namespace:
     return args
 
 
-def base_file_name_from_path(filepath: str) -> str:
-    split_filepath = filepath.split('/')
-    just_file_name = os.path.splitext(split_filepath[-1])[0]
-    return just_file_name
+# def base_file_name_from_path(filepath: str) -> str:
+#     split_filepath = filepath.split('/')
+#     just_file_name = os.path.splitext(split_filepath[-1])[0]
+#     return just_file_name
 
+# def generate_initialization_data_files(population: dict, schedule: Schedule, generic_filepath: str) -> tuple:
+#     start = list(population.keys())[0]
+#
+#     nat_file = generic_filepath + '_nat.csv'
+#     write_population_to_natural_file(population, nat_file)
+#
+#     vp_file = generic_filepath + '_vp.csv'
+#     write_population_to_vp_file(population, vp_file)
+#
+#     employer_dict = compile_json(start, schedule)
+#     start_dates = []
+#     for d in employer_dict['period_start_dates']:
+#         start_dates.append(string_to_date(d))
+#
+#     employer_json_file = generic_filepath + '_emp.json'
+#     DataPersist.write_employer_initialization_dict_to_file(employer_json_file, employer_dict)
+#
+#     return (employer_json_file, start_dates)
 
-def generate_initialization_data_files(population: dict, schedule: Schedule, generic_filepath: str) -> tuple:
-    start = list(population.keys())[0]
-
-    nat_file = generic_filepath + '_nat.csv'
-    write_population_to_natural_file(population, nat_file)
-
-    vp_file = generic_filepath + '_vp.csv'
-    write_population_to_vp_file(population, vp_file)
-
-    employer_dict = compile_json(start, schedule)
-    start_dates = []
-    for d in employer_dict['period_start_dates']:
-        start_dates.append(string_to_date(d))
-
-    employer_json_file = generic_filepath + '_emp.json'
-    write_employer_initialization_dict_to_file(employer_json_file, employer_dict)
-
-    return (employer_json_file, start_dates)
-
-
-def write_employer_initialization_dict_to_file(employer_json_file: str, employer_dict: dict) -> None:
-    employer_json = json.dumps(employer_dict, indent=4)
-    with open(employer_json_file, 'w') as f:
-        f.write(employer_json)
-
-
-def load_employer_initialization_dict_from_file(filename: str) -> dict:
-    with open(filename, 'r') as f:
-        employer_dict = json.load(f)
-        return employer_dict
+# def write_employer_initialization_dict_to_file(employer_json_file: str, employer_dict: dict) -> None:
+#     employer_json = json.dumps(employer_dict, indent=4)
+#     with open(employer_json_file, 'w') as f:
+#         f.write(employer_json)
+#
+#
+# def load_employer_initialization_dict_from_file(filename: str) -> dict:
+#     with open(filename, 'r') as f:
+#         employer_dict = json.load(f)
+#         return employer_dict
 
 
 class run_man:
@@ -154,8 +153,8 @@ class run_man:
         os.makedirs(output_dir, exist_ok=True)
 
         if run_number < 0:  # This is the kludgy (but effective) way to indicate we should load from a file
-            self.population = population_dict_from_file(input_data_file, vp_format)
-            self.base_name = base_file_name_from_path(input_data_file)
+            self.population = DataPersist.population_dict_from_file(input_data_file, vp_format)
+            self.base_name = DataPersist.base_file_name_from_path(input_data_file)
         else:
             self.population = population_dict_from_rand(mu, sigma)
             self.base_name = f'run_{run_number}'
@@ -167,7 +166,7 @@ class run_man:
         # make a 'generic' file name for all output (to which we can add the proper extension)
         output_file_basename = os.path.join(self.storage_dir, self.base_name)
 
-        (self.employer_json_file, self.period_start_dates) = generate_initialization_data_files(self.population, self.schedule, output_file_basename)
+        (self.employer_json_file, self.period_start_dates) = DataPersist.generate_initialization_data_files(self.population, self.schedule, output_file_basename)
 
         self.calculator = Calculator(self.population, self.period_start_dates[0], self.schedule)
 
@@ -175,13 +174,13 @@ class run_man:
         return self.period_start_dates
 
     def get_initializing_dict(self) -> dict:
-        return load_employer_initialization_dict_from_file(self.employer_json_file)
+        return DataPersist.load_employer_initialization_dict_from_file(self.employer_json_file)
 
     def store_reports(self, html: str) -> int:
         # Add the periodicity to the file name
         standard_schedule_str = Schedule.as_str(self.schedule)
         base_name = self.base_name + f'_{standard_schedule_str}'
-        store_data(self.population, html, self.storage_dir, base_name)
+        DataPersist.store_data(self.population, html, self.storage_dir, base_name)
 
     def persist_json(self, tmp_json, file_name) -> None:
         json_file = os.path.join(self.storage_dir, file_name)
@@ -265,7 +264,7 @@ class run_man:
 
 def main() -> int:
     args = get_args()
-    schedule = from_string_to_schedule(args.sch)
+    schedule = Schedule.from_string_to_schedule(args.sch)
     filename = args.file
 
     if filename is not None:
