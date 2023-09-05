@@ -55,3 +55,20 @@ class Schedule(int, Enum):
             return Schedule.ANNUALLY
         print('hit default: QUARTERLY')
         return Schedule.QUARTERLY
+
+    @staticmethod
+    def from_int_to_schedule(i):
+        if i == 24:
+            return Schedule.SEMIMONTHLY
+        if i == 12:
+            return Schedule.MONTHLY
+        if i == 6:
+            return Schedule.BIMONTHLY
+        if i == 4:
+            return Schedule.QUARTERLY
+        if i == 2:
+            return Schedule.SEMIANNUALLY
+        if i == 1:
+            return Schedule.ANNUALLY
+        print('hit default: QUARTERLY')
+        return Schedule.QUARTERLY

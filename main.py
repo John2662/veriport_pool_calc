@@ -147,6 +147,12 @@ class run_man:
                 sigma: float = 0.0
                 ) -> None:
 
+        base_name = 'ThisIsWrong'
+        data_persist = DataPersist(base_dir, sub_dir,
+                 base_name,
+                 input_data_file,
+                 vp_format)
+
         self.schedule = schedule
 
         output_dir = os.path.join(base_dir, sub_dir)
@@ -215,8 +221,7 @@ class run_man:
         # Hint: The json version of this is stored in the output directory of the run
         initializing_dict = self.get_initializing_dict()
         inception = string_to_date(initializing_dict['pool_inception'])
-        from calculator import from_int_to_schedule
-        schedule = from_int_to_schedule(int(initializing_dict['schedule']))
+        schedule = Schedule.from_int_to_schedule(int(initializing_dict['schedule']))
         return Calculator(self.population, inception, schedule)
 
     # Turn this into a method on Calculator
