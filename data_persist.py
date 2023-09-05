@@ -10,9 +10,9 @@ import json
 from schedule import Schedule
 from initialize_json import compile_json
 
+from file_io import string_to_date
 from file_io import write_population_to_natural_file
 from file_io import write_population_to_vp_file
-from file_io import string_to_date
 from file_io import load_population_from_natural_file
 from file_io import load_population_from_vp_file
 
@@ -48,8 +48,8 @@ class DataPersist:
         self.input_data_file = input_data_file
         self.vp_format = vp_format
 
-    def get_initializing_dict(self) -> dict:
-        return DataPersist.load_employer_initialization_dict_from_file(self.employer_json_file)
+    # def get_initializing_dict(self) -> dict:
+    #     return DataPersist.load_employer_initialization_dict_from_file(self.employer_json_file)
 
     def num_periods(self) -> int:
         return len(self.period_start_dates)
@@ -57,6 +57,7 @@ class DataPersist:
     def final_period_index(self) -> int:
         return self.num_periods() - 1
 
+    # These three are used in calculator.py
     def store_reports(self, html: str) -> int:
         # Add the periodicity to the file name
         standard_schedule_str = Schedule.as_str(self.schedule)
@@ -73,6 +74,7 @@ class DataPersist:
         with open(json_file, 'r') as f:
             return f.read()
 
+    # These four are used in this file
     @staticmethod
     def tokenize_string(s: str, t: str = '\n') -> list[str]:
         return s.split(t)
@@ -111,18 +113,7 @@ class DataPersist:
         with open(employer_json_file, 'w') as f:
             f.write(employer_json)
 
-    @staticmethod
-    def load_employer_initialization_dict_from_file(filename: str) -> dict:
-        with open(filename, 'r') as f:
-            employer_dict = json.load(f)
-            return employer_dict
-
-    @staticmethod
-    def base_file_name_from_path(filepath: str) -> str:
-        split_filepath = filepath.split('/')
-        just_file_name = os.path.splitext(split_filepath[-1])[0]
-        return just_file_name
-
+    # This one is used in main.py
     @staticmethod
     def population_dict_from_file(datafile: str, vp_format: bool) -> dict:
         if vp_format:

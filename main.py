@@ -14,6 +14,12 @@ from random_population import population_dict_from_rand
 MAX_NUM_TESTS = 500
 
 
+def base_file_name_from_path(filepath: str) -> str:
+    split_filepath = filepath.split('/')
+    just_file_name = os.path.splitext(split_filepath[-1])[0]
+    return just_file_name
+
+
 def run_like_veriport_would(data_persist: DataPersist):
     score = 0
     for period_index in range(data_persist.num_periods()+1):
@@ -95,7 +101,7 @@ def main() -> int:
 
     if not random:
         filename = args.file
-        base_name = DataPersist.base_file_name_from_path(filename)
+        base_name = base_file_name_from_path(filename)
         population = DataPersist.population_dict_from_file(filename, vp_format)
         data_persist = initialize_data_persistance(schedule, population, base_dir, sub_dir, base_name, input_data_file, vp_format)
         return run_like_veriport_would(data_persist)
