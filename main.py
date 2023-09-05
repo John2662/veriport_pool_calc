@@ -7,7 +7,7 @@ import argparse
 import os
 
 from schedule import Schedule
-from calculator import Calculator
+from calculator import get_calculator_instance
 from data_persist import DataPersist
 from random_population import population_dict_from_rand
 
@@ -20,29 +20,17 @@ class RunMan:
         self.data_persist = data_persist
 
     # Turn this into a method on Calculator
-    def period_start_estimates(self, calc: Calculator, period_index: int) -> None:
-        (dr_tmp_json, al_tmp_json) = calc.make_estimates_and_return_data_to_persist(period_index)
-        self.data_persist.persist_json(dr_tmp_json, 'tmp_dr.json')
-        self.data_persist.persist_json(al_tmp_json, 'tmp_al.json')
-
-    # Turn this into a method on Calculator
-    def period_end_calculations(self, calc: Calculator, period_index: int) -> None:
-        tmp_dr_json = self.data_persist.retrieve_json('tmp_dr.json')
-        tmp_al_json = self.data_persist.retrieve_json('tmp_al.json')
-        return calc.load_persisted_data_and_do_period_calculations(period_index, tmp_dr_json, tmp_al_json)
-
-    # Turn this into a method on Calculator
     def process_period(self, period_index: int) -> None:
-        calc = self.data_persist.get_calculator_instance()
+        calc = get_calculator_instance(self.data_persist)
         if period_index == 0:
-            self.period_start_estimates(calc, period_index=period_index)
+            calc.period_start_estimates(period_index, self.data_persist)
         if period_index == self.data_persist.final_period_index()+1:
-            score = self.period_end_calculations(calc, period_index=period_index-1)
+            score = calc.period_end_calculations(period_index-1, self.data_persist)
             self.data_persist.store_reports(calc.make_html_report())
             return score
         if period_index > 0 and period_index <= self.data_persist.final_period_index():
-            self.period_end_calculations(calc, period_index=period_index-1)
-            self.period_start_estimates(calc, period_index=period_index)
+            calc.period_end_calculations(period_index-1, self.data_persist)
+            calc.period_start_estimates(period_index, self.data_persist)
             return 0
         return 0
 

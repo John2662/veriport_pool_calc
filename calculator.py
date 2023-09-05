@@ -6,7 +6,8 @@
 
 from datetime import date
 from employer import Schedule, Employer
-# from data_persist import DataPersist
+from data_persist import DataPersist
+from file_io import string_to_date
 from initialize_json import compile_json
 
 
@@ -58,12 +59,21 @@ class Calculator:
     def population_valid(self, start: date, end: date) -> bool:
         return self.employer.population_valid(start, end)
 
-    # def period_start_estimates(self, period_index: int, data_persist: DataPersist) -> None:
-    #     (dr_tmp_json, al_tmp_json) = self.make_estimates_and_return_data_to_persist(period_index)
-    #     data_persist.persist_json(dr_tmp_json, 'tmp_dr.json')
-    #     data_persist.persist_json(al_tmp_json, 'tmp_al.json')
+    def period_start_estimates(self, period_index: int, data_persist: DataPersist) -> None:
+        (dr_tmp_json, al_tmp_json) = self.make_estimates_and_return_data_to_persist(period_index)
+        data_persist.persist_json(dr_tmp_json, 'tmp_dr.json')
+        data_persist.persist_json(al_tmp_json, 'tmp_al.json')
 
-    # def period_end_calculations(self, period_index: int, data_persist: DataPersist) -> None:
-    #     tmp_dr_json = data_persist.retrieve_json('tmp_dr.json')
-    #     tmp_al_json = data_persist.retrieve_json('tmp_al.json')
-    #     return self.load_persisted_data_and_do_period_calculations(period_index, tmp_dr_json, tmp_al_json)
+    def period_end_calculations(self, period_index: int, data_persist: DataPersist) -> None:
+        tmp_dr_json = data_persist.retrieve_json('tmp_dr.json')
+        tmp_al_json = data_persist.retrieve_json('tmp_al.json')
+        return self.load_persisted_data_and_do_period_calculations(period_index, tmp_dr_json, tmp_al_json)
+
+
+def get_calculator_instance(data_persist) -> Calculator:
+    # Generate a dictionary needed to construct an instance of the Calculator class
+    # Hint: The json version of this is stored in the output directory of the run
+    initializing_dict = data_persist.get_initializing_dict()
+    inception = string_to_date(initializing_dict['pool_inception'])
+    schedule = Schedule.from_int_to_schedule(int(initializing_dict['schedule']))
+    return Calculator(data_persist.population, inception, schedule)
