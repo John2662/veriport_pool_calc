@@ -43,7 +43,6 @@ def initialize_data_persistance(
                 base_dir: str,
                 sub_dir: str,
                 base_name: str,
-
                 # needed to load the population from a file:
                 input_data_file: str,
                 vp_format: bool):
@@ -61,40 +60,8 @@ def initialize_data_persistance(
 
 class RunMan:
 
-    def __init__(
-                self,
-                schedule: Schedule,
-
-                # needed to store data for the run:
-                base_dir: str,
-                sub_dir: str,
-
-                # needed to load the population from a file:
-                input_data_file: str,
-                vp_format: bool = True,
-
-                # needed if we are running the random tests:
-                run_number: int = -1,
-                mu: float = 0.0,
-                sigma: float = 0.0
-                ) -> None:
-
-        if run_number < 0:  # This is the kludgy (but effective) way to indicate we should load from a file
-            base_name = DataPersist.base_file_name_from_path(input_data_file)
-            population = DataPersist.population_dict_from_file(input_data_file, vp_format)
-        else:
-            base_name = f'run_{run_number}'
-            population = population_dict_from_rand(mu, sigma)
-
-        self.data_persist = DataPersist(
-            schedule,
-            population,
-            base_dir,
-            sub_dir,
-            base_name,
-            input_data_file,
-            vp_format
-        )
+    def __init__(self, data_persist):
+        self.data_persist = data_persist
 
     def get_calculator_instance(self) -> None:
         # Generate a dictionary needed to construct an instance of the Calculator class
@@ -137,44 +104,41 @@ class RunMan:
             score += self.process_period(period_index)
         return score
 
-    # def run_like_veriport_would_old(self):
-    #     # Make the initial estimates for the employer
-    #     e = self.get_employer_instance()
-    #     self.period_start_estimates(e, period_index=0)
 
-    #     # Now loop over the periods, for each period, we initialize a new employer
-    #     # Then make the calculations, and the estimates for the next period,
-    #     # persisting the data as we go
-    #     for period_index in range(self.num_periods()-1):
-    #         e = self.get_employer_instance()
-    #         self.period_end_calculations(e, period_index=period_index)
-    #         self.period_start_estimates(e, period_index=period_index+1)
-
-    #     # Finally we calculate the final period's true values,
-    #     # calculate our score and write the html report
-    #     # returning the score
-    #     e = self.get_employer_instance()
-    #     score = self.period_end_calculations(e, period_index=self.final_period_index())
-    #     self.store_reports(e.make_html_report())
-    #     return score
-
-
-def main() -> int:
-    args = get_args()
-    schedule = Schedule.from_string_to_schedule(args.sch)
+def initialize_from_args(args):
     filename = args.file
 
     if filename is not None:
         if not os.path.isfile(filename):
             print(f'Cannot open {filename}')
-            return 0
+            return exit(0)
+        input_data_file = filename
+        sub_dir = 'fixed_trials'
+        random = False
+        vp_format = args.vp
+    else:
+        filename = ''
+        input_data_file = filename
+        sub_dir = 'random_trials'
+        random = True
+        vp_format = False
 
-        # base_name = DataPersist.base_file_name_from_path(filename)
-        # vp_format = args.vp
-        # population = DataPersist.population_dict_from_file(filename, vp_format)
-        # data_perist = initialize_data_persistance(schedule, population, args.dir, 'fixed_trials', base_name, vp_format )
+    schedule = Schedule.from_string_to_schedule(args.sch)
+    base_dir = args.dir
+    return (schedule, base_dir, sub_dir, input_data_file, vp_format, random)
 
-        rm = RunMan(schedule, args.dir, 'fixed_trials', filename, args.vp)
+
+def main() -> int:
+    args = get_args()
+
+    (schedule, base_dir, sub_dir, input_data_file, vp_format, random) = initialize_from_args(args)
+
+    if not random:
+        filename = args.file
+        base_name = DataPersist.base_file_name_from_path(filename)
+        population = DataPersist.population_dict_from_file(filename, vp_format)
+        data_persist = initialize_data_persistance(schedule, population, base_dir, sub_dir, base_name, input_data_file, vp_format)
+        rm = RunMan(data_persist)
         return rm.run_like_veriport_would()
 
     i = 0
@@ -182,13 +146,10 @@ def main() -> int:
     num_tests = min(args.iter, MAX_NUM_TESTS)
     while(i < num_tests):
 
-        # base_name = f'run_{i}'
-        # mu = args.mu
-        # sigma = args.sig
-        # population = population_dict_from_rand(mu, sigma)
-        # data_perist = initialize_data_persistance(schedule, population, args.dir, 'random_trials', '', False, )
-
-        rm = RunMan(schedule, args.dir, 'random_trials', '', False, i, args.mu, args.sig)
+        base_name = f'run_{i}'
+        population = population_dict_from_rand(args.mu, args.sig)
+        data_persist = initialize_data_persistance(schedule, population, base_dir, sub_dir, base_name, input_data_file, vp_format)
+        rm = RunMan(data_persist)
         err = rm.run_like_veriport_would()
 
         if err not in errors:
