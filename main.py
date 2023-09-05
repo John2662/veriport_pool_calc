@@ -15,49 +15,6 @@ from data_persist import DataPersist
 MAX_NUM_TESTS = 500
 
 
-def get_args() -> argparse.Namespace:
-    # parser = argparse.ArgumentParser(description='Process some integers.')
-    # parser.add_argument('integers', metavar='N', type=int, nargs='+',
-    #                     help='an integer for the accumulator')
-    # parser.add_argument('--sum', dest='accumulate', action='store_const',
-    #                     const=sum, default=max,
-    #                     help='sum the integers (default: find the max)')
-    # args = parser.parse_args()
-    # print(args.accumulate(args.integers))
-    parser = argparse.ArgumentParser(description='Arguments: file_to_load, vp_format, output_directory')
-    parser.add_argument('--file', type=str, help='data file to load')
-    parser.add_argument('--dir', type=str, help='output directory', default='test_run')
-    parser.add_argument('--sch', type=str, help='the testing schedule (MONTHLY, QUARTERLY, etc.)', default='quarterly')
-    parser.add_argument('--vp', type=bool, help='Whether this comes from VP or from this program', default=True)
-    parser.add_argument('--iter', type=int, help='number of random iterations', default=4)
-    parser.add_argument('--mu', type=float, help='mu value of gaussian', default=0.01)
-    parser.add_argument('--sig', type=float, help='sigma value of gaussian', default=2.0)
-    args = parser.parse_args()
-    return args
-
-
-def initialize_data_persistance(
-                schedule: Schedule,
-                population: dict,
-                # needed to store data for the run:
-                base_dir: str,
-                sub_dir: str,
-                base_name: str,
-                # needed to load the population from a file:
-                input_data_file: str,
-                vp_format: bool):
-
-    return DataPersist(
-        schedule,
-        population,
-        base_dir,
-        sub_dir,
-        base_name,
-        input_data_file,
-        vp_format
-        )
-
-
 class RunMan:
 
     def __init__(self, data_persist):
@@ -105,6 +62,28 @@ class RunMan:
         return score
 
 
+def initialize_data_persistance(
+                schedule: Schedule,
+                population: dict,
+                # needed to store data for the run:
+                base_dir: str,
+                sub_dir: str,
+                base_name: str,
+                # needed to load the population from a file:
+                input_data_file: str,
+                vp_format: bool):
+
+    return DataPersist(
+        schedule,
+        population,
+        base_dir,
+        sub_dir,
+        base_name,
+        input_data_file,
+        vp_format
+        )
+
+
 def initialize_from_args(args):
     filename = args.file
 
@@ -126,6 +105,27 @@ def initialize_from_args(args):
     schedule = Schedule.from_string_to_schedule(args.sch)
     base_dir = args.dir
     return (schedule, base_dir, sub_dir, input_data_file, vp_format, random)
+
+
+def get_args() -> argparse.Namespace:
+    # parser = argparse.ArgumentParser(description='Process some integers.')
+    # parser.add_argument('integers', metavar='N', type=int, nargs='+',
+    #                     help='an integer for the accumulator')
+    # parser.add_argument('--sum', dest='accumulate', action='store_const',
+    #                     const=sum, default=max,
+    #                     help='sum the integers (default: find the max)')
+    # args = parser.parse_args()
+    # print(args.accumulate(args.integers))
+    parser = argparse.ArgumentParser(description='Arguments: file_to_load, vp_format, output_directory')
+    parser.add_argument('--file', type=str, help='data file to load')
+    parser.add_argument('--dir', type=str, help='output directory', default='test_run')
+    parser.add_argument('--sch', type=str, help='the testing schedule (MONTHLY, QUARTERLY, etc.)', default='quarterly')
+    parser.add_argument('--vp', type=bool, help='Whether this comes from VP or from this program', default=True)
+    parser.add_argument('--iter', type=int, help='number of random iterations', default=4)
+    parser.add_argument('--mu', type=float, help='mu value of gaussian', default=0.01)
+    parser.add_argument('--sig', type=float, help='sigma value of gaussian', default=2.0)
+    args = parser.parse_args()
+    return args
 
 
 def main() -> int:
