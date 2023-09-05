@@ -14,31 +14,12 @@ from random_population import population_dict_from_rand
 MAX_NUM_TESTS = 500
 
 
-class RunMan:
-
-    def __init__(self, data_persist):
-        self.data_persist = data_persist
-
-    # Turn this into a method on Calculator
-    def process_period(self, period_index: int) -> None:
-        calc = get_calculator_instance(self.data_persist)
-        if period_index == 0:
-            calc.period_start_estimates(period_index, self.data_persist)
-        if period_index == self.data_persist.final_period_index()+1:
-            score = calc.period_end_calculations(period_index-1, self.data_persist)
-            self.data_persist.store_reports(calc.make_html_report())
-            return score
-        if period_index > 0 and period_index <= self.data_persist.final_period_index():
-            calc.period_end_calculations(period_index-1, self.data_persist)
-            calc.period_start_estimates(period_index, self.data_persist)
-            return 0
-        return 0
-
-    def run_like_veriport_would(self):
-        score = 0
-        for period_index in range(self.data_persist.num_periods()+1):
-            score += self.process_period(period_index)
-        return score
+def run_like_veriport_would(data_persist: DataPersist):
+    score = 0
+    for period_index in range(data_persist.num_periods()+1):
+        calc = get_calculator_instance(data_persist)
+        score += calc.process_period(period_index, data_persist)
+    return score
 
 
 def initialize_data_persistance(
@@ -117,8 +98,7 @@ def main() -> int:
         base_name = DataPersist.base_file_name_from_path(filename)
         population = DataPersist.population_dict_from_file(filename, vp_format)
         data_persist = initialize_data_persistance(schedule, population, base_dir, sub_dir, base_name, input_data_file, vp_format)
-        rm = RunMan(data_persist)
-        return rm.run_like_veriport_would()
+        return run_like_veriport_would(data_persist)
 
     i = 0
     errors = {}
@@ -128,8 +108,7 @@ def main() -> int:
         base_name = f'run_{i}'
         population = population_dict_from_rand(args.mu, args.sig)
         data_persist = initialize_data_persistance(schedule, population, base_dir, sub_dir, base_name, input_data_file, vp_format)
-        rm = RunMan(data_persist)
-        err = rm.run_like_veriport_would()
+        err = run_like_veriport_would(data_persist)
 
         if err not in errors:
             errors[err] = []

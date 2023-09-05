@@ -69,6 +69,19 @@ class Calculator:
         tmp_al_json = data_persist.retrieve_json('tmp_al.json')
         return self.load_persisted_data_and_do_period_calculations(period_index, tmp_dr_json, tmp_al_json)
 
+    def process_period(self, period_index: int, data_persist: DataPersist) -> None:
+        if period_index == 0:
+            self.period_start_estimates(period_index, data_persist)
+        if period_index == data_persist.final_period_index()+1:
+            score = self.period_end_calculations(period_index-1, data_persist)
+            data_persist.store_reports(self.make_html_report())
+            return score
+        if period_index > 0 and period_index <= data_persist.final_period_index():
+            self.period_end_calculations(period_index-1, data_persist)
+            self.period_start_estimates(period_index, data_persist)
+            return 0
+        return 0
+
 
 def get_calculator_instance(data_persist) -> Calculator:
     # Generate a dictionary needed to construct an instance of the Calculator class
