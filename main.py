@@ -10,6 +10,8 @@ from schedule import Schedule
 from calculator import get_calculator_instance
 from data_persist import DataPersist
 from random_population import population_dict_from_rand
+from file_io import population_dict_from_file
+
 
 MAX_NUM_TESTS = 500
 
@@ -102,7 +104,7 @@ def main() -> int:
     if not random:
         filename = args.file
         base_name = base_file_name_from_path(filename)
-        population = DataPersist.population_dict_from_file(filename, vp_format)
+        population = population_dict_from_file(filename, vp_format)
         data_persist = initialize_data_persistance(schedule, population, base_dir, sub_dir, base_name, input_data_file, vp_format)
         return run_like_veriport_would(data_persist)
 

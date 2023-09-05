@@ -13,8 +13,6 @@ from initialize_json import compile_json
 from file_io import string_to_date
 from file_io import write_population_to_natural_file
 from file_io import write_population_to_vp_file
-from file_io import load_population_from_natural_file
-from file_io import load_population_from_vp_file
 
 
 class DataPersist:
@@ -48,27 +46,27 @@ class DataPersist:
         self.input_data_file = input_data_file
         self.vp_format = vp_format
 
-    # def get_initializing_dict(self) -> dict:
-    #     return DataPersist.load_employer_initialization_dict_from_file(self.employer_json_file)
-
+    # used in main.py
     def num_periods(self) -> int:
         return len(self.period_start_dates)
 
+    # used in calculator.py
     def final_period_index(self) -> int:
         return self.num_periods() - 1
 
-    # These three are used in calculator.py
+    # used in calculator.py
     def store_reports(self, html: str) -> int:
-        # Add the periodicity to the file name
         standard_schedule_str = Schedule.as_str(self.schedule)
         base_name = self.base_name + f'_{standard_schedule_str}'
-        DataPersist.store_data(self.population, html, self.storage_dir, base_name)
+        DataPersist.store_data(html, self.storage_dir, base_name)
 
+    # used in calculator.py
     def persist_json(self, tmp_json, file_name) -> None:
         json_file = os.path.join(self.storage_dir, file_name)
         with open(json_file, 'w') as f:
             f.write(tmp_json)
 
+    # used in calculator.py
     def retrieve_json(self, file_name) -> str:
         json_file = os.path.join(self.storage_dir, file_name)
         with open(json_file, 'r') as f:
@@ -80,7 +78,7 @@ class DataPersist:
         return s.split(t)
 
     @staticmethod
-    def store_data(pop: dict, html: str, directory: os.path = 'run_output', file_name: str = '') -> None:
+    def store_data(html: str, directory: os.path, file_name: str) -> None:
         outfile = os.path.join(directory, f'{file_name}')
         html = DataPersist.tokenize_string(html)
         with open(f'{outfile}.html', 'w') as f:
@@ -112,18 +110,6 @@ class DataPersist:
         employer_json = json.dumps(employer_dict, indent=4)
         with open(employer_json_file, 'w') as f:
             f.write(employer_json)
-
-    # This one is used in main.py
-    @staticmethod
-    def population_dict_from_file(datafile: str, vp_format: bool) -> dict:
-        if vp_format:
-            return load_population_from_vp_file(datafile)
-        else:
-            return load_population_from_natural_file(datafile)
-
-    # @staticmethod
-    # def population_dict_from_rand(mu: float, sigma: float) -> dict:
-    #     return generate_random_population_data(mu, sigma)
 
 
 def get_args() -> argparse.Namespace:

@@ -102,6 +102,13 @@ def load_population_from_natural_file(filename: str) -> dict:
     return population
 
 
+def population_dict_from_file(datafile: str, vp_format: bool) -> dict:
+    if vp_format:
+        return load_population_from_vp_file(datafile)
+    else:
+        return load_population_from_natural_file(datafile)
+
+
 def write_population_to_natural_file(population: dict, filename: str) -> None:
     with open(filename, 'w') as f:
         for d in population:
