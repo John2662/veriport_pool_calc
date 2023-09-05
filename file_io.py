@@ -8,12 +8,6 @@ from dateutil.parser import parse
 # from dateutil.parser import ParseError
 # from dateutil.parser._parser import ParseError
 import argparse
-import os
-import json
-
-from schedule import Schedule
-from initialize_json import compile_json
-# from random_population import generate_random_population_data
 
 
 # TODO: figure out how to get rid of the bare except
@@ -148,123 +142,6 @@ def vp_to_natural(filename: str) -> None:
     new_file = f'n_{filename}'
     write_population_to_natural_file(pop, new_file)
     return new_file
-
-
-class DataPersist:
-
-    def __init__(self,
-                 schedule: Schedule,
-                 population: dict,
-                 base_dir: str,
-                 sub_dir: str,
-                 base_name: str,
-                 input_data_file: str,
-                 vp_format: bool):
-
-        self.schedule = schedule
-        self.population = population
-        self.base_name = base_name
-        self.output_dir = os.path.join(base_dir, sub_dir)
-        os.makedirs(self.output_dir, exist_ok=True)
-
-        # set up the storage directory to plop all the data in
-        self.storage_dir = os.path.join(self.output_dir, self.base_name)
-        os.makedirs(self.storage_dir, exist_ok=True)
-
-        # make a 'generic' file name for all output (to which we can add the proper extension)
-        self.output_file_basename = os.path.join(self.storage_dir, self.base_name)
-
-        (self.employer_json_file, self.period_start_dates) = DataPersist.generate_initialization_data_files(self.population, self.schedule, self.output_file_basename)
-
-        # needed to load the population from a file:
-        self.input_data_file = input_data_file
-        self.vp_format = vp_format
-
-    def get_initializing_dict(self) -> dict:
-        return DataPersist.load_employer_initialization_dict_from_file(self.employer_json_file)
-
-    def num_periods(self) -> int:
-        return len(self.period_start_dates)
-
-    def final_period_index(self) -> int:
-        return self.num_periods() - 1
-
-    @staticmethod
-    def tokenize_string(s: str, t: str = '\n') -> list[str]:
-        return s.split(t)
-
-    @staticmethod
-    def store_data(pop: dict, html: str, directory: os.path = 'run_output', file_name: str = '') -> None:
-        outfile = os.path.join(directory, f'{file_name}')
-        html = DataPersist.tokenize_string(html)
-        with open(f'{outfile}.html', 'w') as f:
-            for line in html:
-                f.write(line+'\n')
-
-    @staticmethod
-    def generate_initialization_data_files(population: dict, schedule: Schedule, generic_filepath: str) -> tuple:
-        start = list(population.keys())[0]
-
-        nat_file = generic_filepath + '_nat.csv'
-        write_population_to_natural_file(population, nat_file)
-
-        vp_file = generic_filepath + '_vp.csv'
-        write_population_to_vp_file(population, vp_file)
-
-        employer_dict = compile_json(start, schedule)
-        start_dates = []
-        for d in employer_dict['period_start_dates']:
-            start_dates.append(string_to_date(d))
-
-        employer_json_file = generic_filepath + '_emp.json'
-        DataPersist.write_employer_initialization_dict_to_file(employer_json_file, employer_dict)
-
-        return (employer_json_file, start_dates)
-
-    @staticmethod
-    def write_employer_initialization_dict_to_file(employer_json_file: str, employer_dict: dict) -> None:
-        employer_json = json.dumps(employer_dict, indent=4)
-        with open(employer_json_file, 'w') as f:
-            f.write(employer_json)
-
-    @staticmethod
-    def load_employer_initialization_dict_from_file(filename: str) -> dict:
-        with open(filename, 'r') as f:
-            employer_dict = json.load(f)
-            return employer_dict
-
-    @staticmethod
-    def base_file_name_from_path(filepath: str) -> str:
-        split_filepath = filepath.split('/')
-        just_file_name = os.path.splitext(split_filepath[-1])[0]
-        return just_file_name
-
-    @staticmethod
-    def population_dict_from_file(datafile: str, vp_format: bool) -> dict:
-        if vp_format:
-            return load_population_from_vp_file(datafile)
-        else:
-            return load_population_from_natural_file(datafile)
-
-    # @staticmethod
-    # def population_dict_from_rand(mu: float, sigma: float) -> dict:
-    #     return generate_random_population_data(mu, sigma)
-
-    def store_reports(self, html: str) -> int:
-        # Add the periodicity to the file name
-        standard_schedule_str = Schedule.as_str(self.schedule)
-        base_name = self.base_name + f'_{standard_schedule_str}'
-        DataPersist.store_data(self.population, html, self.storage_dir, base_name)
-
-    def persist_json(self, tmp_json, file_name) -> None:
-        json_file = os.path.join(self.storage_dir, file_name)
-        with open(json_file, 'w') as f:
-            f.write(tmp_json)
-
-    def retrieve_json(self, file_name) -> str:
-        json_file = os.path.join(self.storage_dir, file_name)
-        with open(json_file, 'r') as f:
-            return f.read()
 
 
 def get_args() -> argparse.Namespace:

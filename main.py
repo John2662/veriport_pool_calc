@@ -10,7 +10,7 @@ import os
 
 from random_population import population_dict_from_rand
 from file_io import string_to_date
-from file_io import DataPersist
+from data_persist import DataPersist
 
 MAX_NUM_TESTS = 500
 
@@ -36,13 +36,30 @@ def get_args() -> argparse.Namespace:
     return args
 
 
-class run_man:
+def initialize_data_persistance(
+                schedule: Schedule,
+                population: dict,
+                # needed to store data for the run:
+                base_dir: str,
+                sub_dir: str,
+                base_name: str,
 
-    population: dict
-    base_name: str
-    storage_dir: str
-    employer_json_file: str
-    period_start_dates: list
+                # needed to load the population from a file:
+                input_data_file: str,
+                vp_format: bool):
+
+    return DataPersist(
+        schedule,
+        population,
+        base_dir,
+        sub_dir,
+        base_name,
+        input_data_file,
+        vp_format
+        )
+
+
+class RunMan:
 
     def __init__(
                 self,
@@ -79,6 +96,14 @@ class run_man:
             vp_format
         )
 
+    def get_calculator_instance(self) -> None:
+        # Generate a dictionary needed to construct an instance of the Calculator class
+        # Hint: The json version of this is stored in the output directory of the run
+        initializing_dict = self.data_persist.get_initializing_dict()
+        inception = string_to_date(initializing_dict['pool_inception'])
+        schedule = Schedule.from_int_to_schedule(int(initializing_dict['schedule']))
+        return Calculator(self.data_persist.population, inception, schedule)
+
     # Turn this into a method on Calculator
     def period_start_estimates(self, e: Calculator, period_index: int) -> None:
         (dr_tmp_json, al_tmp_json) = e.make_estimates_and_return_data_to_persist(period_index)
@@ -90,14 +115,6 @@ class run_man:
         tmp_dr_json = self.data_persist.retrieve_json('tmp_dr.json')
         tmp_al_json = self.data_persist.retrieve_json('tmp_al.json')
         return calc.load_persisted_data_and_do_period_calculations(period_index, tmp_dr_json, tmp_al_json)
-
-    def get_calculator_instance(self) -> None:
-        # Generate a dictionary needed to construct an instance of the Calculator class
-        # Hint: The json version of this is stored in the output directory of the run
-        initializing_dict = self.data_persist.get_initializing_dict()
-        inception = string_to_date(initializing_dict['pool_inception'])
-        schedule = Schedule.from_int_to_schedule(int(initializing_dict['schedule']))
-        return Calculator(self.data_persist.population, inception, schedule)
 
     # Turn this into a method on Calculator
     def process_period(self, period_index: int) -> None:
@@ -151,14 +168,27 @@ def main() -> int:
         if not os.path.isfile(filename):
             print(f'Cannot open {filename}')
             return 0
-        rm = run_man(schedule, args.dir, 'fixed_trials', filename, args.vp)
+
+        # base_name = DataPersist.base_file_name_from_path(filename)
+        # vp_format = args.vp
+        # population = DataPersist.population_dict_from_file(filename, vp_format)
+        # data_perist = initialize_data_persistance(schedule, population, args.dir, 'fixed_trials', base_name, vp_format )
+
+        rm = RunMan(schedule, args.dir, 'fixed_trials', filename, args.vp)
         return rm.run_like_veriport_would()
 
     i = 0
     errors = {}
     num_tests = min(args.iter, MAX_NUM_TESTS)
     while(i < num_tests):
-        rm = run_man(schedule, args.dir, 'random_trials', '', False, i, args.mu, args.sig)
+
+        # base_name = f'run_{i}'
+        # mu = args.mu
+        # sigma = args.sig
+        # population = population_dict_from_rand(mu, sigma)
+        # data_perist = initialize_data_persistance(schedule, population, args.dir, 'random_trials', '', False, )
+
+        rm = RunMan(schedule, args.dir, 'random_trials', '', False, i, args.mu, args.sig)
         err = rm.run_like_veriport_would()
 
         if err not in errors:
