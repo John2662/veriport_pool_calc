@@ -5,26 +5,30 @@
 
 
 from datetime import date
-from employer import Schedule, Employer
+from employer import Employer
 from data_persist import DataPersist
-from file_io import string_to_date
 from initialize_json import compile_json
 
 
 class Calculator:
 
-    def __init__(self,
-                 population: dict,
-                 inception: date,
-                 schedule: Schedule):
+    def __init__(self, data_persist: DataPersist):
 
-        self.pool_inception = inception
+        self.data_persist = data_persist
 
         # initialize the employer
-        employer_json = compile_json(inception, schedule)
+        employer_json = compile_json(self.data_persist.inception, self.data_persist.schedule)
 
         self.employer = Employer(**employer_json)
-        self.employer.initialize(population)
+        self.employer.initialize(self.data_persist.population)
+
+    @property
+    def pool_inception(self):
+        return self.data_persist.inception
+
+    @property
+    def schedule(self):
+        return self.data_persist.schedule
 
     @property
     def start_count(self):
@@ -84,9 +88,4 @@ class Calculator:
 
 
 def get_calculator_instance(data_persist) -> Calculator:
-    # Generate a dictionary needed to construct an instance of the Calculator class
-    # Hint: The json version of this is stored in the output directory of the run
-    initializing_dict = data_persist.get_initializing_dict()
-    inception = string_to_date(initializing_dict['pool_inception'])
-    schedule = Schedule.from_int_to_schedule(int(initializing_dict['schedule']))
-    return Calculator(data_persist.population, inception, schedule)
+    return Calculator(data_persist)

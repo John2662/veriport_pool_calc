@@ -9,7 +9,6 @@ from typing import Optional
 from math import ceil
 import calendar
 
-# from db_proxy import DbConn
 from substance import generate_substance
 from substance import Substance
 from schedule import Schedule

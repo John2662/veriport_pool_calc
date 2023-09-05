@@ -30,6 +30,7 @@ class DataPersist:
 
         self.schedule = schedule
         self.population = population
+        self.inception = list(population.keys())[0]
         self.base_name = base_name
         self.output_dir = os.path.join(base_dir, sub_dir)
         os.makedirs(self.output_dir, exist_ok=True)
