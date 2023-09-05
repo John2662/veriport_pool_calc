@@ -3,14 +3,13 @@
 # Proprietary and confidential
 # Written by John Read <john.read@colibri-software.com>, July 2023
 
-from calculator import Calculator
-from schedule import Schedule
 import argparse
 import os
 
-from random_population import population_dict_from_rand
-from file_io import string_to_date
+from schedule import Schedule
+from calculator import Calculator
 from data_persist import DataPersist
+from random_population import population_dict_from_rand
 
 MAX_NUM_TESTS = 500
 
@@ -20,17 +19,9 @@ class RunMan:
     def __init__(self, data_persist):
         self.data_persist = data_persist
 
-    def get_calculator_instance(self) -> None:
-        # Generate a dictionary needed to construct an instance of the Calculator class
-        # Hint: The json version of this is stored in the output directory of the run
-        initializing_dict = self.data_persist.get_initializing_dict()
-        inception = string_to_date(initializing_dict['pool_inception'])
-        schedule = Schedule.from_int_to_schedule(int(initializing_dict['schedule']))
-        return Calculator(self.data_persist.population, inception, schedule)
-
     # Turn this into a method on Calculator
-    def period_start_estimates(self, e: Calculator, period_index: int) -> None:
-        (dr_tmp_json, al_tmp_json) = e.make_estimates_and_return_data_to_persist(period_index)
+    def period_start_estimates(self, calc: Calculator, period_index: int) -> None:
+        (dr_tmp_json, al_tmp_json) = calc.make_estimates_and_return_data_to_persist(period_index)
         self.data_persist.persist_json(dr_tmp_json, 'tmp_dr.json')
         self.data_persist.persist_json(al_tmp_json, 'tmp_al.json')
 
@@ -42,16 +33,16 @@ class RunMan:
 
     # Turn this into a method on Calculator
     def process_period(self, period_index: int) -> None:
-        c = self.get_calculator_instance()
+        calc = self.data_persist.get_calculator_instance()
         if period_index == 0:
-            self.period_start_estimates(c, period_index=period_index)
+            self.period_start_estimates(calc, period_index=period_index)
         if period_index == self.data_persist.final_period_index()+1:
-            score = self.period_end_calculations(c, period_index=period_index-1)
-            self.data_persist.store_reports(c.make_html_report())
+            score = self.period_end_calculations(calc, period_index=period_index-1)
+            self.data_persist.store_reports(calc.make_html_report())
             return score
         if period_index > 0 and period_index <= self.data_persist.final_period_index():
-            self.period_end_calculations(c, period_index=period_index-1)
-            self.period_start_estimates(c, period_index=period_index)
+            self.period_end_calculations(calc, period_index=period_index-1)
+            self.period_start_estimates(calc, period_index=period_index)
             return 0
         return 0
 

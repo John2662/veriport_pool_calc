@@ -9,6 +9,7 @@ import json
 
 from schedule import Schedule
 from initialize_json import compile_json
+from calculator import Calculator
 
 from file_io import write_population_to_natural_file
 from file_io import write_population_to_vp_file
@@ -128,6 +129,14 @@ class DataPersist:
             return load_population_from_vp_file(datafile)
         else:
             return load_population_from_natural_file(datafile)
+
+    def get_calculator_instance(self) -> Calculator:
+        # Generate a dictionary needed to construct an instance of the Calculator class
+        # Hint: The json version of this is stored in the output directory of the run
+        initializing_dict = self.get_initializing_dict()
+        inception = string_to_date(initializing_dict['pool_inception'])
+        schedule = Schedule.from_int_to_schedule(int(initializing_dict['schedule']))
+        return Calculator(self.population, inception, schedule)
 
     # @staticmethod
     # def population_dict_from_rand(mu: float, sigma: float) -> dict:
