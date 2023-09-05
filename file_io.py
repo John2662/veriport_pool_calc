@@ -153,12 +153,16 @@ def vp_to_natural(filename: str) -> None:
 class DataPersist:
 
     def __init__(self,
+                 schedule: Schedule,
+                 population: dict,
                  base_dir: str,
                  sub_dir: str,
                  base_name: str,
                  input_data_file: str,
                  vp_format: bool):
 
+        self.schedule = schedule
+        self.population = population
         self.base_name = base_name
         self.output_dir = os.path.join(base_dir, sub_dir)
         os.makedirs(self.output_dir, exist_ok=True)
@@ -170,9 +174,20 @@ class DataPersist:
         # make a 'generic' file name for all output (to which we can add the proper extension)
         self.output_file_basename = os.path.join(self.storage_dir, self.base_name)
 
+        (self.employer_json_file, self.period_start_dates) = DataPersist.generate_initialization_data_files(self.population, self.schedule, self.output_file_basename)
+
         # needed to load the population from a file:
         self.input_data_file = input_data_file
         self.vp_format = vp_format
+
+    def get_initializing_dict(self) -> dict:
+        return DataPersist.load_employer_initialization_dict_from_file(self.employer_json_file)
+
+    def num_periods(self) -> int:
+        return len(self.period_start_dates)
+
+    def final_period_index(self) -> int:
+        return self.num_periods() - 1
 
     @staticmethod
     def tokenize_string(s: str, t: str = '\n') -> list[str]:
@@ -235,11 +250,11 @@ class DataPersist:
     # def population_dict_from_rand(mu: float, sigma: float) -> dict:
     #     return generate_random_population_data(mu, sigma)
 
-    def store_reports(self, html: str, schedule: Schedule, population: dict) -> int:
+    def store_reports(self, html: str) -> int:
         # Add the periodicity to the file name
-        standard_schedule_str = Schedule.as_str(schedule)
+        standard_schedule_str = Schedule.as_str(self.schedule)
         base_name = self.base_name + f'_{standard_schedule_str}'
-        DataPersist.store_data(population, html, self.storage_dir, base_name)
+        DataPersist.store_data(self.population, html, self.storage_dir, base_name)
 
     def persist_json(self, tmp_json, file_name) -> None:
         json_file = os.path.join(self.storage_dir, file_name)

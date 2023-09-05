@@ -5,7 +5,6 @@
 
 from calculator import Calculator
 from schedule import Schedule
-from datetime import date
 import argparse
 import os
 
@@ -15,47 +14,6 @@ from file_io import DataPersist
 
 MAX_NUM_TESTS = 500
 
-
-# def tokenize_string(s: str, t: str = '\n') -> list[str]:
-#     return s.split(t)
-
-
-# def store_data(pop: dict, html: str, directory: os.path = 'run_output', file_name: str = '') -> None:
-#     outfile = os.path.join(directory, f'{file_name}')
-#     html = tokenize_string(html)
-#     with open(f'{outfile}.html', 'w') as f:
-#         for line in html:
-#             f.write(line+'\n')
-
-
-# def population_dict_from_file(datafile: str, vp_format: bool) -> dict:
-#     if vp_format:
-#         return load_population_from_vp_file(datafile)
-#     else:
-#         return load_population_from_natural_file(datafile)
-
-
-# def population_dict_from_rand(mu: float, sigma: float) -> dict:
-#     return generate_random_population_data(mu, sigma)
-
-
-# def from_string_to_schedule(s):
-#     s = s.strip().lower()
-#     if s == 'semimonthly':
-#         return Schedule.SEMIMONTHLY
-#     if s == 'monthly':
-#         return Schedule.MONTHLY
-#     if s == 'bimonthly':
-#         return Schedule.BIMONTHLY
-#     if s == 'quarterly':
-#         return Schedule.QUARTERLY
-#     if s == 'semiannually':
-#         return Schedule.SEMIANNUALLY
-#     if s == 'annually':
-#         return Schedule.ANNUALLY
-#     print('hit default: QUARTERLY')
-#     return Schedule.QUARTERLY
-#
 
 def get_args() -> argparse.Namespace:
     # parser = argparse.ArgumentParser(description='Process some integers.')
@@ -76,42 +34,6 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('--sig', type=float, help='sigma value of gaussian', default=2.0)
     args = parser.parse_args()
     return args
-
-
-# def base_file_name_from_path(filepath: str) -> str:
-#     split_filepath = filepath.split('/')
-#     just_file_name = os.path.splitext(split_filepath[-1])[0]
-#     return just_file_name
-
-# def generate_initialization_data_files(population: dict, schedule: Schedule, generic_filepath: str) -> tuple:
-#     start = list(population.keys())[0]
-#
-#     nat_file = generic_filepath + '_nat.csv'
-#     write_population_to_natural_file(population, nat_file)
-#
-#     vp_file = generic_filepath + '_vp.csv'
-#     write_population_to_vp_file(population, vp_file)
-#
-#     employer_dict = compile_json(start, schedule)
-#     start_dates = []
-#     for d in employer_dict['period_start_dates']:
-#         start_dates.append(string_to_date(d))
-#
-#     employer_json_file = generic_filepath + '_emp.json'
-#     DataPersist.write_employer_initialization_dict_to_file(employer_json_file, employer_dict)
-#
-#     return (employer_json_file, start_dates)
-
-# def write_employer_initialization_dict_to_file(employer_json_file: str, employer_dict: dict) -> None:
-#     employer_json = json.dumps(employer_dict, indent=4)
-#     with open(employer_json_file, 'w') as f:
-#         f.write(employer_json)
-#
-#
-# def load_employer_initialization_dict_from_file(filename: str) -> dict:
-#     with open(filename, 'r') as f:
-#         employer_dict = json.load(f)
-#         return employer_dict
 
 
 class run_man:
@@ -141,97 +63,52 @@ class run_man:
                 ) -> None:
 
         if run_number < 0:  # This is the kludgy (but effective) way to indicate we should load from a file
-            self.base_name = DataPersist.base_file_name_from_path(input_data_file)
+            base_name = DataPersist.base_file_name_from_path(input_data_file)
+            population = DataPersist.population_dict_from_file(input_data_file, vp_format)
         else:
-            self.base_name = f'run_{run_number}'
+            base_name = f'run_{run_number}'
+            population = population_dict_from_rand(mu, sigma)
 
-        data_persist = DataPersist(
+        self.data_persist = DataPersist(
+            schedule,
+            population,
             base_dir,
             sub_dir,
-            self.base_name,
+            base_name,
             input_data_file,
             vp_format
         )
 
-        self.schedule = schedule
-
-        output_dir = os.path.join(base_dir, sub_dir)
-        os.makedirs(output_dir, exist_ok=True)
-
-        if run_number < 0:  # This is the kludgy (but effective) way to indicate we should load from a file
-            self.population = DataPersist.population_dict_from_file(input_data_file, vp_format)
-        else:
-            self.population = population_dict_from_rand(mu, sigma)
-
-        # set up the storage directory to plop all the data in
-        self.storage_dir = os.path.join(output_dir, self.base_name)
-        os.makedirs(self.storage_dir, exist_ok=True)
-
-        # make a 'generic' file name for all output (to which we can add the proper extension)
-        output_file_basename = os.path.join(self.storage_dir, self.base_name)
-
-        (self.employer_json_file, self.period_start_dates) = DataPersist.generate_initialization_data_files(self.population, self.schedule, output_file_basename)
-
-        self.calculator = Calculator(self.population, self.period_start_dates[0], self.schedule)
-
-    def get_period_start_dates(self) -> list[date]:
-        return self.period_start_dates
-
-    def get_initializing_dict(self) -> dict:
-        return DataPersist.load_employer_initialization_dict_from_file(self.employer_json_file)
-
-    def store_reports(self, html: str) -> int:
-        # Add the periodicity to the file name
-        standard_schedule_str = Schedule.as_str(self.schedule)
-        base_name = self.base_name + f'_{standard_schedule_str}'
-        DataPersist.store_data(self.population, html, self.storage_dir, base_name)
-
-    def persist_json(self, tmp_json, file_name) -> None:
-        json_file = os.path.join(self.storage_dir, file_name)
-        with open(json_file, 'w') as f:
-            f.write(tmp_json)
-
-    def retrieve_json(self, file_name) -> str:
-        json_file = os.path.join(self.storage_dir, file_name)
-        with open(json_file, 'r') as f:
-            return f.read()
-
-    def num_periods(self) -> int:
-        return len(self.period_start_dates)
-
-    def final_period_index(self) -> int:
-        return self.num_periods() - 1
-
     # Turn this into a method on Calculator
     def period_start_estimates(self, e: Calculator, period_index: int) -> None:
         (dr_tmp_json, al_tmp_json) = e.make_estimates_and_return_data_to_persist(period_index)
-        self.persist_json(dr_tmp_json, 'tmp_dr.json')
-        self.persist_json(al_tmp_json, 'tmp_al.json')
+        self.data_persist.persist_json(dr_tmp_json, 'tmp_dr.json')
+        self.data_persist.persist_json(al_tmp_json, 'tmp_al.json')
 
     # Turn this into a method on Calculator
     def period_end_calculations(self, calc: Calculator, period_index: int) -> None:
-        tmp_dr_json = self.retrieve_json('tmp_dr.json')
-        tmp_al_json = self.retrieve_json('tmp_al.json')
+        tmp_dr_json = self.data_persist.retrieve_json('tmp_dr.json')
+        tmp_al_json = self.data_persist.retrieve_json('tmp_al.json')
         return calc.load_persisted_data_and_do_period_calculations(period_index, tmp_dr_json, tmp_al_json)
 
     def get_calculator_instance(self) -> None:
         # Generate a dictionary needed to construct an instance of the Calculator class
         # Hint: The json version of this is stored in the output directory of the run
-        initializing_dict = self.get_initializing_dict()
+        initializing_dict = self.data_persist.get_initializing_dict()
         inception = string_to_date(initializing_dict['pool_inception'])
         schedule = Schedule.from_int_to_schedule(int(initializing_dict['schedule']))
-        return Calculator(self.population, inception, schedule)
+        return Calculator(self.data_persist.population, inception, schedule)
 
     # Turn this into a method on Calculator
     def process_period(self, period_index: int) -> None:
         c = self.get_calculator_instance()
         if period_index == 0:
             self.period_start_estimates(c, period_index=period_index)
-        if period_index == self.final_period_index()+1:
+        if period_index == self.data_persist.final_period_index()+1:
             score = self.period_end_calculations(c, period_index=period_index-1)
-            self.store_reports(c.make_html_report())
+            self.data_persist.store_reports(c.make_html_report())
             return score
-        if period_index > 0 and period_index <= self.final_period_index():
+        if period_index > 0 and period_index <= self.data_persist.final_period_index():
             self.period_end_calculations(c, period_index=period_index-1)
             self.period_start_estimates(c, period_index=period_index)
             return 0
@@ -239,7 +116,7 @@ class run_man:
 
     def run_like_veriport_would(self):
         score = 0
-        for period_index in range(self.num_periods()+1):
+        for period_index in range(self.data_persist.num_periods()+1):
             score += self.process_period(period_index)
         return score
 
