@@ -148,10 +148,13 @@ class run_man:
                 ) -> None:
 
         base_name = 'ThisIsWrong'
-        data_persist = DataPersist(base_dir, sub_dir,
-                 base_name,
-                 input_data_file,
-                 vp_format)
+        data_persist = DataPersist(
+            base_dir,
+            sub_dir,
+            base_name,
+            input_data_file,
+            vp_format
+        )
 
         self.schedule = schedule
 

@@ -196,7 +196,7 @@ class DataPersist:
         vp_file = generic_filepath + '_vp.csv'
         write_population_to_vp_file(population, vp_file)
 
-        employer_dict = DataPersist.compile_json(start, schedule)
+        employer_dict = compile_json(start, schedule)
         start_dates = []
         for d in employer_dict['period_start_dates']:
             start_dates.append(string_to_date(d))
@@ -219,26 +219,6 @@ class DataPersist:
             return employer_dict
 
     @staticmethod
-    def generate_initialization_data_files(population: dict, schedule: Schedule, generic_filepath: str) -> tuple:
-        start = list(population.keys())[0]
-
-        nat_file = generic_filepath + '_nat.csv'
-        write_population_to_natural_file(population, nat_file)
-
-        vp_file = generic_filepath + '_vp.csv'
-        write_population_to_vp_file(population, vp_file)
-
-        employer_dict = compile_json(start, schedule)
-        start_dates = []
-        for d in employer_dict['period_start_dates']:
-            start_dates.append(string_to_date(d))
-
-        employer_json_file = generic_filepath + '_emp.json'
-        DataPersist.write_employer_initialization_dict_to_file(employer_json_file, employer_dict)
-
-        return (employer_json_file, start_dates)
-
-    @staticmethod
     def base_file_name_from_path(filepath: str) -> str:
         split_filepath = filepath.split('/')
         just_file_name = os.path.splitext(split_filepath[-1])[0]
@@ -254,7 +234,6 @@ class DataPersist:
     # @staticmethod
     # def population_dict_from_rand(mu: float, sigma: float) -> dict:
     #     return generate_random_population_data(mu, sigma)
-
 
     def store_reports(self, html: str, schedule: Schedule, population: dict) -> int:
         # Add the periodicity to the file name
