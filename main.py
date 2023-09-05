@@ -5,21 +5,14 @@
 
 from calculator import Calculator
 from schedule import Schedule
-# from initialize_json import compile_json
 from datetime import date
 import argparse
 import os
-# import json
 
 from random_population import population_dict_from_rand
-# from file_io import load_population_from_natural_file
-# from file_io import load_population_from_vp_file
-# from file_io import write_population_to_vp_file
-# from file_io import write_population_to_natural_file
 from file_io import string_to_date
 from file_io import DataPersist
 
-# This is valid for the length of the run, then removed in main()
 MAX_NUM_TESTS = 500
 
 
@@ -147,11 +140,15 @@ class run_man:
                 sigma: float = 0.0
                 ) -> None:
 
-        base_name = 'ThisIsWrong'
+        if run_number < 0:  # This is the kludgy (but effective) way to indicate we should load from a file
+            self.base_name = DataPersist.base_file_name_from_path(input_data_file)
+        else:
+            self.base_name = f'run_{run_number}'
+
         data_persist = DataPersist(
             base_dir,
             sub_dir,
-            base_name,
+            self.base_name,
             input_data_file,
             vp_format
         )
@@ -163,10 +160,8 @@ class run_man:
 
         if run_number < 0:  # This is the kludgy (but effective) way to indicate we should load from a file
             self.population = DataPersist.population_dict_from_file(input_data_file, vp_format)
-            self.base_name = DataPersist.base_file_name_from_path(input_data_file)
         else:
             self.population = population_dict_from_rand(mu, sigma)
-            self.base_name = f'run_{run_number}'
 
         # set up the storage directory to plop all the data in
         self.storage_dir = os.path.join(output_dir, self.base_name)

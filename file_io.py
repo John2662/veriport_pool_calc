@@ -157,7 +157,7 @@ class DataPersist:
                  sub_dir: str,
                  base_name: str,
                  input_data_file: str,
-                 vp_format: bool = True):
+                 vp_format: bool):
 
         self.base_name = base_name
         self.output_dir = os.path.join(base_dir, sub_dir)
