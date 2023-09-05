@@ -15,6 +15,25 @@ from file_io import write_population_to_natural_file
 from file_io import write_population_to_vp_file
 
 
+class VeriportDataBaseInterface:
+
+    # used in calculator.py
+    def final_period_index(self) -> int:
+        pass
+
+    # used in calculator.py
+    def store_reports(self, html: str) -> int:
+        pass
+
+    # used in calculator.py
+    def persist_json(self, tmp_json, file_name) -> None:
+        pass
+
+    # used in calculator.py
+    def retrieve_json(self, file_name) -> str:
+        pass
+
+
 class DataPersist:
 
     def __init__(self,
