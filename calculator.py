@@ -52,6 +52,12 @@ class Calculator:
             return 0
         return 0
 
+    # These are the methods that we need to give the output to Veriport
+    def get_requirements(self, period_index: int, drug: bool) -> int:
+        if drug:
+            return self.employer._dr.required_tests_predicted[period_index]
+        return self.employer._al.required_tests_predicted[period_index]
+
 
 def get_calculator_instance(data_persist) -> Calculator:
     return Calculator(data_persist)
