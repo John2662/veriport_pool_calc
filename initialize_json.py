@@ -21,6 +21,6 @@ def compile_json(inception: date,
     employer_json['schedule'] = schedule
     employer_json['pool_inception'] = f'{inception}'
     employer_json['period_start_dates'] = get_period_start_dates(inception, schedule)
-    employer_json['sub_d'] = '{"name": "drug", "percent": ".5"}'
-    employer_json['sub_a'] = '{"name": "alcohol", "percent": ".1"}'
+    employer_json['sub_d'] = '{"name": "drug", "percent": ".5", "disallow_zero_chance": "25"}'
+    employer_json['sub_a'] = '{"name": "alcohol", "percent": ".1", "disallow_zero_chance": "25"}'
     return employer_json

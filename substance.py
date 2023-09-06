@@ -33,6 +33,7 @@ class Substance(BaseModel):
     aposteriori_truth: Optional[list[float]]
 
     overcount_error: Optional[list[float]]
+    disallow_zero_chance: int
 
     def __str__(self) -> str:
         s = f'{self.name=} and {self.percent=}\n'
@@ -60,6 +61,15 @@ class Substance(BaseModel):
     def previous_overcount_error(self) -> float:
         return sum(self.overcount_error) if len(self.overcount_error) > 0 else 0.0
 
+    def random_correct_zero_tests(self, predicted_num_test: int) -> int:
+        if predicted_num_test > 0:
+            return predicted_num_test
+        from random import randint
+        random_num = randint(0, 100)
+        if random_num <= self.disallow_zero_chance:
+            return 1
+        return 0
+
     def make_apriori_predictions(self, initial_donor_count: int, start: date, end: date, days_in_year: int) -> None:
         num_days = (end-start).days + 1
         # best guess at average population divided by # days in the year times percent
@@ -68,8 +78,9 @@ class Substance(BaseModel):
         # find the largest overcount that we can eliminate in the current period
         account_for = min(apriori_estimate, self.previous_overcount_error)
 
-        # correct for floating point error.
-        self.required_tests_predicted.append(ceil(discretize_float(apriori_estimate - account_for)))
+        # correct for floating point error, and then add a chance to force a test evcen if zero are required.
+        predicted_tests = self.random_correct_zero_tests(ceil(discretize_float(apriori_estimate - account_for)))
+        self.required_tests_predicted.append(predicted_tests)
 
     def determine_aposteriori_truth(self, donor_count_list: list, days_in_year: int) -> None:
         # true average population divided by # days in the year times percent
@@ -265,4 +276,5 @@ def generate_substance(json_str: str) -> Substance:
     d_dict['aposteriori_truth'] = []
     d_dict['required_tests_predicted'] = []
     d_dict['overcount_error'] = []
+    d_dict['disallow_zero_chance'] = int(d_dict['disallow_zero_chance'])
     return Substance(**d_dict)
