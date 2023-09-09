@@ -10,7 +10,6 @@ from initialize_json import compile_json
 from schedule import Schedule
 
 
-
 class Calculator:
 
     def __init__(
@@ -21,7 +20,7 @@ class Calculator:
         disallow_zero_chance: int = 100,
         dr_fraction: float = .5,
         al_fraction: float = .1
-        ):
+    ):
 
         self.schedule = schedule
         self.pool_inception = pool_inception
@@ -37,7 +36,7 @@ class Calculator:
 
     def process_period(self, period_index: int, curr_dr_json: str = '', curr_al_json: str = '') -> tuple:
         score = 0
-        html= None
+        html = None
         (dr_json, al_json) = (curr_dr_json, curr_al_json)
 
         if period_index > 0:

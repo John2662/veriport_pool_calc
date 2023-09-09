@@ -18,10 +18,6 @@ class Schedule(int, Enum):
     def num_periods(self) -> int:
         return int(self)
 
-    @property
-    def final_period_index(self) -> int:
-        return self.num_periods - 1
-
     @staticmethod
     def as_str(value):
         if value == Schedule.SEMIMONTHLY:

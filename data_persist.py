@@ -18,9 +18,9 @@ from file_io import write_population_to_vp_file
 
 class VeriportDataBaseInterface:
 
-    # used in calculator.py
-    def final_period_index(self) -> int:
-        pass
+    # self.schedule = schedule
+    # self.population = population
+    # self.inception = list(population.keys())[0]
 
     # used in calculator.py
     def store_reports(self, html: str) -> int:
@@ -33,6 +33,12 @@ class VeriportDataBaseInterface:
     # used in calculator.py
     def retrieve_json(self, file_name) -> str:
         pass
+
+    # This is the method that we need to give the output to Veriport
+    def get_requirements(self, period_index: int, drug: bool) -> int:
+        calc = get_calculator_instance(self.schedule, self.inception, self.population)
+        return calc.get_requirements(period_index, drug)
+
 
 class DataPersist:
 
@@ -70,14 +76,14 @@ class DataPersist:
         return len(self.period_start_dates)
 
     # used in calculator.py
-    def final_period_index(self) -> int:
-        return self.num_periods() - 1
-
-    # used in calculator.py
     def store_reports(self, html: str) -> int:
         standard_schedule_str = Schedule.as_str(self.schedule)
         base_name = self.base_name + f'_{standard_schedule_str}'
-        DataPersist.store_data(html, self.storage_dir, base_name)
+        outfile = os.path.join(self.storage_dir, f'{base_name}')
+        html = html.split('\n')
+        with open(f'{outfile}.html', 'w') as f:
+            for line in html:
+                f.write(line+'\n')
 
     # used in calculator.py
     def persist_json(self, tmp_json, file_name) -> None:
@@ -91,23 +97,10 @@ class DataPersist:
         with open(json_file, 'r') as f:
             return f.read()
 
-    # These are the methods that we need to give the output to Veriport
+    # This is the method that we need to give the output to Veriport
     def get_requirements(self, period_index: int, drug: bool) -> int:
         calc = get_calculator_instance(self.schedule, self.inception, self.population)
         return calc.get_requirements(period_index, drug)
-
-    # These four are used in this file
-    @staticmethod
-    def tokenize_string(s: str, t: str = '\n') -> list[str]:
-        return s.split(t)
-
-    @staticmethod
-    def store_data(html: str, directory: os.path, file_name: str) -> None:
-        outfile = os.path.join(directory, f'{file_name}')
-        html = DataPersist.tokenize_string(html)
-        with open(f'{outfile}.html', 'w') as f:
-            for line in html:
-                f.write(line+'\n')
 
     @staticmethod
     def generate_initialization_data_files(population: dict, schedule: Schedule, generic_filepath: str) -> tuple:
@@ -125,15 +118,12 @@ class DataPersist:
             start_dates.append(string_to_date(d))
 
         employer_json_file = generic_filepath + '_emp.json'
-        DataPersist.write_employer_initialization_dict_to_file(employer_json_file, employer_dict)
 
-        return (employer_json_file, start_dates)
-
-    @staticmethod
-    def write_employer_initialization_dict_to_file(employer_json_file: str, employer_dict: dict) -> None:
         employer_json = json.dumps(employer_dict, indent=4)
         with open(employer_json_file, 'w') as f:
             f.write(employer_json)
+
+        return (employer_json_file, start_dates)
 
 
 def get_args() -> argparse.Namespace:
