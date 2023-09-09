@@ -36,27 +36,20 @@ class Calculator:
         return self.employer.load_persisted_data_and_do_period_calculations(period_index, dr_json, al_json)
 
     def process_period(self, period_index: int, curr_dr_json: str = '', curr_al_json: str = '') -> tuple:
-        print(f'IN PROCESS_PERIOD for period {period_index} and {self.employer.num_periods=}\n\n')
+        score = 0
+        html= None
         (dr_json, al_json) = (curr_dr_json, curr_al_json)
-        if period_index == 0:
-            score = 0
-            self.employer.make_estimates(period_index)
-            (dr_json, al_json) = self.employer.get_data_to_persist()
-            return (dr_json, al_json, score, None)
+
+        if period_index > 0:
+            score = self.period_end_calculations(period_index-1, dr_json, al_json)
 
         if period_index == self.employer.num_periods:
-            score = self.period_end_calculations(period_index-1, dr_json, al_json)
-            (dr_json, al_json) = self.employer.get_data_to_persist()
             html = self.employer.make_html_report()
-            return (dr_json, al_json, score, html)
-
-        if period_index > 0 and period_index <= self.employer.num_periods:
-            score = self.period_end_calculations(period_index-1, dr_json, al_json)
+        else:
             self.employer.make_estimates(period_index)
-            (dr_json, al_json) = self.employer.get_data_to_persist()
-            return (dr_json, al_json, score, None)
 
-        return (dr_json, al_json, 0, None)
+        (dr_json, al_json) = self.employer.get_data_to_persist()
+        return (dr_json, al_json, score, html)
 
     def get_requirements(self, period_index: int, drug: bool) -> int:
         if drug:
