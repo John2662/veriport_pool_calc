@@ -131,20 +131,27 @@ class Employer(BaseModel):
     def period_start_end(self, period_index: int) -> tuple:
         return (self.period_start_dates[period_index], self.period_end_date(period_index))
 
-    def make_estimates_and_return_data_to_persist(self, period_index: int) -> tuple:
+    def make_estimates(self, period_index: int) -> None:
         (start_date, end_date) = self.period_start_end(period_index)
         period_start_count = self.donor_count_on(start_date)
+        print(f'\nMake estimates for period {period_index} on [{start_date}, {end_date}] with start count {period_start_count}')
         self._al.make_apriori_predictions(period_start_count, start_date, end_date, self.total_days_in_year)
         self._dr.make_apriori_predictions(period_start_count, start_date, end_date, self.total_days_in_year)
+        print(f'{self._dr=}')
+
+    def get_data_to_persist(self) -> tuple:
         return (self._dr.data_to_persist(), self._al.data_to_persist())
 
-    def load_persisted_data_and_do_period_calculations(self, period_index: int, dr_tmp_json: str, al_tmp_json: str) -> None:
+    def load_persisted_data_and_do_period_calculations(self, period_index: int, dr_tmp_json: str, al_tmp_json: str) -> int:
         (start_date, end_date) = self.period_start_end(period_index)
+        print(f'\nMake calculations for period {period_index} on [{start_date}, {end_date}]')
+        print(dr_tmp_json)
         self._dr = Substance.model_validate_json(dr_tmp_json)
         self._al = Substance.model_validate_json(al_tmp_json)
         period_donor_list = self.fetch_donor_queryset_by_interval(start_date, end_date)
         self._al.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
         self._dr.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
+        print(f'{self._dr=}')
         return abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
 
     ##############################

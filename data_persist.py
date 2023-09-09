@@ -8,6 +8,7 @@ import os
 import json
 
 from schedule import Schedule
+from calculator import Calculator, get_calculator_instance
 from initialize_json import compile_json
 
 from file_io import string_to_date
@@ -32,7 +33,6 @@ class VeriportDataBaseInterface:
     # used in calculator.py
     def retrieve_json(self, file_name) -> str:
         pass
-
 
 class DataPersist:
 
@@ -91,6 +91,11 @@ class DataPersist:
         with open(json_file, 'r') as f:
             return f.read()
 
+    # These are the methods that we need to give the output to Veriport
+    def get_requirements(self, period_index: int, drug: bool) -> int:
+        calc = get_calculator_instance(self.schedule, self.inception, self.population)
+        return calc.get_requirements(period_index, drug)
+
     # These four are used in this file
     @staticmethod
     def tokenize_string(s: str, t: str = '\n') -> list[str]:
@@ -114,7 +119,7 @@ class DataPersist:
         vp_file = generic_filepath + '_vp.csv'
         write_population_to_vp_file(population, vp_file)
 
-        employer_dict = compile_json(start, schedule)
+        employer_dict = compile_json(start, schedule, disallow_zero_chance=100, dr_percent=.5, al_percent=.1)
         start_dates = []
         for d in employer_dict['period_start_dates']:
             start_dates.append(string_to_date(d))

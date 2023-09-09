@@ -4,60 +4,65 @@
 # Written by John Read <john.read@colibri-software.com>, September 2023
 
 
+from datetime import date
 from employer import Employer
-from data_persist import DataPersist
 from initialize_json import compile_json
+from schedule import Schedule
+
 
 
 class Calculator:
 
-    def __init__(self, data_persist: DataPersist):
+    def __init__(
+        self,
+        schedule: Schedule,
+        pool_inception: date,
+        population: dict,
+        disallow_zero_chance: int = 100,
+        dr_fraction: float = .5,
+        al_fraction: float = .1
+        ):
 
-        self.data_persist = data_persist
+        self.schedule = schedule
+        self.pool_inception = pool_inception
 
         # initialize the employer
-        employer_json = compile_json(self.data_persist.inception, self.data_persist.schedule)
+        employer_json = compile_json(self.pool_inception, self.schedule, disallow_zero_chance, dr_fraction, al_fraction)
 
         self.employer = Employer(**employer_json)
-        self.employer.initialize(self.data_persist.population)
+        self.employer.initialize(population)
 
-    @property
-    def pool_inception(self):
-        return self.data_persist.inception
+    def period_end_calculations(self, period_index: int, dr_json: str, al_json: str) -> int:
+        return self.employer.load_persisted_data_and_do_period_calculations(period_index, dr_json, al_json)
 
-    @property
-    def schedule(self):
-        return self.data_persist.schedule
-
-    def period_start_estimates(self, period_index: int, data_persist: DataPersist) -> None:
-        (dr_tmp_json, al_tmp_json) = self.employer.make_estimates_and_return_data_to_persist(period_index)
-        data_persist.persist_json(dr_tmp_json, 'tmp_dr.json')
-        data_persist.persist_json(al_tmp_json, 'tmp_al.json')
-
-    def period_end_calculations(self, period_index: int, data_persist: DataPersist) -> None:
-        tmp_dr_json = data_persist.retrieve_json('tmp_dr.json')
-        tmp_al_json = data_persist.retrieve_json('tmp_al.json')
-        return self.employer.load_persisted_data_and_do_period_calculations(period_index, tmp_dr_json, tmp_al_json)
-
-    def process_period(self, period_index: int, data_persist: DataPersist) -> None:
+    def process_period(self, period_index: int, curr_dr_json: str = '', curr_al_json: str = '') -> tuple:
+        print(f'IN PROCESS_PERIOD for period {period_index} and {self.employer.num_periods=}\n\n')
+        (dr_json, al_json) = (curr_dr_json, curr_al_json)
         if period_index == 0:
-            self.period_start_estimates(period_index, data_persist)
-        if period_index == data_persist.final_period_index()+1:
-            score = self.period_end_calculations(period_index-1, data_persist)
-            data_persist.store_reports(self.employer.make_html_report())
-            return score
-        if period_index > 0 and period_index <= data_persist.final_period_index():
-            self.period_end_calculations(period_index-1, data_persist)
-            self.period_start_estimates(period_index, data_persist)
-            return 0
-        return 0
+            score = 0
+            self.employer.make_estimates(period_index)
+            (dr_json, al_json) = self.employer.get_data_to_persist()
+            return (dr_json, al_json, score, None)
 
-    # These are the methods that we need to give the output to Veriport
+        if period_index == self.employer.num_periods:
+            score = self.period_end_calculations(period_index-1, dr_json, al_json)
+            (dr_json, al_json) = self.employer.get_data_to_persist()
+            html = self.employer.make_html_report()
+            return (dr_json, al_json, score, html)
+
+        if period_index > 0 and period_index <= self.employer.num_periods:
+            score = self.period_end_calculations(period_index-1, dr_json, al_json)
+            self.employer.make_estimates(period_index)
+            (dr_json, al_json) = self.employer.get_data_to_persist()
+            return (dr_json, al_json, score, None)
+
+        return (dr_json, al_json, 0, None)
+
     def get_requirements(self, period_index: int, drug: bool) -> int:
         if drug:
             return self.employer._dr.required_tests_predicted[period_index]
         return self.employer._al.required_tests_predicted[period_index]
 
 
-def get_calculator_instance(data_persist) -> Calculator:
-    return Calculator(data_persist)
+def get_calculator_instance(schedule: Schedule, inception: date, population: dict) -> Calculator:
+    return Calculator(schedule, inception, population)

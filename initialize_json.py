@@ -16,11 +16,14 @@ def get_period_start_dates(inception: date, schedule: Schedule) -> list[date]:
 
 
 def compile_json(inception: date,
-                 schedule: Schedule) -> dict:
+                 schedule: Schedule,
+                 disallow_zero_chance: int,
+                 dr_percent: float,
+                 al_percent: float) -> dict:
     employer_json = {}
     employer_json['schedule'] = schedule
     employer_json['pool_inception'] = f'{inception}'
     employer_json['period_start_dates'] = get_period_start_dates(inception, schedule)
-    employer_json['sub_d'] = '{"name": "drug", "percent": ".5", "disallow_zero_chance": "25"}'
-    employer_json['sub_a'] = '{"name": "alcohol", "percent": ".1", "disallow_zero_chance": "25"}'
+    employer_json['sub_d'] = '{"name": "drug", "percent": ".5", "disallow_zero_chance": "0"}'
+    employer_json['sub_a'] = '{"name": "alcohol", "percent": ".1", "disallow_zero_chance": "0"}'
     return employer_json

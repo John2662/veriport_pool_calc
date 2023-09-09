@@ -23,10 +23,37 @@ def base_file_name_from_path(filepath: str) -> str:
 
 
 def run_like_veriport_would(data_persist: DataPersist):
+    print('\nA NEW RUN\n')
     score = 0
+    dr_json = ''
+    al_json = ''
+    html = ''
+    print(f'{data_persist.period_start_dates=}')
+    print(f'{data_persist.num_periods()+1=}')
     for period_index in range(data_persist.num_periods()+1):
-        calc = get_calculator_instance(data_persist)
-        score += calc.process_period(period_index, data_persist)
+        print(f'\nOK: {period_index=}')
+        calc = get_calculator_instance(data_persist.schedule, data_persist.inception, data_persist.population)
+        (dr_json, al_json, tmp_score, html) = calc.process_period(period_index, dr_json, al_json)
+
+        # persist json
+        data_persist.persist_json(dr_json, 'tmp_dr.json')
+        data_persist.persist_json(al_json, 'tmp_al.json')
+
+        # flush data
+        dr_json = ''
+        al_json = ''
+
+        # load data
+        dr_json = data_persist.retrieve_json('tmp_dr.json')
+        al_json = data_persist.retrieve_json('tmp_al.json')
+
+
+        print(f'\nAt the end of {period_index} we have:\n{dr_json=}\n')
+        score += tmp_score
+
+    if html is not None:
+        data_persist.store_reports(html)
+
     return score
 
 

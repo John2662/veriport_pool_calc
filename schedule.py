@@ -7,23 +7,23 @@ from enum import Enum
 
 
 class Schedule(int, Enum):
-    # For weekly: skip first and last weeks of the year
-    # so for example, the first period will contain up to two full weeks
-    # ending on a sunday (on or before Jan 14)
-
-    # WEEKLY = 50
     SEMIMONTHLY = 24
     MONTHLY = 12
     BIMONTHLY = 6
     QUARTERLY = 4
     SEMIANNUALLY = 2
     ANNUALLY = 1
-    CUSTOM = 0
+
+    @property
+    def num_periods(self) -> int:
+        return int(self)
+
+    @property
+    def final_period_index(self) -> int:
+        return self.num_periods - 1
 
     @staticmethod
     def as_str(value):
-        # if value == Schedule.WEEKLY:
-        #     return 'weekly'
         if value == Schedule.SEMIMONTHLY:
             return 'semi-monthly'
         if value == Schedule.MONTHLY:
