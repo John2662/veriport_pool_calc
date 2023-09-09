@@ -8,7 +8,7 @@ import os
 import json
 
 from schedule import Schedule
-from calculator import Calculator, get_calculator_instance
+from calculator import get_calculator_instance
 from initialize_json import compile_json
 
 from file_io import string_to_date
@@ -71,11 +71,11 @@ class DataPersist:
         self.input_data_file = input_data_file
         self.vp_format = vp_format
 
-    # used in main.py
+    # used in run_like_veriport_would
     def num_periods(self) -> int:
         return len(self.period_start_dates)
 
-    # used in calculator.py
+    # used in run_like_veriport_would
     def store_reports(self, html: str) -> int:
         standard_schedule_str = Schedule.as_str(self.schedule)
         base_name = self.base_name + f'_{standard_schedule_str}'
@@ -85,13 +85,13 @@ class DataPersist:
             for line in html:
                 f.write(line+'\n')
 
-    # used in calculator.py
+    # used in run_like_veriport_would
     def persist_json(self, tmp_json, file_name) -> None:
         json_file = os.path.join(self.storage_dir, file_name)
         with open(json_file, 'w') as f:
             f.write(tmp_json)
 
-    # used in calculator.py
+    # used in run_like_veriport_would
     def retrieve_json(self, file_name) -> str:
         json_file = os.path.join(self.storage_dir, file_name)
         with open(json_file, 'r') as f:
