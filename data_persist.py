@@ -97,6 +97,32 @@ class DataPersist:
         with open(json_file, 'r') as f:
             return f.read()
 
+    def run_like_veriport_would(self):
+        score = 0
+        dr_json = ''
+        al_json = ''
+        html = ''
+        for period_index in range(self.num_periods()+1):
+            calc = get_calculator_instance(self.schedule, self.inception, self.population)
+            (dr_json, al_json, score, html) = calc.process_period(period_index, dr_json, al_json)
+
+            # persist json
+            self.persist_json(dr_json, 'tmp_dr.json')
+            self.persist_json(al_json, 'tmp_al.json')
+
+            # flush data
+            dr_json = ''
+            al_json = ''
+
+            # load data
+            dr_json = self.retrieve_json('tmp_dr.json')
+            al_json = self.retrieve_json('tmp_al.json')
+
+        if html is not None:
+            self.store_reports(html)
+
+        return score
+
     # This is the method that we need to give the output to Veriport
     def get_requirements(self, period_index: int, drug: bool) -> int:
         calc = get_calculator_instance(self.schedule, self.inception, self.population)

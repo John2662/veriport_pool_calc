@@ -7,70 +7,12 @@ import argparse
 import os
 
 from schedule import Schedule
-from calculator import get_calculator_instance
 from data_persist import DataPersist
 from random_population import population_dict_from_rand
 from file_io import population_dict_from_file
 
 
 MAX_NUM_TESTS = 500
-
-
-def base_file_name_from_path(filepath: str) -> str:
-    split_filepath = filepath.split('/')
-    just_file_name = os.path.splitext(split_filepath[-1])[0]
-    return just_file_name
-
-
-def run_like_veriport_would(data_persist: DataPersist):
-    score = 0
-    dr_json = ''
-    al_json = ''
-    html = ''
-    for period_index in range(data_persist.num_periods()+1):
-        calc = get_calculator_instance(data_persist.schedule, data_persist.inception, data_persist.population)
-        (dr_json, al_json, tmp_score, html) = calc.process_period(period_index, dr_json, al_json)
-
-        # persist json
-        data_persist.persist_json(dr_json, 'tmp_dr.json')
-        data_persist.persist_json(al_json, 'tmp_al.json')
-
-        # flush data
-        dr_json = ''
-        al_json = ''
-
-        # load data
-        dr_json = data_persist.retrieve_json('tmp_dr.json')
-        al_json = data_persist.retrieve_json('tmp_al.json')
-
-        score += tmp_score
-
-    if html is not None:
-        data_persist.store_reports(html)
-
-    return score
-
-
-def initialize_data_persistance(
-                schedule: Schedule,
-                population: dict,
-                # needed to store data for the run:
-                base_dir: str,
-                sub_dir: str,
-                base_name: str,
-                # needed to load the population from a file:
-                input_data_file: str,
-                vp_format: bool):
-
-    return DataPersist(
-        schedule,
-        population,
-        base_dir,
-        sub_dir,
-        base_name,
-        input_data_file,
-        vp_format
-        )
 
 
 def initialize_from_args(args):
@@ -124,10 +66,13 @@ def main() -> int:
 
     if not random:
         filename = args.file
-        base_name = base_file_name_from_path(filename)
+
+        split_filepath = filename.split('/')
+        base_name = os.path.splitext(split_filepath[-1])[0]
+
         population = population_dict_from_file(filename, vp_format)
-        data_persist = initialize_data_persistance(schedule, population, base_dir, sub_dir, base_name, input_data_file, vp_format)
-        return run_like_veriport_would(data_persist)
+        data_persist = DataPersist(schedule, population, base_dir, sub_dir, base_name, input_data_file, vp_format)
+        return data_persist.run_like_veriport_would()
 
     i = 0
     errors = {}
@@ -136,8 +81,8 @@ def main() -> int:
 
         base_name = f'run_{i}'
         population = population_dict_from_rand(args.mu, args.sig)
-        data_persist = initialize_data_persistance(schedule, population, base_dir, sub_dir, base_name, input_data_file, vp_format)
-        err = run_like_veriport_would(data_persist)
+        data_persist = DataPersist(schedule, population, base_dir, sub_dir, base_name, input_data_file, vp_format)
+        err = data_persist.run_like_veriport_would()
 
         if err not in errors:
             errors[err] = []
