@@ -68,7 +68,7 @@ class DataPersist:
                 f.write(line+'\n')
 
     # used in run_like_veriport_would
-    def persist_json(self, tmp_json, file_name) -> None:
+    def store_json(self, tmp_json, file_name) -> None:
         json_file = os.path.join(self.storage_dir, file_name)
         with open(json_file, 'w') as f:
             f.write(tmp_json)
@@ -111,8 +111,8 @@ class DataPersist:
             (dr_json, al_json, score, html) = calc.process_period(period_index, dr_json, al_json)
 
             # persist json
-            self.persist_json(dr_json, 'tmp_dr.json')
-            self.persist_json(al_json, 'tmp_al.json')
+            self.store_json(dr_json, 'tmp_dr.json')
+            self.store_json(al_json, 'tmp_al.json')
 
             # flush data
             dr_json = ''

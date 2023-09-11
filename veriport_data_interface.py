@@ -17,15 +17,15 @@ class VeriportDataInterface:
     # self.population = population
     # self.inception = list(population.keys())[0]
 
-    # used in calculator.py
+    # used in run_like_veriport_would
     def store_reports(self, html: str) -> int:
         pass
 
-    # used in calculator.py
-    def persist_json(self, tmp_json, file_name) -> None:
+    # used in run_like_veriport_would
+    def store_json(self, tmp_json, file_name) -> None:
         pass
 
-    # used in calculator.py
+    # used in run_like_veriport_would
     def retrieve_json(self, file_name) -> str:
         pass
 
