@@ -118,6 +118,12 @@ class Employer(BaseModel):
             start += timedelta(days=1)
         return requested_population
 
+    @property
+    def average_population(self) -> int:
+        if len(self._population) == 0:
+            return 0
+        return round( sum(self._population.values()) / len(self._population) )
+
     # This is the only code that needs to pull data from the DB
     def fetch_donor_queryset_by_interval(self, start: date, end: date) -> list[int]:
         return self.get_population_report(start, end)
@@ -133,7 +139,14 @@ class Employer(BaseModel):
 
     def make_estimates(self, period_index: int) -> None:
         (start_date, end_date) = self.period_start_end(period_index)
-        period_start_count = self.donor_count_on(start_date)
+        if period_index == 0:
+            period_start_count = self.donor_count_on(start_date)
+        else:
+            # if we are making the calculation on the last day of the previous period,
+            # we don't have the actual count for the first day of this period, so this
+            # is the best we can do:
+            period_start_count = self.donor_count_on(start_date-timedelta(days=1))
+
         self._al.make_apriori_predictions(period_start_count, start_date, end_date, self.total_days_in_year)
         self._dr.make_apriori_predictions(period_start_count, start_date, end_date, self.total_days_in_year)
 

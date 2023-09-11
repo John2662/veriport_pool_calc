@@ -6,6 +6,7 @@
 import argparse
 import os
 import json
+from datetime import date, timedelta
 
 from schedule import Schedule
 from calculator import get_calculator_instance
@@ -14,30 +15,6 @@ from initialize_json import compile_json
 from file_io import string_to_date
 from file_io import write_population_to_natural_file
 from file_io import write_population_to_vp_file
-
-
-class VeriportDataBaseInterface:
-
-    # self.schedule = schedule
-    # self.population = population
-    # self.inception = list(population.keys())[0]
-
-    # used in calculator.py
-    def store_reports(self, html: str) -> int:
-        pass
-
-    # used in calculator.py
-    def persist_json(self, tmp_json, file_name) -> None:
-        pass
-
-    # used in calculator.py
-    def retrieve_json(self, file_name) -> str:
-        pass
-
-    # This is the method that we need to give the output to Veriport
-    def get_requirements(self, period_index: int, drug: bool) -> int:
-        calc = get_calculator_instance(self.schedule, self.inception, self.population)
-        return calc.get_requirements(period_index, drug)
 
 
 class DataPersist:
@@ -72,8 +49,13 @@ class DataPersist:
         self.vp_format = vp_format
 
     # used in run_like_veriport_would
+    @property
     def num_periods(self) -> int:
         return len(self.period_start_dates)
+
+    @property
+    def last_day_of_year(self) -> date:
+        return self.inception.replace(month=12, day=31)
 
     # used in run_like_veriport_would
     def store_reports(self, html: str) -> int:
@@ -97,13 +79,35 @@ class DataPersist:
         with open(json_file, 'r') as f:
             return f.read()
 
+    # add this to better mimic the data that Veriport will load
+    # the data we assume is loaded is from inception to:
+    #   inception    if period_index == 0
+    #   end of year  if period index >= num_periods
+    #   last day of previous period otherwise
+    def trim_population_to_period(self, period_index) -> dict:
+        start_date = self.inception
+        if period_index == 0:
+            end_date = self.inception
+        elif period_index >= self.num_periods:
+            end_date = self.last_day_of_year
+        else:
+            end_date = self.period_start_dates[period_index] - timedelta(days=1)
+
+        trimed_pop = {}
+        for d in self.population:
+            if d >= start_date and d <= end_date:
+                trimed_pop[d] = self.population[d]
+        return trimed_pop
+
     def run_like_veriport_would(self):
         score = 0
         dr_json = ''
         al_json = ''
         html = ''
-        for period_index in range(self.num_periods()+1):
-            calc = get_calculator_instance(self.schedule, self.inception, self.population)
+        for period_index in range(self.num_periods+1):
+            pop_subset = self.trim_population_to_period(period_index)
+            calc = get_calculator_instance(self.schedule, self.inception, pop_subset)
+
             (dr_json, al_json, score, html) = calc.process_period(period_index, dr_json, al_json)
 
             # persist json
