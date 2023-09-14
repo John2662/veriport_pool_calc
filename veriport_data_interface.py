@@ -3,13 +3,8 @@
 # Proprietary and confidential
 # Written by John Read <john.read@colibri-software.com>, July 2023
 
-import argparse
-import os
-import json
-
-from schedule import Schedule
 from calculator import get_calculator_instance
-from initialize_json import compile_json
+
 
 class VeriportDataInterface:
 

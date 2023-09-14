@@ -9,9 +9,16 @@ from typing import Optional
 from math import ceil
 import calendar
 
-from substance import generate_substance
-from substance import Substance
-from schedule import Schedule
+RUN_FROM_VERIPORT = True
+
+if RUN_FROM_VERIPORT:
+    from .substance import generate_substance
+    from .substance import Substance
+    from .schedule import Schedule
+else:
+    from substance import generate_substance
+    from substance import Substance
+    from schedule import Schedule
 
 
 class Employer(BaseModel):
@@ -122,7 +129,7 @@ class Employer(BaseModel):
     def average_population(self) -> int:
         if len(self._population) == 0:
             return 0
-        return round( sum(self._population.values()) / len(self._population) )
+        return round(sum(self._population.values()) / len(self._population))
 
     # This is the only code that needs to pull data from the DB
     def fetch_donor_queryset_by_interval(self, start: date, end: date) -> list[int]:
@@ -155,9 +162,17 @@ class Employer(BaseModel):
 
     def load_persisted_data_and_do_period_calculations(self, period_index: int, dr_tmp_json: str, al_tmp_json: str) -> int:
         (start_date, end_date) = self.period_start_end(period_index)
-        self._dr = Substance.model_validate_json(dr_tmp_json)
-        self._al = Substance.model_validate_json(al_tmp_json)
         period_donor_list = self.fetch_donor_queryset_by_interval(start_date, end_date)
+
+        if not check_substance_json_valid(dr_tmp_json):
+            print(f'ERROR: drug json {dr_tmp_json} is invalid')
+        else:
+            self._dr = Substance.model_validate_json(dr_tmp_json)
+        if not check_substance_json_valid(al_tmp_json):
+            print(f'ERROR: alcohol json {al_tmp_json} is invalid')
+        else:
+            self._al = Substance.model_validate_json(al_tmp_json)
+
         self._al.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
         self._dr.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
         return abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
@@ -387,3 +402,27 @@ class Employer(BaseModel):
         #     self.period_start_dates.append(dec_15)
 
         return period_start_dates
+
+
+def check_substance_json_valid(item):
+    import json
+    import pydantic
+    try:
+        json_item = json.loads(item)
+
+    # Catch potential JSON formatting problems:
+    except json.JSONDecodeError as exc:
+        print(f'json error in parsing:\n..........\n{item}\n..........\n')
+        print(f"ERROR: Invalid JSON: {exc.msg}, line \"{exc.lineno}\", column \"{exc.colno}\"")
+        return False
+
+    try:
+        Substance(**json_item)
+
+    # Catch pydantic's validation errors:
+    except pydantic.ValidationError as exc:
+        print(f'Schema Error:\n{json_item}\n')
+        print(f"ERROR: Invalid schema: {exc}")
+        return False
+
+    return True

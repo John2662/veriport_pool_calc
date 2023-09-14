@@ -5,9 +5,16 @@
 
 
 from datetime import date
-from employer import Employer
-from initialize_json import compile_json
-from schedule import Schedule
+RUN_FROM_VERIPORT = True
+
+if RUN_FROM_VERIPORT:
+    from .employer import Employer
+    from .initialize_json import compile_json
+    from .schedule import Schedule
+else:
+    from employer import Employer
+    from initialize_json import compile_json
+    from schedule import Schedule
 
 
 class Calculator:
@@ -33,6 +40,21 @@ class Calculator:
 
     def period_end_calculations(self, period_index: int, dr_json: str, al_json: str) -> int:
         return self.employer.load_persisted_data_and_do_period_calculations(period_index, dr_json, al_json)
+
+    def find_period_index(self, day: date) -> int:
+        if day.year > self.pool_inception.year:
+            return self.employer.num_periods
+
+        if day < self.pool_inception:
+            return -1
+
+        for counter in range(self.employer.num_periods):
+            period_index = self.employer.num_periods - (counter+1)
+            if self.employer.period_start_dates[period_index] <= day:
+                return period_index
+
+        # This can actually never happen
+        return self.employer.num_periods
 
     def process_period(self, period_index: int, curr_dr_json: str = '', curr_al_json: str = '') -> tuple:
         score = 0

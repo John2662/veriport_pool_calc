@@ -4,7 +4,13 @@
 # Written by John Read <john.read@colibri-software.com>, July 2023
 
 from datetime import date
-from employer import Schedule, Employer
+
+RUN_FROM_VERIPORT = True
+
+if RUN_FROM_VERIPORT:
+    from .employer import Schedule, Employer
+else:
+    from employer import Schedule, Employer
 
 
 def get_period_start_dates(inception: date, schedule: Schedule) -> list[date]:
