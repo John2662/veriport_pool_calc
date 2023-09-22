@@ -60,7 +60,7 @@ class Substance(BaseModel):
         return sum(self.required_tests_predicted) - self.actual_num_tests_required
 
     @property
-    def previous_overcount_error(self) -> float:
+    def previous_cummulative_overcount_error(self) -> float:
         return sum(self.overcount_error) if len(self.overcount_error) > 0 else 0.0
 
     def random_correct_zero_tests(self, predicted_num_test: int) -> int:
@@ -75,14 +75,14 @@ class Substance(BaseModel):
     def make_apriori_predictions(self, initial_donor_count: int, start: date, end: date, days_in_year: int) -> None:
 
         if len(self.debug_all_data) == 0:
-            self.debug_all_data.append('percent,start,end,s_count,days_in_year,initial_guess,account_for,predicted,truth,oc,cum_oc')
+            self.debug_all_data.append('percent,start,end,s_count,days_in_period,days_in_year,initial_guess,account_for,predicted,truth,oc,cum_oc')
 
         num_days = (end-start).days + 1
         # best guess at average population divided by # days in the year times percent
         apriori_estimate = (float(num_days*initial_donor_count)/float(days_in_year))*self.percent
 
         # find the largest overcount that we can eliminate in the current period
-        account_for = min(apriori_estimate, self.previous_overcount_error)
+        account_for = min(apriori_estimate, self.previous_cummulative_overcount_error)
 
         # correct for floating point error, and then add a chance to force a test even if zero are required.
         # At the start of the first period predicted_test = ceil(discretize_float(apriori_estimate))
@@ -90,7 +90,7 @@ class Substance(BaseModel):
         predicted_tests = self.random_correct_zero_tests(ceil(discretize_float(apriori_estimate - account_for)))
         self.required_tests_predicted.append(predicted_tests)
 
-        self.debug_all_data.append(f'{self.percent},{str(start)},{str(end)},{initial_donor_count},{days_in_year},{apriori_estimate}, {account_for}, {predicted_tests}')
+        self.debug_all_data.append(f'{self.percent},{str(start)},{str(end)},{initial_donor_count},{num_days},{days_in_year},{apriori_estimate}, {account_for}, {predicted_tests}')
 
     def determine_aposteriori_truth(self, donor_count_list: list, days_in_year: int) -> None:
         # true average population divided by # days in the year times percent
