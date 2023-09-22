@@ -104,6 +104,8 @@ class DataPersist:
         dr_json = ''
         al_json = ''
         html = ''
+        debug_all_data_dr = []
+        debug_all_data_al = []
         for period_index in range(self.num_periods+1):
             pop_subset = self.trim_population_to_period(period_index)
             calc = get_calculator_instance(self.schedule, self.inception, pop_subset)
@@ -122,8 +124,18 @@ class DataPersist:
             dr_json = self.retrieve_json('tmp_dr.json')
             al_json = self.retrieve_json('tmp_al.json')
 
+            debug_all_data_dr = calc.get_debug_all_info(True)
+            debug_all_data_al = calc.get_debug_all_info(False)
+
         if html is not None:
             self.store_reports(html)
+            print('\ndrugs:')
+            for line in debug_all_data_dr:
+                print(line)
+            print('alcohol:')
+            for line in debug_all_data_al:
+                print(line)
+
 
         return score
 

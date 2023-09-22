@@ -35,6 +35,8 @@ class Substance(BaseModel):
     overcount_error: Optional[list[float]]
     disallow_zero_chance: int
 
+    debug_all_data: Optional[list[str]]
+
     def __str__(self) -> str:
         s = f'{self.name=} and {self.percent=}\n'
         s += 'PRED:' + str(self.required_tests_predicted) + '\n'
@@ -71,6 +73,10 @@ class Substance(BaseModel):
         return 0
 
     def make_apriori_predictions(self, initial_donor_count: int, start: date, end: date, days_in_year: int) -> None:
+
+        if len(self.debug_all_data) == 0:
+            self.debug_all_data.append('percent,start,end,s_count,days_in_year,initial_guess,account_for,predicted,truth,oc,cum_oc')
+
         num_days = (end-start).days + 1
         # best guess at average population divided by # days in the year times percent
         apriori_estimate = (float(num_days*initial_donor_count)/float(days_in_year))*self.percent
@@ -78,16 +84,26 @@ class Substance(BaseModel):
         # find the largest overcount that we can eliminate in the current period
         account_for = min(apriori_estimate, self.previous_overcount_error)
 
-        # correct for floating point error, and then add a chance to force a test evcen if zero are required.
+        # correct for floating point error, and then add a chance to force a test even if zero are required.
+        # At the start of the first period predicted_test = ceil(discretize_float(apriori_estimate))
+        #   since self.previous_overcount_error is zero
         predicted_tests = self.random_correct_zero_tests(ceil(discretize_float(apriori_estimate - account_for)))
         self.required_tests_predicted.append(predicted_tests)
 
+        self.debug_all_data.append(f'{self.percent},{str(start)},{str(end)},{initial_donor_count},{days_in_year},{apriori_estimate}, {account_for}, {predicted_tests}')
+
     def determine_aposteriori_truth(self, donor_count_list: list, days_in_year: int) -> None:
         # true average population divided by # days in the year times percent
-        self.aposteriori_truth.append(float(sum(donor_count_list))/float(days_in_year)*self.percent)
+        truth = float(sum(donor_count_list))/float(days_in_year)*self.percent
+        self.aposteriori_truth.append(truth)
 
         # keep track of anything we missed through the estimate
-        self.overcount_error.append(float(self.required_tests_predicted[-1]) - self.aposteriori_truth[-1])
+        oc_error = float(self.required_tests_predicted[-1]) - truth
+        self.overcount_error.append(oc_error)
+
+        # At the end of the first period, this is ceil(estimate) - truth
+        # self.overcount_error
+        self.debug_all_data[-1] += f',{truth}, {oc_error}, {sum(self.overcount_error)}'
 
     def data_to_persist(self) -> str:
         return self.model_dump_json()
@@ -277,4 +293,5 @@ def generate_substance(json_str: str) -> Substance:
     d_dict['required_tests_predicted'] = []
     d_dict['overcount_error'] = []
     d_dict['disallow_zero_chance'] = int(d_dict['disallow_zero_chance'])
+    d_dict['debug_all_data'] = []
     return Substance(**d_dict)

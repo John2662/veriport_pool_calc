@@ -5,7 +5,7 @@
 
 
 from datetime import date
-RUN_FROM_VERIPORT = True
+RUN_FROM_VERIPORT = False
 
 if RUN_FROM_VERIPORT:
     from .employer import Employer
@@ -76,6 +76,11 @@ class Calculator:
         if drug:
             return self.employer._dr.required_tests_predicted[period_index]
         return self.employer._al.required_tests_predicted[period_index]
+
+    def get_debug_all_info(self, drugs=True):
+        if drugs:
+            return self.employer._dr.debug_all_data
+        return self.employer._al.debug_all_data
 
 
 def get_calculator_instance(schedule: Schedule, inception: date, population: dict) -> Calculator:
