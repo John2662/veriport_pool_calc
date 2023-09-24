@@ -40,40 +40,38 @@ def process_line(line: str, i: int) -> tuple:
     return (d, pop)
 
 
-def load_population_from_vp_file(filename: str) -> dict:
+def load_population_from_vp_line_array(lines: list) -> dict:
     inception_not_found = True
     population = {}
     last_population_seen = 0
     last_date_processed = date(year=1900, month=1, day=1)
     year = 1900
-    with open(filename, 'r') as f:
-        lines = f.readlines()
-        for i, line in enumerate(lines):
-            (d, pop) = process_line(line, i)
-            if d is None:
-                # print(f'cannot process line number: {i+1} \"{line}\"')
-                continue
-            if year == 1900:
-                year = d.year
-            elif year != d.year:
-                print(f'{filename} spans multiple years')
-                exit(0)
+    for i, line in enumerate(lines):
+        (d, pop) = process_line(line, i)
+        if d is None:
+            # print(f'cannot process line number: {i+1} \"{line}\"')
+            continue
+        if year == 1900:
+            year = d.year
+        elif year != d.year:
+            print(f'array {lines} spans multiple years')
+            exit(0)
 
-            if inception_not_found and pop > 0:
-                inception_not_found = False
-                last_date_processed = d
-                # print(f'Inception: {str(d)} -> {pop=}')
-            if inception_not_found:
-                continue
-
-            # pad out any missing dates with the last population seen
-            while last_date_processed < d:
-                population[last_date_processed] = last_population_seen
-                last_date_processed += timedelta(days=1)
-
+        if inception_not_found and pop > 0:
+            inception_not_found = False
             last_date_processed = d
-            last_population_seen += pop
+            # print(f'Inception: {str(d)} -> {pop=}')
+        if inception_not_found:
+            continue
+
+        # pad out any missing dates with the last population seen
+        while last_date_processed < d:
             population[last_date_processed] = last_population_seen
+            last_date_processed += timedelta(days=1)
+
+        last_date_processed = d
+        last_population_seen += pop
+        population[last_date_processed] = last_population_seen
 
     # Now pad out to the end of the year
     year_end = date(year, month=12, day=31)
@@ -81,6 +79,11 @@ def load_population_from_vp_file(filename: str) -> dict:
         population[last_date_processed] = last_population_seen
         last_date_processed += timedelta(days=1)
     return population
+
+def load_population_from_vp_file(filename: str) -> dict:
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+        return load_population_from_vp_line_array(lines)
 
 
 def load_population_from_natural_file(filename: str) -> dict:

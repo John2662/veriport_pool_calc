@@ -9,7 +9,7 @@ from typing import Optional
 from math import ceil
 import calendar
 
-RUN_FROM_VERIPORT = False
+RUN_FROM_VERIPORT = True
 
 if RUN_FROM_VERIPORT:
     from .substance import generate_substance

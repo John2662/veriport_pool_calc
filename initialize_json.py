@@ -5,7 +5,7 @@
 
 from datetime import date
 
-RUN_FROM_VERIPORT = False
+RUN_FROM_VERIPORT = True
 
 if RUN_FROM_VERIPORT:
     from .employer import Schedule, Employer

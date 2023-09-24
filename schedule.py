@@ -4,7 +4,7 @@
 # Written by John Read <john.read@colibri-software.com>, July 2023
 
 from enum import Enum
-
+from datetime import date
 
 class Schedule(int, Enum):
     SEMIMONTHLY = 24
@@ -68,3 +68,81 @@ class Schedule(int, Enum):
             return Schedule.ANNUALLY
         print('hit default: QUARTERLY')
         return Schedule.QUARTERLY
+
+
+def trim_to_date(start_date: date, period_starts: list[date]) -> list[date]:
+    period_start_list = [start_date]
+    for d in period_starts:
+        if d > start_date:
+            period_start_list.append(d)
+    return period_start_list
+
+def construct_period_start_dates(inception: date, schedule: Schedule) -> list[date]:
+    print(f'{inception=} of {type(inception)=}')
+    year = inception.year
+    period_starts = []
+    jan_1 = date(year=year, month=1, day=1)
+    period_starts.append(jan_1)
+    if schedule.num_periods == 1:
+        return trim_to_date(inception, period_starts)
+
+    if schedule.num_periods == 2:
+        period_starts.append(date(year=year, month=7, day=1))
+        return trim_to_date(inception, period_starts)
+
+    if schedule.num_periods == 4:
+        period_starts.append(date(year=year, month=4, day=1))
+        period_starts.append(date(year=year, month=7, day=1))
+        period_starts.append(date(year=year, month=10, day=1))
+        return trim_to_date(inception, period_starts)
+
+    if schedule.num_periods == 6:
+        period_starts.append(date(year=year, month=3, day=1))
+        period_starts.append(date(year=year, month=5, day=1))
+        period_starts.append(date(year=year, month=7, day=1))
+        period_starts.append(date(year=year, month=9, day=1))
+        period_starts.append(date(year=year, month=11, day=1))
+        return trim_to_date(inception, period_starts)
+
+    if schedule.num_periods == 12:
+        period_starts.append(date(year=year, month=2, day=1))
+        period_starts.append(date(year=year, month=3, day=1))
+        period_starts.append(date(year=year, month=4, day=1))
+        period_starts.append(date(year=year, month=5, day=1))
+        period_starts.append(date(year=year, month=6, day=1))
+        period_starts.append(date(year=year, month=7, day=1))
+        period_starts.append(date(year=year, month=8, day=1))
+        period_starts.append(date(year=year, month=9, day=1))
+        period_starts.append(date(year=year, month=10, day=1))
+        period_starts.append(date(year=year, month=11, day=1))
+        period_starts.append(date(year=year, month=12, day=1))
+        return trim_to_date(inception, period_starts)
+
+    if schedule.num_periods == 24:
+        period_starts.append(date(year=year, month=1, day=1))
+        period_starts.append(date(year=year, month=1, day=15))
+        period_starts.append(date(year=year, month=2, day=1))
+        period_starts.append(date(year=year, month=2, day=15))
+        period_starts.append(date(year=year, month=3, day=1))
+        period_starts.append(date(year=year, month=3, day=15))
+        period_starts.append(date(year=year, month=4, day=1))
+        period_starts.append(date(year=year, month=4, day=15))
+        period_starts.append(date(year=year, month=5, day=1))
+        period_starts.append(date(year=year, month=5, day=15))
+        period_starts.append(date(year=year, month=6, day=1))
+        period_starts.append(date(year=year, month=6, day=15))
+        period_starts.append(date(year=year, month=7, day=1))
+        period_starts.append(date(year=year, month=7, day=15))
+        period_starts.append(date(year=year, month=8, day=1))
+        period_starts.append(date(year=year, month=8, day=15))
+        period_starts.append(date(year=year, month=9, day=1))
+        period_starts.append(date(year=year, month=9, day=15))
+        period_starts.append(date(year=year, month=10, day=1))
+        period_starts.append(date(year=year, month=10, day=15))
+        period_starts.append(date(year=year, month=11, day=1))
+        period_starts.append(date(year=year, month=11, day=15))
+        period_starts.append(date(year=year, month=12, day=1))
+        period_starts.append(date(year=year, month=12, day=15))
+        return trim_to_date(inception, period_starts)
+
+    return []
