@@ -83,5 +83,5 @@ class Calculator:
         return self.employer._al.debug_all_data
 
 
-def get_calculator_instance(schedule: Schedule, inception: date, population: dict) -> Calculator:
-    return Calculator(schedule, inception, population)
+def get_calculator_instance(schedule: Schedule, inception: date, population: dict, disallow: int, dr_fraction: float, al_fraction: float) -> Calculator:
+    return Calculator(schedule, inception, population, disallow, dr_fraction, al_fraction)

@@ -21,6 +21,13 @@ def get_period_start_dates(inception: date, schedule: Schedule) -> list[date]:
     return sd_str
 
 
+def compile_substance_str(name: str, percent: float, disallow: int) -> str:
+    n = f'\"name\": \"{name}\"'
+    p = f'\"percent\": \"{str(percent)}\"'
+    d = f'\"disallow_zero_chance\": \"{str(disallow)}\"'
+    return '{' + n + ', ' + p + ', ' + d + '}'
+
+
 def compile_json(inception: date,
                  schedule: Schedule,
                  disallow_zero_chance: int,
@@ -30,6 +37,6 @@ def compile_json(inception: date,
     employer_json['schedule'] = schedule
     employer_json['pool_inception'] = f'{inception}'
     employer_json['period_start_dates'] = get_period_start_dates(inception, schedule)
-    employer_json['sub_d'] = '{"name": "drug", "percent": ".5", "disallow_zero_chance": "0"}'
-    employer_json['sub_a'] = '{"name": "alcohol", "percent": ".1", "disallow_zero_chance": "0"}'
+    employer_json['sub_d'] = compile_substance_str('drug', dr_percent, disallow_zero_chance)
+    employer_json['sub_a'] = compile_substance_str('alcohol', al_percent, disallow_zero_chance)
     return employer_json

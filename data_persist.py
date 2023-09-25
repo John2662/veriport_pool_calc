@@ -104,11 +104,14 @@ class DataPersist:
         dr_json = ''
         al_json = ''
         html = ''
+        disallow = 0
+        dr_fraction = .5
+        al_fraction = .1
         debug_all_data_dr = []
         debug_all_data_al = []
         for period_index in range(self.num_periods+1):
             pop_subset = self.trim_population_to_period(period_index)
-            calc = get_calculator_instance(self.schedule, self.inception, pop_subset)
+            calc = get_calculator_instance(self.schedule, self.inception, pop_subset, disallow, dr_fraction, al_fraction)
 
             (dr_json, al_json, score, html) = calc.process_period(period_index, dr_json, al_json)
 
