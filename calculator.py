@@ -57,6 +57,7 @@ class Calculator:
         return self.employer.num_periods
 
     def process_period(self, period_index: int, curr_dr_json: str = '', curr_al_json: str = '') -> tuple:
+        # print(f'\n\nIn process_period: {period_index=} \n {curr_dr_json=}\n')
         score = 0
         html = None
         (dr_json, al_json) = (curr_dr_json, curr_al_json)
@@ -70,6 +71,7 @@ class Calculator:
             self.employer.make_estimates(period_index)
 
         (dr_json, al_json) = self.employer.get_data_to_persist()
+        # print(f'leave process_period: {period_index=} \n {dr_json=}\n')
         return (dr_json, al_json, score, html)
 
     def get_requirements(self, period_index: int, drug: bool) -> int:
