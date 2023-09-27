@@ -41,6 +41,10 @@ class Calculator:
     def period_end_calculations(self, period_index: int, dr_json: str, al_json: str) -> int:
         return self.employer.load_persisted_data_and_do_period_calculations(period_index, dr_json, al_json)
 
+    @property
+    def num_periods(self):
+        return self.employer.num_periods
+
     def find_period_index(self, day: date) -> int:
         if day.year > self.pool_inception.year:
             return self.employer.num_periods
@@ -84,6 +88,25 @@ class Calculator:
             return self.employer._dr.debug_all_data
         return self.employer._al.debug_all_data
 
+    def get_dr_json(self) -> dict:
+        import json
+        return json.loads(self.employer._dr.data_to_persist())
+
+    def get_al_json(self) -> dict:
+        import json
+        return json.loads(self.employer._al.data_to_persist())
 
 def get_calculator_instance(schedule: Schedule, inception: date, population: dict, disallow: int, dr_fraction: float, al_fraction: float) -> Calculator:
     return Calculator(schedule, inception, population, disallow, dr_fraction, al_fraction)
+
+def generate_results(schedule: Schedule, inception: date, population: dict, disallow: int, dr_fraction: float, al_fraction: float) -> Calculator:
+    c = get_calculator_instance(schedule, inception, population, disallow, dr_fraction, al_fraction)
+    curr_dr_json = ''
+    curr_al_json = ''
+    score = 0
+    html = ''
+    for period_index in range(c.num_periods+1):
+        (curr_dr_json, curr_al_json, score, html) = c.process_period(period_index, curr_dr_json, curr_al_json)
+
+    return c
+

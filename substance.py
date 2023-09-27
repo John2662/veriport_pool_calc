@@ -75,7 +75,7 @@ class Substance(BaseModel):
     def make_apriori_predictions(self, initial_donor_count: int, start: date, end: date, days_in_year: int) -> None:
 
         if len(self.debug_all_data) == 0:
-            self.debug_all_data.append('percent,start,end,s_count,days_in_period,days_in_year,initial_guess,account_for,predicted,truth,oc,cum_oc')
+            self.debug_all_data.append('start,end,substance,percent,s_count,days_in_period,days_in_year,initial_guess,account_for,predicted,avg_pop,truth,oc,cum_oc, summed truth - round up')
 
         num_days = (end-start).days + 1
         # best guess at average population divided by # days in the year times percent
@@ -90,12 +90,14 @@ class Substance(BaseModel):
         predicted_tests = self.random_correct_zero_tests(ceil(discretize_float(apriori_estimate - account_for)))
         self.required_tests_predicted.append(predicted_tests)
 
-        self.debug_all_data.append(f'{self.percent},{str(start)},{str(end)},{initial_donor_count},{num_days},{days_in_year},{apriori_estimate}, {account_for}, {predicted_tests}')
+        self.debug_all_data.append(f'{str(start)},{str(end)},{self.name},{self.percent},{initial_donor_count},{num_days},{days_in_year},{apriori_estimate}, {account_for}, {predicted_tests}')
 
     def determine_aposteriori_truth(self, donor_count_list: list, days_in_year: int) -> None:
         # true average population divided by # days in the year times percent
-        truth = float(sum(donor_count_list))/float(days_in_year)*self.percent
+        avg_pop = float(sum(donor_count_list))/float(days_in_year)
+        truth = avg_pop * self.percent
         self.aposteriori_truth.append(truth)
+        summed_truth = ceil((sum(self.aposteriori_truth)))
 
         # keep track of anything we missed through the estimate
         oc_error = float(self.required_tests_predicted[-1]) - truth
@@ -103,7 +105,7 @@ class Substance(BaseModel):
 
         # At the end of the first period, this is ceil(estimate) - truth
         # self.overcount_error
-        self.debug_all_data[-1] += f',{truth}, {oc_error}, {sum(self.overcount_error)}'
+        self.debug_all_data[-1] += f',{avg_pop}, {truth}, {oc_error}, {sum(self.overcount_error)}, {summed_truth}'
 
     def data_to_persist(self) -> str:
         return self.model_dump_json()
