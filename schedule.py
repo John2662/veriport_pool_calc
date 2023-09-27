@@ -6,6 +6,7 @@
 from enum import Enum
 from datetime import date
 
+
 class Schedule(int, Enum):
     SEMIMONTHLY = 24
     MONTHLY = 12
@@ -75,13 +76,10 @@ def trim_to_date(start_date: date, period_starts: list[date]) -> list[date]:
     for d in period_starts:
         if d > start_date:
             period_start_list.append(d)
-    # Now add in the year end date:
-    #year_end = date(year=start_date.year, month=12, day=31)
-    #period_start_list.append(year_end)
     return period_start_list
 
+
 def construct_period_start_dates(inception: date, schedule: Schedule) -> list[date]:
-    print(f'{inception=} of {type(inception)=}')
     year = inception.year
     period_starts = []
     jan_1 = date(year=year, month=1, day=1)

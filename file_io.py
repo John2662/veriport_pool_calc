@@ -80,6 +80,7 @@ def load_population_from_vp_line_array(lines: list) -> dict:
         last_date_processed += timedelta(days=1)
     return population
 
+
 def load_population_from_vp_file(filename: str) -> dict:
     with open(filename, 'r') as f:
         lines = f.readlines()
@@ -155,9 +156,20 @@ def vp_to_natural(filename: str) -> None:
 
 
 def get_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description='Arguments: file path to write to, vp_format, mu, sigma')
-    parser.add_argument('--fp', type=str, help='filepath for input file')
-    parser.add_argument('--vp', type=str, help='Whether to read in VP or native format', default='false')
+    parser = argparse.ArgumentParser(
+        description='Arguments: file path to write to, vp_format, mu, sigma'
+        )
+    parser.add_argument(
+        '--fp',
+        type=str,
+        help='filepath for input file'
+        )
+    parser.add_argument(
+        '--vp',
+        type=str,
+        help='Whether to read in VP or native format',
+        default='false'
+        )
     args = parser.parse_args()
     return args
 

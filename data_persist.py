@@ -42,7 +42,12 @@ class DataPersist:
         # make a 'generic' file name for all output (to which we can add the proper extension)
         self.output_file_basename = os.path.join(self.storage_dir, self.base_name)
 
-        (self.employer_json_file, self.period_start_dates) = DataPersist.generate_initialization_data_files(self.population, self.schedule, self.output_file_basename)
+        (self.employer_json_file, self.period_start_dates) = \
+            DataPersist.generate_initialization_data_files(
+                self.population,
+                self.schedule,
+                self.output_file_basename
+                )
 
         # needed to load the population from a file:
         self.input_data_file = input_data_file
@@ -111,7 +116,14 @@ class DataPersist:
         debug_all_data_al = []
         for period_index in range(self.num_periods+1):
             pop_subset = self.trim_population_to_period(period_index)
-            calc = get_calculator_instance(self.schedule, self.inception, pop_subset, disallow, dr_fraction, al_fraction)
+            calc = get_calculator_instance(
+                self.schedule,
+                self.inception,
+                pop_subset,
+                disallow,
+                dr_fraction,
+                al_fraction
+                )
 
             (dr_json, al_json, score, html) = calc.process_period(period_index, dr_json, al_json)
 
@@ -139,7 +151,6 @@ class DataPersist:
             for line in debug_all_data_al:
                 print(line)
 
-
         return score
 
     # This is the method that we need to give the output to Veriport
@@ -148,7 +159,11 @@ class DataPersist:
         return calc.get_requirements(period_index, drug)
 
     @staticmethod
-    def generate_initialization_data_files(population: dict, schedule: Schedule, generic_filepath: str) -> tuple:
+    def generate_initialization_data_files(
+            population: dict,
+            schedule: Schedule,
+            generic_filepath: str
+            ) -> tuple:
         start = list(population.keys())[0]
 
         nat_file = generic_filepath + '_nat.csv'
@@ -157,7 +172,13 @@ class DataPersist:
         vp_file = generic_filepath + '_vp.csv'
         write_population_to_vp_file(population, vp_file)
 
-        employer_dict = compile_json(start, schedule, disallow_zero_chance=100, dr_percent=.5, al_percent=.1)
+        employer_dict = compile_json(
+            start,
+            schedule,
+            disallow_zero_chance=100,
+            dr_percent=.5,
+            al_percent=.1
+        )
         start_dates = []
         for d in employer_dict['period_start_dates']:
             start_dates.append(string_to_date(d))
@@ -172,9 +193,20 @@ class DataPersist:
 
 
 def get_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description='Arguments: file path to write to, vp_format, mu, sigma')
-    parser.add_argument('--fp', type=str, help='filepath for input file')
-    parser.add_argument('--vp', type=str, help='Whether to read in VP or native format', default='false')
+    parser = argparse.ArgumentParser(
+        description='Arguments: file path to write to, vp_format, mu, sigma'
+        )
+    parser.add_argument(
+        '--fp',
+        type=str,
+        help='filepath for input file'
+        )
+    parser.add_argument(
+        '--vp',
+        type=str,
+        help='Whether to read in VP or native format',
+        default='false'
+        )
     args = parser.parse_args()
     return args
 

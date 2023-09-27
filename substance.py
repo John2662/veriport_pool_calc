@@ -72,10 +72,17 @@ class Substance(BaseModel):
             return 1
         return 0
 
-    def make_apriori_predictions(self, initial_donor_count: int, start: date, end: date, days_in_year: int) -> None:
+    def make_apriori_predictions(
+            self,
+            initial_donor_count: int,
+            start: date,
+            end: date,
+            days_in_year: int
+            ) -> None:
 
         if len(self.debug_all_data) == 0:
-            self.debug_all_data.append('start,end,substance,percent,s_count,days_in_period,days_in_year,initial_guess,account_for,predicted,avg_pop,truth,oc,cum_oc, summed truth - round up')
+            self.debug_all_data.append(
+                'start,end,substance,percent,s_count,days_in_period,days_in_year,initial_guess,account_for,predicted,avg_pop,truth,oc,cum_oc, summed truth - round up')
 
         num_days = (end-start).days + 1
         # best guess at average population divided by # days in the year times percent
@@ -84,13 +91,17 @@ class Substance(BaseModel):
         # find the largest overcount that we can eliminate in the current period
         account_for = min(apriori_estimate, self.previous_cummulative_overcount_error)
 
-        # correct for floating point error, and then add a chance to force a test even if zero are required.
+        # correct for floating point error, and then add a chance to force a test
+        #   even if zero are required.
         # At the start of the first period predicted_test = ceil(discretize_float(apriori_estimate))
         #   since self.previous_overcount_error is zero
-        predicted_tests = self.random_correct_zero_tests(ceil(discretize_float(apriori_estimate - account_for)))
+        predicted_tests = self.random_correct_zero_tests(
+            ceil(discretize_float(apriori_estimate - account_for))
+            )
         self.required_tests_predicted.append(predicted_tests)
 
-        self.debug_all_data.append(f'{str(start)},{str(end)},{self.name},{self.percent},{initial_donor_count},{num_days},{days_in_year},{apriori_estimate}, {account_for}, {predicted_tests}')
+        self.debug_all_data.append(
+            f'{str(start)},{str(end)},{self.name},{self.percent},{initial_donor_count},{num_days},{days_in_year},{apriori_estimate}, {account_for}, {predicted_tests}')
 
     def determine_aposteriori_truth(self, donor_count_list: list, days_in_year: int) -> None:
         # true average population divided by # days in the year times percent
@@ -105,7 +116,8 @@ class Substance(BaseModel):
 
         # At the end of the first period, this is ceil(estimate) - truth
         # self.overcount_error
-        self.debug_all_data[-1] += f',{avg_pop}, {truth}, {oc_error}, {sum(self.overcount_error)}, {summed_truth}'
+        self.debug_all_data[-1] += \
+            f',{avg_pop}, {truth}, {oc_error}, {sum(self.overcount_error)}, {summed_truth}'
 
     def data_to_persist(self) -> str:
         return self.model_dump_json()
@@ -114,7 +126,12 @@ class Substance(BaseModel):
     #    GENERATE A CSV STRING   #
     ##############################
 
-    def generate_csv_report(self, initial_pop: list[int], avg_pop: list[float], percent_of_year: list[float]) -> str:
+    def generate_csv_report(
+            self,
+            initial_pop: list[int],
+            avg_pop: list[float],
+            percent_of_year: list[float]
+            ) -> str:
         string = f',type:,{self.name}:\n'
         string += f',percent:,{100.0* self.percent} %\n'
         string += ',SUMMARY TABLE:\n'
@@ -168,7 +185,8 @@ class Substance(BaseModel):
         return sum([self.required_tests_predicted[i] for i in range(period_index+1)])
 
     def overcount_by_period(self, period_index: int) -> int:
-        return self.predicted_sum_by_period(period_index) - self.required_sum_by_period(period_index)
+        return self.predicted_sum_by_period(period_index) - \
+            self.required_sum_by_period(period_index)
 
     @staticmethod
     def format_float(f):

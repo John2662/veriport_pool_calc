@@ -33,13 +33,21 @@ class Calculator:
         self.pool_inception = pool_inception
 
         # initialize the employer
-        employer_json = compile_json(self.pool_inception, self.schedule, disallow_zero_chance, dr_fraction, al_fraction)
+        employer_json = compile_json(
+            self.pool_inception,
+            self.schedule,
+            disallow_zero_chance,
+            dr_fraction,
+            al_fraction)
 
         self.employer = Employer(**employer_json)
         self.employer.initialize(population)
 
     def period_end_calculations(self, period_index: int, dr_json: str, al_json: str) -> int:
-        return self.employer.load_persisted_data_and_do_period_calculations(period_index, dr_json, al_json)
+        return self.employer.load_persisted_data_and_do_period_calculations(
+            period_index,
+            dr_json,
+            al_json)
 
     @property
     def num_periods(self):
@@ -60,7 +68,12 @@ class Calculator:
         # This can actually never happen
         return self.employer.num_periods
 
-    def process_period(self, period_index: int, curr_dr_json: str = '', curr_al_json: str = '') -> tuple:
+    def process_period(
+            self,
+            period_index: int,
+            curr_dr_json: str = '',
+            curr_al_json: str = ''
+            ) -> tuple:
         # print(f'\n\nIn process_period: {period_index=} \n {curr_dr_json=}\n')
         score = 0
         html = None
@@ -96,17 +109,33 @@ class Calculator:
         import json
         return json.loads(self.employer._al.data_to_persist())
 
-def get_calculator_instance(schedule: Schedule, inception: date, population: dict, disallow: int, dr_fraction: float, al_fraction: float) -> Calculator:
+
+def get_calculator_instance(
+        schedule: Schedule,
+        inception: date,
+        population: dict,
+        disallow: int,
+        dr_fraction: float,
+        al_fraction: float
+        ) -> Calculator:
     return Calculator(schedule, inception, population, disallow, dr_fraction, al_fraction)
 
-def generate_results(schedule: Schedule, inception: date, population: dict, disallow: int, dr_fraction: float, al_fraction: float) -> Calculator:
+
+def generate_results(
+        schedule: Schedule,
+        inception: date,
+        population: dict,
+        disallow: int,
+        dr_fraction: float,
+        al_fraction: float
+        ) -> Calculator:
     c = get_calculator_instance(schedule, inception, population, disallow, dr_fraction, al_fraction)
     curr_dr_json = ''
     curr_al_json = ''
     score = 0
     html = ''
     for period_index in range(c.num_periods+1):
-        (curr_dr_json, curr_al_json, score, html) = c.process_period(period_index, curr_dr_json, curr_al_json)
+        (curr_dr_json, curr_al_json, score, html) = \
+            c.process_period(period_index, curr_dr_json, curr_al_json)
 
     return c
-

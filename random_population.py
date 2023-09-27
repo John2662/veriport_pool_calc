@@ -46,7 +46,13 @@ def increment(day: date) -> date:
     return day+oneday
 
 
-def generate_population(start: date, end: date, pop: int, mu: float = 0.0, sigma: float = 0) -> dict:
+def generate_population(
+        start: date,
+        end: date,
+        pop: int,
+        mu: float = 0.0,
+        sigma: float = 0
+        ) -> dict:
     (start, end) = order_correctly(start, end)
     pop = max(0, pop)
     population = {}

@@ -58,7 +58,8 @@ class Employer(BaseModel):
 
     @property
     def fraction_of_year(self) -> float:
-        return float(1+(self.last_day_of_year-self.pool_inception).days) / float(self.total_days_in_year)
+        return float(1 + (self.last_day_of_year-self.pool_inception).days)  \
+            / float(self.total_days_in_year)
 
     @property
     def alcohol_percent(self) -> float:
@@ -83,7 +84,10 @@ class Employer(BaseModel):
     ########################################
 
     def initialize_periods(self, custom_period_start_dates: list[date] = []) -> None:
-        self.period_start_dates = Employer.initialize_period_start_dates(self.pool_inception, self.schedule)
+        self.period_start_dates = Employer.initialize_period_start_dates(
+            self.pool_inception,
+            self.schedule
+            )
 
     def initialize(self, population: dict, custom_period_start_dates: list = []) -> None:
         self._population = population
@@ -160,7 +164,12 @@ class Employer(BaseModel):
     def get_data_to_persist(self) -> tuple:
         return (self._dr.data_to_persist(), self._al.data_to_persist())
 
-    def load_persisted_data_and_do_period_calculations(self, period_index: int, dr_tmp_json: str, al_tmp_json: str) -> int:
+    def load_persisted_data_and_do_period_calculations(
+            self,
+            period_index: int,
+            dr_tmp_json: str,
+            al_tmp_json: str
+            ) -> int:
         (start_date, end_date) = self.period_start_end(period_index)
         period_donor_list = self.fetch_donor_queryset_by_interval(start_date, end_date)
 
@@ -357,7 +366,11 @@ class Employer(BaseModel):
         return s
 
     @staticmethod
-    def set_period_start_dates_by_month_list(pool_inception: date, month_list: list[int], bi: bool = False) -> list[date]:
+    def set_period_start_dates_by_month_list(
+            pool_inception: date,
+            month_list: list[int],
+            bi: bool = False
+            ) -> list[date]:
         period_start_dates = [pool_inception]
         year = pool_inception.year
         for m in month_list:
@@ -372,24 +385,34 @@ class Employer(BaseModel):
         return period_start_dates
 
     @staticmethod
-    def initialize_period_start_dates(pool_inception: date, schedule: Schedule, custom_period_start_dates: list[date] = []) -> list[date]:
+    def initialize_period_start_dates(
+            pool_inception: date,
+            schedule: Schedule,
+            custom_period_start_dates: list[date] = []
+            ) -> list[date]:
         if schedule == Schedule.SEMIMONTHLY:
-            return Employer.set_period_start_dates_by_month_list(pool_inception, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], True)
+            return Employer.set_period_start_dates_by_month_list(
+                pool_inception, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], True)
 
         if schedule == Schedule.MONTHLY:
-            return Employer.set_period_start_dates_by_month_list(pool_inception, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+            return Employer.set_period_start_dates_by_month_list(
+                pool_inception, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
 
         if schedule == Schedule.BIMONTHLY:
-            return Employer.set_period_start_dates_by_month_list(pool_inception, [1, 3, 5, 7, 9, 11])
+            return Employer.set_period_start_dates_by_month_list(
+                pool_inception, [1, 3, 5, 7, 9, 11])
 
         if schedule == Schedule.QUARTERLY:
-            return Employer.set_period_start_dates_by_month_list(pool_inception, [1, 4, 7, 10])
+            return Employer.set_period_start_dates_by_month_list(
+                pool_inception, [1, 4, 7, 10])
 
         if schedule == Schedule.SEMIANNUALLY:
-            return Employer.set_period_start_dates_by_month_list(pool_inception, [1, 7])
+            return Employer.set_period_start_dates_by_month_list(
+                pool_inception, [1, 7])
 
         if schedule == Schedule.ANNUALLY:
-            return Employer.set_period_start_dates_by_month_list(pool_inception, [1])
+            return Employer.set_period_start_dates_by_month_list(
+                pool_inception, [1])
 
         period_start_dates = [pool_inception]
         for d in sorted(custom_period_start_dates):

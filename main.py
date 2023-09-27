@@ -47,14 +47,50 @@ def get_args() -> argparse.Namespace:
     #                     help='sum the integers (default: find the max)')
     # args = parser.parse_args()
     # print(args.accumulate(args.integers))
-    parser = argparse.ArgumentParser(description='Arguments: file_to_load, vp_format, output_directory')
-    parser.add_argument('--file', type=str, help='data file to load')
-    parser.add_argument('--dir', type=str, help='output directory', default='test_run')
-    parser.add_argument('--sch', type=str, help='the testing schedule (MONTHLY, QUARTERLY, etc.)', default='quarterly')
-    parser.add_argument('--vp', type=bool, help='Whether this comes from VP or from this program', default=True)
-    parser.add_argument('--iter', type=int, help='number of random iterations', default=4)
-    parser.add_argument('--mu', type=float, help='mu value of gaussian', default=0.01)
-    parser.add_argument('--sig', type=float, help='sigma value of gaussian', default=2.0)
+    parser = argparse.ArgumentParser(
+        description='Arguments: file_to_load, vp_format, output_directory'
+        )
+    parser.add_argument(
+        '--file',
+        type=str,
+        help='data file to load'
+        )
+    parser.add_argument(
+        '--dir',
+        type=str,
+        help='output directory',
+        default='test_run'
+        )
+    parser.add_argument(
+        '--sch',
+        type=str,
+        help='the testing schedule (MONTHLY, QUARTERLY, etc.)',
+        default='quarterly'
+        )
+    parser.add_argument(
+        '--vp',
+        type=bool,
+        help='Whether this comes from VP or from this program',
+        default=True
+        )
+    parser.add_argument(
+        '--iter',
+        type=int,
+        help='number of random iterations',
+        default=4
+        )
+    parser.add_argument(
+        '--mu',
+        type=float,
+        help='mu value of gaussian',
+        default=0.01
+        )
+    parser.add_argument(
+        '--sig',
+        type=float,
+        help='sigma value of gaussian',
+        default=2.0
+        )
     args = parser.parse_args()
     return args
 
@@ -71,7 +107,15 @@ def main() -> int:
         base_name = os.path.splitext(split_filepath[-1])[0]
 
         population = population_dict_from_file(filename, vp_format)
-        data_persist = DataPersist(schedule, population, base_dir, sub_dir, base_name, input_data_file, vp_format)
+        data_persist = DataPersist(
+            schedule,
+            population,
+            base_dir,
+            sub_dir,
+            base_name,
+            input_data_file,
+            vp_format
+            )
         return data_persist.run_like_veriport_would()
 
     i = 0
@@ -81,7 +125,15 @@ def main() -> int:
 
         base_name = f'run_{i}'
         population = population_dict_from_rand(args.mu, args.sig)
-        data_persist = DataPersist(schedule, population, base_dir, sub_dir, base_name, input_data_file, vp_format)
+        data_persist = DataPersist(
+            schedule,
+            population,
+            base_dir,
+            sub_dir,
+            base_name,
+            input_data_file,
+            vp_format
+            )
         err = data_persist.run_like_veriport_would()
 
         if err not in errors:
@@ -90,7 +142,9 @@ def main() -> int:
         i += 1
 
     for e in sorted(errors):
-        print(f'level {e} errors: hit {len(errors[e])} errors out of {num_tests}: Runs: {errors[e]}')
+        print(
+            f'level {e} errors: hit {len(errors[e])} errors out of {num_tests}: Runs: {errors[e]}'
+            )
 
     return 0
 
