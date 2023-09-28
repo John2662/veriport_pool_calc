@@ -33,11 +33,15 @@ class Employer(BaseModel):
     sub_a: str
 
     @property
-    def start_count(self):
+    def periods_processed(self) -> int:
+        return min(self._dr.periods_processed, self._al.periods_procesded)
+
+    @property
+    def start_count(self) -> int:
         return self.donor_count_on(self.pool_inception)
 
     @property
-    def year(self):
+    def year(self) -> int:
         return self.pool_inception.year
 
     @property
@@ -79,6 +83,13 @@ class Employer(BaseModel):
             return self.last_day_of_year
         return (self.period_start_dates[period_index+1]-timedelta(days=1))
 
+    # def preload_estimates(self, est: list[int], drug) -> None:
+    #     if drug:
+    #         self._dr.preload_estimates(est)
+    #     else:
+    #         self._al.preload_estimates(est)
+
+
     ########################################
     #    VARIOUS INITIALIZATION METHODS    #
     ########################################
@@ -118,7 +129,7 @@ class Employer(BaseModel):
         population = self.get_population_report(start, end)
         for d in population:
             if population[d] < 0:
-                print(f'On {str(d)} population is {population[d]} < 0')
+                # print(f'On {str(d)} population is {population[d]} < 0')
                 return False
         return True
 
@@ -156,7 +167,10 @@ class Employer(BaseModel):
             # if we are making the calculation on the last day of the previous period,
             # we don't have the actual count for the first day of this period, so this
             # is the best we can do:
-            period_start_count = self.donor_count_on(start_date-timedelta(days=1))
+            if start_date in self._population:
+                period_start_count = self.donor_count_on(start_date)
+            else:
+                period_start_count = self.donor_count_on(start_date-timedelta(days=1))
 
         self._al.make_apriori_predictions(period_start_count, start_date, end_date, self.total_days_in_year)
         self._dr.make_apriori_predictions(period_start_count, start_date, end_date, self.total_days_in_year)
@@ -174,11 +188,11 @@ class Employer(BaseModel):
         period_donor_list = self.fetch_donor_queryset_by_interval(start_date, end_date)
 
         if not check_substance_json_valid(dr_tmp_json):
-            print(f'ERROR: drug json {dr_tmp_json} is invalid')
+            print(f'ERROR: drug json {dr_tmp_json=} is invalid')
         else:
             self._dr = Substance.model_validate_json(dr_tmp_json)
         if not check_substance_json_valid(al_tmp_json):
-            print(f'ERROR: alcohol json {al_tmp_json} is invalid')
+            print(f'ERROR: alcohol json {al_tmp_json=} is invalid')
         else:
             self._al = Substance.model_validate_json(al_tmp_json)
 
