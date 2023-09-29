@@ -33,10 +33,6 @@ class Employer(BaseModel):
     sub_a: str
 
     @property
-    def periods_processed(self) -> int:
-        return min(self._dr.periods_processed, self._al.periods_procesded)
-
-    @property
     def start_count(self) -> int:
         return self.donor_count_on(self.pool_inception)
 
@@ -82,13 +78,6 @@ class Employer(BaseModel):
         if period_index == len(self.period_start_dates)-1:
             return self.last_day_of_year
         return (self.period_start_dates[period_index+1]-timedelta(days=1))
-
-    # def preload_estimates(self, est: list[int], drug) -> None:
-    #     if drug:
-    #         self._dr.preload_estimates(est)
-    #     else:
-    #         self._al.preload_estimates(est)
-
 
     ########################################
     #    VARIOUS INITIALIZATION METHODS    #
@@ -188,11 +177,11 @@ class Employer(BaseModel):
         period_donor_list = self.fetch_donor_queryset_by_interval(start_date, end_date)
 
         if not check_substance_json_valid(dr_tmp_json):
-            print(f'ERROR: drug json {dr_tmp_json=} is invalid')
+            print(f'ERROR: drug json {dr_tmp_json} is invalid')
         else:
             self._dr = Substance.model_validate_json(dr_tmp_json)
         if not check_substance_json_valid(al_tmp_json):
-            print(f'ERROR: alcohol json {al_tmp_json=} is invalid')
+            print(f'ERROR: alcohol json {al_tmp_json} is invalid')
         else:
             self._al = Substance.model_validate_json(al_tmp_json)
 

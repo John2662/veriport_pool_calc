@@ -43,18 +43,6 @@ class Calculator:
         self.employer = Employer(**employer_json)
         self.employer.initialize(population)
 
-    @property
-    def periods_processed(self) -> int:
-        return self.employer.periods_processed
-
-    def run_forward_to(self, period_index: int) -> tuple:
-        (curr_dr_json, curr_al_json) = self.employer.get_data_to_persist()
-        curr_period = self.periods_processed
-        while curr_period < period_index:
-            (curr_dr_json, curr_al_json, s, h) = self.process_period(curr_period, curr_dr_json, curr_al_json)
-            curr_period = self.periods_processed
-        return (curr_dr_json, curr_al_json)
-
     def period_end_calculations(self, period_index: int, dr_json: str, al_json: str) -> int:
         return self.employer.load_persisted_data_and_do_period_calculations(
             period_index,
@@ -86,7 +74,7 @@ class Calculator:
             curr_dr_json: str = '',
             curr_al_json: str = ''
             ) -> tuple:
-        # print(f'\n\nIn process_period: {period_index=} \n {curr_dr_json=}\n')
+        print(f'\n\nIn process_period: {period_index=} \n {curr_dr_json=}\n')
         score = 0
         html = None
         (dr_json, al_json) = (curr_dr_json, curr_al_json)
@@ -100,13 +88,13 @@ class Calculator:
             self.employer.make_estimates(period_index)
 
         (dr_json, al_json) = self.employer.get_data_to_persist()
-        # print(f'leave process_period: {period_index=} \n {dr_json=}\n')
+        print(f'leave process_period: {period_index=} \n {dr_json=}\n')
         return (dr_json, al_json, score, html)
 
     def get_requirements(self, period_index: int, drug: bool) -> int:
         if drug:
-            return self.employer._dr.get_tests_predicted(period_index)
-        return self.employer._al.get_tests_predicted(period_index)
+            return self.employer._dr.required_tests_predicted[period_index]
+        return self.employer._al.required_tests_predicted[period_index]
 
     def get_debug_all_info(self, drugs=True):
         if drugs:
@@ -121,8 +109,8 @@ class Calculator:
         import json
         return json.loads(self.employer._al.data_to_persist())
 
-    def preload_estimates(self, est: list[int], drug) -> None:
-        self.employer.preload_estimates(est, drug)
+    def get_data_to_persist(self) -> tuple:
+        return self.employer.get_data_to_persist()
 
 def get_calculator_instance(
         schedule: Schedule,

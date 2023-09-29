@@ -37,8 +37,7 @@ class Substance(BaseModel):
     percent: float
 
     # The ints are the values that are prescribed each period
-    requird_tests_predicted: Optional[list[int]]
-    preloaded: Optional[list[int]]
+    required_tests_predicted: Optional[list[int]]
 
     # After the fact we can get the actual required number of tests:
     aposteriori_truth: Optional[list[float]]
@@ -50,40 +49,29 @@ class Substance(BaseModel):
 
     def __str__(self) -> str:
         s = f'{self.name=} and {self.percent=}\n'
-        s += 'PRED:' + str(self.requird_tests_predicted) + '\n'
+        s += 'PRED:' + str(self.required_tests_predicted) + '\n'
         s += 'TRUE:' + str(self.aposteriori_truth) + '\n'
         s += 'ERROR:' + str(self.overcount_error) + '\n'
         return s
 
     #  If we want to increase the periods and rerun, we can do this first
     # def clear_data(self):
-    #     self.requird_tests_predicted = []
+    #     self.required_tests_predicted = []
     #     self.aposteriori_truth = []
     #     self.overcount_error = []
-
-    @property
-    def periods_processed(self) -> int:
-        return len(self.aposteriori_truth)
 
     @property
     def actual_num_tests_required(self) -> int:
         val = sum(self.aposteriori_truth)
         return ceil(discretize_float(val))
 
-    @property
-    def c_required_tests_predicted(self) -> list[int]:
-        c_required = []
-        for i in range(len(self.requird_tests_predicted)):
-            c_required.append(self.get_tests_predicted(i))
-        return c_required
-
     # Used by employer to decide if the test needs to be reported
     def final_overcount(self) -> int:
-        return sum(self.c_required_tests_predicted) - self.actual_num_tests_required
+        return sum(self.required_tests_predicted) - self.actual_num_tests_required
 
     @property
     def num_periods_approximated(self) -> int:
-        return len(self.requird_tests_predicted)
+        return len(self.required_tests_predicted)
 
     @property
     def num_periods_calculated(self) -> int:
@@ -97,17 +85,6 @@ class Substance(BaseModel):
         truth = sum(self.aposteriori_truth[:sum_boundary])
         return estim - ceil(discretize_float(truth))
 
-    @property
-    def has_preloaded(self):
-        #return hasattr(self, '_preloaded')
-        return len(self.preloaded) > 0
-
-    def preload_estimates(self, pre_calculated: list[int]) -> None:
-        # print(f'preloading for {self.name}: {pre_calculated=}')
-        self.preloaded = []
-        for i in pre_calculated:
-            self.preloaded.append(i)
-
     # passing a period index -1 just gets the last one on the array
     def get_tests_predicted(self, period_index: int)-> int:
         # print(f'In get_tests_predicted with {period_index=}')
@@ -117,12 +94,9 @@ class Substance(BaseModel):
             period_index = len(self.requird_tests_predicted)-1
 
         if period_index < 0 or period_index >= len(self.requird_tests_predicted):
-            exit(0)
+            return -1000000
 
-        if self.has_preloaded and period_index < len(self.preloaded):
-            return self.preloaded[period_index]
-        else:
-            return self.requird_tests_predicted[period_index]
+        return self.required_tests_predicted[period_index]
 
     @property
     def previous_cummulative_overcount_error(self) -> float:
@@ -146,13 +120,8 @@ class Substance(BaseModel):
             ) -> None:
 
         if len(self.debug_all_data) == 0:
-            if self.has_preloaded:
-                self.debug_all_data.append(
-                    'start,end,substance,percent,s_count,days_in_period,days_in_year,initial_guess,account_for,predicted,avg_pop,truth,oc,cum_oc, summed truth - round up', 'preloaded')
-            else:
-                self.debug_all_data.append(
-                    'start,end,substance,percent,s_count,days_in_period,days_in_year,initial_guess,account_for,predicted,avg_pop,truth,oc,cum_oc, summed truth - round up')
-
+            self.debug_all_data.append(
+                'start,end,substance,percent,s_count,days_in_period,days_in_year,initial_guess,account_for,predicted,avg_pop,truth,oc,cum_oc, summed truth - round up')
 
         num_days = (end-start).days + 1
         # best guess at average population divided by # days in the year times percent
@@ -168,29 +137,20 @@ class Substance(BaseModel):
         predicted_tests = self.random_correct_zero_tests(
             ceil(discretize_float(apriori_estimate - account_for))
             )
+        self.required_tests_predicted.append(predicted_tests)
 
-        if self.has_preloaded:
-            curr_period = len(self.requird_tests_predicted)
-            preloaded_val = self.preloaded[curr_period] if curr_period < len(self.preloaded) else -10000
-            self.debug_all_data.append(
-                f'{str(start)},{str(end)},{self.name},{self.percent},{initial_donor_count},{num_days},{days_in_year},{apriori_estimate}, {account_for}, {predicted_tests}, {preloaded_val}')
-        else:
-            self.debug_all_data.append(
-                f'{str(start)},{str(end)},{self.name},{self.percent},{initial_donor_count},{num_days},{days_in_year},{apriori_estimate}, {account_for}, {predicted_tests}')
-
-        #print(f'{self.requird_tests_predicted=}')
-        self.requird_tests_predicted.append(predicted_tests)
-        #print(f'{self.requird_tests_predicted=}')
+        self.debug_all_data.append(
+            f'{str(start)},{str(end)},{self.name},{self.percent},{initial_donor_count},{num_days},{days_in_year},{apriori_estimate}, {account_for}, {predicted_tests}')
 
     def determine_aposteriori_truth(self, donor_count_list: list, days_in_year: int) -> None:
         # true average population divided by # days in the year times percent
         avg_pop = float(sum(donor_count_list))/float(days_in_year)
         truth = avg_pop * self.percent
         self.aposteriori_truth.append(truth)
-        summed_truth = ceil((sum(self.aposteriori_truth)))
+        summed_truth = ceil((sum(self.aposteriori_truth)))  # TODO: check if this needs descrtize float
 
         # keep track of anything we missed through the estimate
-        oc_error = float(self.get_tests_predicted(-1)) - truth
+        oc_error = float(self.required_tests_predicted[-1]) - truth
         self.overcount_error.append(oc_error)
 
         # At the end of the first period, this is ceil(estimate) - truth
@@ -224,10 +184,10 @@ class Substance(BaseModel):
         apriori_predicted_tests = offset + 'cum. tests prescribed,'
         difference = offset + 'prescribed test over-count:,'
 
-        num_periods = len(self.requird_tests_predicted)
+        num_periods = len(self.required_tests_predicted)
         for p in range(num_periods):
             header += f'Period {p},'
-            required_tests_predicted += f'{self.get_tests_predicted(p)},'
+            required_tests_predicted += f'{self.required_tests_predicted[p]},'
             aposteriori_truth += f'{self.aposteriori_truth[p]},'
             overcount_error += f'{self.overcount_error[p]},' + (', ***%' if p == len(initial_pop)-1 else '')
 
@@ -244,7 +204,7 @@ class Substance(BaseModel):
         string += apriori_predicted_tests + '\n'
         string += difference + '\n\n'
 
-        string += offset + 'PRESCRIBED:,' + str(sum(self.c_required_tests_predicted)) + '\n'
+        string += offset + 'PRESCRIBED:,' + str(sum(self.required_tests_predicted)) + '\n'
         string += offset + 'NEEDED:,' + str(self.actual_num_tests_required) + '\n'
         return string + '\n'
 
@@ -261,7 +221,7 @@ class Substance(BaseModel):
         return ceil(discretize_float(required_sum))
 
     def predicted_sum_by_period(self, period_index: int) -> int:
-        return sum([self.c_required_tests_predicted[i] for i in range(period_index+1)])
+        return sum([self.required_tests_predicted[i] for i in range(period_index+1)])
 
     def overcount_by_period(self, period_index: int) -> int:
         return self.predicted_sum_by_period(period_index) - \
@@ -284,8 +244,8 @@ class Substance(BaseModel):
         s = f'\n{self.name.upper()} SUMMARY:\n'
         r_req = Substance.format_float(sum(self.aposteriori_truth))
         required = '[' + Substance.format_to_csv(self.aposteriori_truth) + '] summed -> ' + f'{r_req}'
-        r_req = Substance.format_float(sum(self.c_required_tests_predicted))
-        prescribed = '[' + Substance.format_to_csv(self.c_required_tests_predicted) + '] summed -> ' + f'{r_req}'
+        r_req = Substance.format_float(sum(self.required_tests_predicted))
+        prescribed = '[' + Substance.format_to_csv(self.required_tests_predicted) + '] summed -> ' + f'{r_req}'
         r_req = Substance.format_float(sum(self.overcount_error))
         error = '[' + Substance.format_to_csv(self.overcount_error) + '] summed -> ' + f'{r_req}'
 
@@ -313,7 +273,7 @@ class Substance(BaseModel):
         return s
 
     def html_total_row(self) -> list[str]:
-        r_pre = sum(self.c_required_tests_predicted)
+        r_pre = sum(self.required_tests_predicted)
         r_tru = Substance.format_float(sum(self.aposteriori_truth))
         r_err = Substance.format_float(sum(self.overcount_error))
 
@@ -335,7 +295,7 @@ class Substance(BaseModel):
             return f'  TOTAL OVERCOUNT: {final_error} </br> <h6> Overcount due to shrinking pool size </h6></br>\n'
 
     def html_period_row(self, p: int) -> list[str]:
-        r_pre = self.get_tests_predicted(p)
+        r_pre = self.required_tests_predicted[p]
         r_tru = Substance.format_float(self.aposteriori_truth[p])
         r_err = Substance.format_float(self.overcount_error[p])
 
@@ -371,7 +331,7 @@ class Substance(BaseModel):
         for line in row_lines:
             s.append(line)
 
-        tot_pred = sum(self.c_required_tests_predicted)
+        tot_pred = sum(self.required_tests_predicted)
         tot_req = ceil(discretize_float(sum(self.aposteriori_truth)))
 
         s.append('      </tbody>\n')
@@ -389,9 +349,8 @@ def generate_substance(json_str: str) -> Substance:
     d_dict = json.loads(json_str)
     d_dict['percent'] = float(d_dict['percent'])
     d_dict['aposteriori_truth'] = []
-    d_dict['requird_tests_predicted'] = []
+    d_dict['required_tests_predicted'] = []
     d_dict['overcount_error'] = []
-    d_dict['preloaded'] = []
     d_dict['disallow_zero_chance'] = int(d_dict['disallow_zero_chance'])
     d_dict['debug_all_data'] = []
     return Substance(**d_dict)
