@@ -142,9 +142,10 @@ class Substance(BaseModel):
         self.debug_all_data.append(
             f'{str(start)},{str(end)},{self.name},{self.percent},{initial_donor_count},{num_days},{days_in_year},{apriori_estimate}, {account_for}, {predicted_tests}')
 
-    def determine_aposteriori_truth(self, donor_count_list: list, days_in_year: int) -> None:
+    #def determine_aposteriori_truth(self, donor_count_list: list, days_in_year: int) -> None:
+    def determine_aposteriori_truth(self, avg_pop: float) -> None:
         # true average population divided by # days in the year times percent
-        avg_pop = float(sum(donor_count_list))/float(days_in_year)
+        # avg_pop = float(sum(donor_count_list))/float(days_in_year)
         truth = avg_pop * self.percent
         self.aposteriori_truth.append(truth)
         summed_truth = ceil((sum(self.aposteriori_truth)))  # TODO: check if this needs descrtize float
@@ -160,6 +161,22 @@ class Substance(BaseModel):
 
     def data_to_persist(self) -> str:
         return self.model_dump_json()
+
+    def intermediate_checkup(self, avg_pop:float, undercount_only: bool, correct_error: bool) -> int:
+        truth = avg_pop * self.percent
+        print(f'{self.name} -> {self.required_tests_predicted=}')
+        oc_error = float(self.required_tests_predicted[-1]) - truth
+
+        # If we are interested in undercount only (what the DOT cares about)
+        # and there is an overcount, we can return 0
+        if undercount_only and oc_error >= 0:
+            return 0
+
+        # If we want to correct errors, we need to do something here....
+        if correct_error:
+            pass
+
+        return oc_error
 
     ##############################
     #    GENERATE A CSV STRING   #

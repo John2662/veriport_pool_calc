@@ -9,7 +9,7 @@ from typing import Optional
 from math import ceil
 import calendar
 
-RUN_FROM_VERIPORT = True
+RUN_FROM_VERIPORT = False
 
 if RUN_FROM_VERIPORT:
     from .substance import generate_substance
@@ -167,13 +167,13 @@ class Employer(BaseModel):
     def get_data_to_persist(self) -> tuple:
         return (self._dr.data_to_persist(), self._al.data_to_persist())
 
-    def load_persisted_data_and_do_period_calculations(
+    def load_persisted_data_return_avg_pop(
             self,
-            period_index: int,
+            start_date: date,
+            end_date: date,
             dr_tmp_json: str,
             al_tmp_json: str
             ) -> int:
-        (start_date, end_date) = self.period_start_end(period_index)
         period_donor_list = self.fetch_donor_queryset_by_interval(start_date, end_date)
 
         if not check_substance_json_valid(dr_tmp_json):
@@ -184,10 +184,74 @@ class Employer(BaseModel):
             print(f'ERROR: alcohol json {al_tmp_json} is invalid')
         else:
             self._al = Substance.model_validate_json(al_tmp_json)
+        return Employer.average_population_over_period(period_donor_list, self.total_days_in_year)
 
-        self._al.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
-        self._dr.determine_aposteriori_truth(period_donor_list, self.total_days_in_year)
+
+
+
+    def load_persisted_data_and_do_period_calculations(
+            self,
+            period_index: int,
+            dr_tmp_json: str,
+            al_tmp_json: str
+            ) -> int:
+        (start_date, end_date) = self.period_start_end(period_index)
+        avg_pop = self.load_persisted_data_return_avg_pop(start_date, end_date, dr_tmp_json, al_tmp_json)
+        self._al.determine_aposteriori_truth(avg_pop)
+        self._dr.determine_aposteriori_truth(avg_pop)
         return abs(self._dr.final_overcount()) + abs(self._al.final_overcount())
+
+    @staticmethod
+    def average_population_over_period(donor_list: list, divisor: float = None):
+        if divisor is None or abs(divisor) < 0.00000001:
+            divisor = float(len(donor_list))
+        return float(sum(donor_list)) / divisor
+
+    @staticmethod
+    def trim_to_bounds(pop_dict: dict, start: date, end:date) -> dict:
+        trimmed = {}
+        for d in pop_dict:
+            if d < start or d > end:
+                continue
+            trimmed[d] = pop_dict[d]
+        return trimmed
+
+    def intermediate_checkup(
+            self,
+            period_index: int,
+            pool_update: list[int],
+            undercount_only: bool,
+            correct_error: bool
+            ) -> tuple:
+
+        '''This function will take a partial period and return the (dr, al) tuple
+        telling if we are seeing an undercount/overcount starting to unfold
+        If we want to correct the error, it will adjust the guess for the start of
+        the period so we are back on track. If we want undercount only, then it
+        will not notify of overcounts, just undercounts'''
+        if period_index < 0 or period_index >= self.num_periods:
+            print(f'ERROR: {period_index=} is out of bounds')
+            return (0,0)
+
+        # start_date = self.period_start_dates[period_index]
+        # end_date = self.period_end_date(period_index)
+        # trimmed_pool_update = Employer.trim_to_bounds(pool_update, start_date, end_date)
+        # if start_date not in trimmed_pool_update:
+        #     print(f'ERROR: passed an invalid {pool_update=} which doe not include {start_date=} for {period_index=}')
+        #     return (0,0)
+
+        print(f'In intermediate_checkup {period_index=}')
+        print(f'{pool_update=}')
+        print(f'{len(pool_update)=}')
+        avg_pop = Employer.average_population_over_period(pool_update, self.total_days_in_year)
+        print(f'{avg_pop=}')
+        print(f'\n{self._dr=}')
+        print(f'\n{self._al=}')
+
+        return (
+            self._dr.intermediate_checkup(avg_pop, undercount_only, correct_error),
+            self._al.intermediate_checkup(avg_pop, undercount_only, correct_error)
+        )
 
     ##############################
     #    GENERATE A CSV STRING   #

@@ -4,8 +4,8 @@
 # Written by John Read <john.read@colibri-software.com>, September 2023
 
 
-from datetime import date
-RUN_FROM_VERIPORT = True
+from datetime import date, timedelta
+RUN_FROM_VERIPORT = False
 
 if RUN_FROM_VERIPORT:
     from .employer import Employer
@@ -74,10 +74,28 @@ class Calculator:
             curr_dr_json: str = '',
             curr_al_json: str = ''
             ) -> tuple:
-        print(f'\n\nIn process_period: {period_index=} \n {curr_dr_json=}\n')
+        # print(f'\n\nIn process_period: {period_index=} \n {curr_dr_json=}\n')
         score = 0
         html = None
         (dr_json, al_json) = (curr_dr_json, curr_al_json)
+
+        # if this is the final period, we'll test the intermediate check proceedure
+        # if period_index == self.employer.num_periods:
+        if period_index > 0:
+            back_off_from_end = 88
+            start_date = self.employer.period_start_dates[period_index-1]
+            end_date = self.employer.period_end_date(period_index-1) - timedelta(back_off_from_end)
+            pool_update = self.employer.fetch_donor_queryset_by_interval(start_date, end_date)
+            final_count = pool_update[-1]
+            for i in range(back_off_from_end):
+                pool_update.append(final_count)
+            avg_pop = self.employer.load_persisted_data_return_avg_pop(start_date, end_date, curr_dr_json, curr_al_json)
+            (dr_interim, al_interim) = self.intermediate_checkup(period_index-1, pool_update, False, False)
+            print(f'\nOn {end_date} in {period_index=}:')
+            print(f'   Drug overcount: {dr_interim}:')
+            print(f'   Alco overcount: {al_interim}:')
+
+
 
         if period_index > 0:
             score = self.period_end_calculations(period_index-1, dr_json, al_json)
@@ -88,7 +106,7 @@ class Calculator:
             self.employer.make_estimates(period_index)
 
         (dr_json, al_json) = self.employer.get_data_to_persist()
-        print(f'leave process_period: {period_index=} \n {dr_json=}\n')
+        # print(f'leave process_period: {period_index=} \n {dr_json=}\n')
         return (dr_json, al_json, score, html)
 
     def get_requirements(self, period_index: int, drug: bool) -> int:
@@ -111,6 +129,15 @@ class Calculator:
 
     def get_data_to_persist(self) -> tuple:
         return self.employer.get_data_to_persist()
+
+    def intermediate_checkup(
+            self,
+            period_index: int,
+            pool_update: list[int],
+            undercount_only: bool,
+            correct_error: bool
+            ) -> tuple:
+        return self.employer.intermediate_checkup(period_index, pool_update, undercount_only, correct_error)
 
 def get_calculator_instance(
         schedule: Schedule,
