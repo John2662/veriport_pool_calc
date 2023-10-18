@@ -43,15 +43,16 @@ def get_period_starts(inception: date, monthly: bool) -> list[date]:
     if monthly:
         for month in range(12):
             p_start = date(year=year, month=month+1, day=1)
-            if p_start < inception:
+            if p_start <= inception:
                 continue
             period_start_list.append(p_start)
     else:
         for quarter in range(4):
             p_start = date(year=year, month=(quarter*3)+1, day=1)
-            if p_start < inception:
+            if p_start <= inception:
                 continue
             period_start_list.append(p_start)
+    print(period_start_list)
     return period_start_list
 
 def get_period_ends(period_starts: list[date]) -> list[date]:
@@ -73,6 +74,7 @@ class substance:
         self.predicted_tests = []
         self.truth = []
         self.overcount_error = []
+        self.reconciliation = 0.0
 
     @property
     def previous_cummulative_overcount_error(self) -> float:
@@ -90,21 +92,39 @@ class substance:
         oc_error = float(self.predicted_tests[-1]) - truth
         self.overcount_error.append(oc_error)
 
-    def print_report(self, weighted_final_average_pop):
+    def reconcile_with_current_data(self, weighted_avg_pop_recon):
         from math import ceil
-        print(f'\n{self.name.upper()}')
+        best_current_truth = ceil(discretize_float(weighted_avg_pop_recon * self.frac))
+        last_predicted = self.predicted_tests[-1]
+        if best_current_truth > last_predicted:
+            self.reconciliation = best_current_truth - last_predicted
+
+    @property
+    def total_tests_predicted(self):
+        return sum(self.predicted_tests)+self.reconciliation
+
+    def print_report(self, weighted_final_average_pop) -> int:
+        from math import ceil
+        print('\n################################')
+        print(f'######## {self.name.upper()}  #######')
+        print('################################')
         print(f'percent required: {100.0*self.frac}%')
         for i in range(len(self.predicted_tests)):
             print(f'{i+1} -> {self.predicted_tests[i]}, {self.truth[i]}, {self.overcount_error[i]}')
 
-        print(f'num tests predicted: {sum(self.predicted_tests)}')
-        print(f'num tests reqiured: {sum(self.truth)}')
         print(f'Overcount: {self.previous_cummulative_overcount_error}')
+        print(f'num tests reqiured: {sum(self.truth)}')
+        print(f'num tests predicted: {sum(self.predicted_tests)}')
+        print(f'reconciliation: {self.reconciliation}')
+
+        print(f'\nTotal tests predicted: {self.total_tests_predicted}')
 
         final_float = weighted_final_average_pop*self.frac
         final_ceil = ceil(discretize_float(final_float))
         print(f'\nTrue number of tests required: {final_float}')
-        print(f'True number of tests required: {final_ceil}')
+        print(f'Ceilinged numb tests required: {final_ceil}')
+
+        return final_ceil - self.total_tests_predicted
 
 
 class processor:
@@ -121,6 +141,10 @@ class processor:
             for k in s:
                 sub = substance(k, s[k])
                 self.substances.append(sub)
+
+    @property
+    def year(self) -> int:
+        return self.inception.year
 
     @property
     def days_in_year(self):
@@ -172,6 +196,18 @@ class processor:
     def period_frac_of_year(self, period_index: int) -> float:
         return float(self.num_days(period_index)) / float(self.days_in_year)
 
+    def recon_avg_pop(self, s: date, r:date, e:date) -> float:
+        day_count = 0
+        pop = 0
+        while s <= e:
+            pop += self.pop[min(s, r)]
+            day_count += 1
+            s += timedelta(days=1)
+        return float(pop)/float(day_count)
+
+    def recon_frac_of_year(self, s: date, e:date) -> float:
+        return float((e-s).days + 1) / float(self.days_in_year)
+
     def print_period_stats(self):
         print('period stats:')
         for i in range(self.num_periods):
@@ -188,16 +224,29 @@ class processor:
 
     def process_population(self):
         self.print_period_stats()
+        reconcile_date = date(year=self.year, month=12, day=1)
         for i in range(self.num_periods):
             weighted_start_pop = self.period_frac_of_year(i)*self.s_pop(i)
             weighted_avera_pop = self.period_frac_of_year(i)*self.avg_pop(i)
+            final_period = i == self.num_periods-1 and not self.monthly
+
             for s in self.substances:
                 s.make_prediction(weighted_start_pop)
+                if final_period:
+                    weighted_avg_pop_recon = self.period_frac_of_year(i) * \
+                        self.recon_avg_pop(self.s_date(i), reconcile_date, self.e_date(i))
+                    s.reconcile_with_current_data(weighted_avg_pop_recon)
                 s.correct_with_true_average(weighted_avera_pop)
 
         weighted_final_average_pop = self.final_frac_of_year * self.final_avg_pop
         for s in self.substances:
-            s.print_report(weighted_final_average_pop)
+            count_error = s.print_report(weighted_final_average_pop)
+            if count_error != 0:
+                print(f'Over Error: {count_error}:')
+                for p in self.pop:
+                    if p <= reconcile_date:
+                        continue
+                    print(f'{p} -> {self.pop[p]}')
 
 
 
