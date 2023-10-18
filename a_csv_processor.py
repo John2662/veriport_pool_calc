@@ -71,60 +71,74 @@ class substance:
         self.name = name
         self.frac = float(frac)
 
-        self.predicted_tests = []
-        self.truth = []
-        self.overcount_error = []
-        self.reconciliation = 0.0
+        self.predicted_tests_rolling = []
+        self.truth_rolling = []
+        self.overcount_error_rolling = []
+        self.reconciliation_rolling = 0.0
+
+        self.predicted_tests_faa = []
+        self.truth_faa = []
+        self.overcount_error_faa = []
+        self.reconciliation_faa = 0.0
+
 
     @property
-    def previous_cummulative_overcount_error(self) -> float:
-        return sum(self.overcount_error) if len(self.overcount_error) > 0 else 0.0
+    def previous_cummulative_overcount_error_rolling(self) -> float:
+        return sum(self.overcount_error_rolling) if len(self.overcount_error_rolling) > 0 else 0.0
 
-    def make_prediction(self, weighted_start_count):
+    def make_prediction_rolling(self, weighted_start_count):
         from math import ceil
         apriori_estimate = weighted_start_count*self.frac
-        account_for = min(apriori_estimate, self.previous_cummulative_overcount_error)
-        self.predicted_tests.append(ceil(discretize_float(apriori_estimate - account_for)))
+        account_for = min(apriori_estimate, self.previous_cummulative_overcount_error_rolling)
+        self.predicted_tests_rolling.append(ceil(discretize_float(apriori_estimate - account_for)))
 
-    def correct_with_true_average(self, weighted_avg_pop):
+    def correct_with_true_average_rolling(self, weighted_avg_pop):
         truth = weighted_avg_pop * self.frac
-        self.truth.append(truth)
-        oc_error = float(self.predicted_tests[-1]) - truth
-        self.overcount_error.append(oc_error)
+        self.truth_rolling.append(truth)
+        oc_error = float(self.predicted_tests_rolling[-1]) - truth
+        self.overcount_error_rolling.append(oc_error)
 
-    def reconcile_with_current_data(self, weighted_avg_pop_recon):
+    def reconcile_with_current_data_rolling(self, weighted_avg_pop_recon):
         from math import ceil
-        best_current_truth = ceil(discretize_float(weighted_avg_pop_recon * self.frac))
-        last_predicted = self.predicted_tests[-1]
+        best_current_truth = weighted_avg_pop_recon * self.frac
+        last_predicted = self.predicted_tests_rolling[-1]
         if best_current_truth > last_predicted:
-            self.reconciliation = best_current_truth - last_predicted
+            self.reconciliation_rolling = ceil(discretize_float(best_current_truth)) - last_predicted
+            #self.reconciliation_rolling = best_current_truth - last_predicted
 
     @property
-    def total_tests_predicted(self):
-        return sum(self.predicted_tests)+self.reconciliation
+    def total_tests_predicted_rolling(self):
+        return sum(self.predicted_tests_rolling)+self.reconciliation_rolling
 
-    def print_report(self, weighted_final_average_pop) -> int:
+    def print_report_rolling(self, weighted_final_average_pop) -> int:
         from math import ceil
-        print('\n################################')
-        print(f'######## {self.name.upper()}  #######')
-        print('################################')
+        print('\n########################################')
+        print(f'################# {self.name.upper()[0:4]} #################')
+        print('########################################')
         print(f'percent required: {100.0*self.frac}%')
-        for i in range(len(self.predicted_tests)):
-            print(f'{i+1} -> {self.predicted_tests[i]}, {self.truth[i]}, {self.overcount_error[i]}')
+        for i in range(len(self.predicted_tests_rolling)):
+            print(f'{i+1} -> {self.predicted_tests_rolling[i]}, {self.truth_rolling[i]}, {self.overcount_error_rolling[i]}')
 
-        print(f'Overcount: {self.previous_cummulative_overcount_error}')
-        print(f'num tests reqiured: {sum(self.truth)}')
-        print(f'num tests predicted: {sum(self.predicted_tests)}')
-        print(f'reconciliation: {self.reconciliation}')
+        print(f'Overcount: {self.previous_cummulative_overcount_error_rolling}')
+        print(f'num tests required: {sum(self.truth_rolling)}')
+        print(f'\nnum tests predicted: {sum(self.predicted_tests_rolling)}')
+        print(f'reconciliation: {self.reconciliation_rolling}')
 
-        print(f'\nTotal tests predicted: {self.total_tests_predicted}')
+        print(f'\nTotal tests predicted: {self.total_tests_predicted_rolling}')
 
         final_float = weighted_final_average_pop*self.frac
         final_ceil = ceil(discretize_float(final_float))
-        print(f'\nTrue number of tests required: {final_float}')
-        print(f'Ceilinged numb tests required: {final_ceil}')
+        print(f'\nFractional number of tests required: {final_float}')
+        print(f'DOT        number tests required: {final_ceil}')
 
-        return final_ceil - self.total_tests_predicted
+        over_count = self.total_tests_predicted_rolling - final_ceil
+
+        if over_count > 0:
+            print(f'Unfortunate Overcount: {over_count}')
+        elif over_count < 0:
+            print(f'\n### WARNING: Undercount: {-over_count}\n')
+
+        return over_count
 
 
 class processor:
@@ -220,9 +234,7 @@ class processor:
         for sub in self.substances:
             print(f'{sub.name} -> {sub.frac}')
 
-
-
-    def process_population(self):
+    def process_population_rolling_avg(self):
         self.print_period_stats()
         reconcile_date = date(year=self.year, month=12, day=1)
         for i in range(self.num_periods):
@@ -231,16 +243,16 @@ class processor:
             final_period = i == self.num_periods-1 and not self.monthly
 
             for s in self.substances:
-                s.make_prediction(weighted_start_pop)
+                s.make_prediction_rolling(weighted_start_pop)
                 if final_period:
                     weighted_avg_pop_recon = self.period_frac_of_year(i) * \
                         self.recon_avg_pop(self.s_date(i), reconcile_date, self.e_date(i))
-                    s.reconcile_with_current_data(weighted_avg_pop_recon)
-                s.correct_with_true_average(weighted_avera_pop)
+                    s.reconcile_with_current_data_rolling(weighted_avg_pop_recon)
+                s.correct_with_true_average_rolling(weighted_avera_pop)
 
         weighted_final_average_pop = self.final_frac_of_year * self.final_avg_pop
         for s in self.substances:
-            count_error = s.print_report(weighted_final_average_pop)
+            count_error = s.print_report_rolling(weighted_final_average_pop)
             if count_error != 0:
                 print(f'Over Error: {count_error}:')
                 for p in self.pop:
@@ -248,6 +260,31 @@ class processor:
                         continue
                     print(f'{p} -> {self.pop[p]}')
 
+    def process_population_faa(self):
+        reconcile_date = date(year=self.year, month=12, day=1)
+        return 0
+'''
+        for i in range(self.num_periods):
+            weighted_start_pop = self.period_frac_of_year(i)*self.s_pop(i)
+            final_period = i == self.num_periods-1 and not self.monthly
+
+            for s in self.substances:
+                s.make_prediction_faa(weighted_start_pop)
+                if final_period:
+                    weighted_avg_pop_recon = self.period_frac_of_year(i) * \
+                        self.recon_avg_pop(self.s_date(i), reconcile_date, self.e_date(i))
+                    s.reconcile_with_current_data_faa(weighted_avg_pop_recon)
+
+        weighted_final_average_pop = self.final_frac_of_year * self.final_avg_pop
+        for s in self.substances:
+            count_error = s.print_report_faa(weighted_final_average_pop)
+            if count_error != 0:
+                print(f'Over Error: {count_error}:')
+                for p in self.pop:
+                    if p <= reconcile_date:
+                        continue
+                    print(f'{p} -> {self.pop[p]}')
+'''
 
 
 def main() -> int:
@@ -268,7 +305,8 @@ def main() -> int:
         {'alcohol': .1},
     ]
     process = processor(pop, monthly, substances)
-    process.process_population()
+    process.process_population_rolling_avg()
+    process.process_population_faa()
 
 if __name__ == "__main__":
     main()
