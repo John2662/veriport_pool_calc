@@ -316,7 +316,7 @@ class processor:
 
             for s in self.substances:
                 s.make_prediction_rolling(weighted_start_pop)
-                if final_period:
+                if final_period and reconcile_date > self.inception:
                     weighted_avg_pop_recon = self.period_frac_of_year(i) * \
                         self.recon_avg_pop(self.s_date(i), reconcile_date, self.e_date(i))
                     s.reconcile_with_current_data_rolling(weighted_avg_pop_recon)
@@ -345,11 +345,12 @@ class processor:
                     return None
 
         reconcile_date = date(year=self.year, month=12, day=1)
-        reconcile_pop = self.pop[reconcile_date]
-        for s in self.substances:
-            # if this is quaterly we need to pass in the dec 1 population
-            # and figure that into the calculations
-            s.reconcile_with_rounded_data_faa(reconcile_pop)
+        if reconcile_date > self.inception:
+            reconcile_pop = self.pop[reconcile_date]
+            for s in self.substances:
+                # if this is quaterly we need to pass in the dec 1 population
+                # and figure that into the calculations
+                s.reconcile_with_rounded_data_faa(reconcile_pop)
 
         print('\n$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
         print('$$$$$$$$$$$$$$$ FAA $$$$$$$$$$$$$$$$$$$$$$$$$')
@@ -376,7 +377,7 @@ def main() -> int:
         pop = load_population_from_vp_file(filename)
         nat_file = filename[:-4]
         nat_file += '_nat.csv'
-        print(f'{nat_file=}')
+        #print(f'{nat_file=}')
         #vp_to_natural(filename, nat_file)
     else:
         pop = load_population_from_natural_file(filename)
