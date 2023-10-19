@@ -67,19 +67,56 @@ def get_period_ends(period_starts: list[date]) -> list[date]:
     return period_ends
 
 class substance:
-    def __init__(self, name, frac):
+    def __init__(self, name: str, frac: float, num_periods: int):
         self.name = name
         self.frac = float(frac)
+        self.num_periods = int(num_periods)
 
+        # Rolling average data
         self.predicted_tests_rolling = []
         self.truth_rolling = []
         self.overcount_error_rolling = []
         self.reconciliation_rolling = 0.0
 
+        # FAA calculation data
         self.predicted_tests_faa = []
-        self.truth_faa = []
-        self.overcount_error_faa = []
+        self.start_counts_faa = []
+        self.fractional_periods_active_faa = []
         self.reconciliation_faa = 0.0
+
+    def make_prediction_faa(self, start_count, fractional_period_pool_active):
+        apriori_estimate = start_count*self.frac/float(self.num_periods)
+        self.start_counts_faa.append(start_count)
+        self.fractional_periods_active_faa.append(fractional_period_pool_active)
+        self.predicted_tests_faa.append(round(discretize_float(apriori_estimate)))
+
+    # we still need to figure out how to reconcile a quaterly with a december update
+    def reconcile_with_rounded_data_faa(self, start_count: int) -> None:
+        if start_count is None:
+            average_size = float(sum(self.start_counts_faa)) / float(sum(self.fractional_periods_active_faa))
+            tests_for_calendar_year = round(average_size * self.frac)
+            self.reconcile_with_rounded_data_faa = sum(self.predicted_tests_faa) - tests_for_calendar_year
+        else:
+            from copy import deepcopy
+            # if we get a start_count for Dec 1, then  this was quarterly, and we need to fix things up
+            # we add in the "fifth" period and refigure the previously recorded numbers to
+            # make it all add up
+
+            recon_predicted_tests_faa = deepcopy(self.predicted_tests_faa)
+            recon_predicted_tests_faa.append(round(start_count*self.frac/float(self.num_periods)/3.0))
+
+            recon_start_counts_faa = deepcopy(self.start_counts_faa)
+            recon_start_counts_faa.append(start_count)
+
+            recon_fractional_periods_active_faa = deepcopy(self.fractional_periods_active_faa)
+            # remove the december from the last period (Oct 1 - Nov 30)
+            recon_fractional_periods_active_faa[-1] -= 1.0/3.0
+            recon_fractional_periods_active_faa.append(1.0/3.0)
+
+            self.predicted_tests_faa = recon_predicted_tests_faa
+            self.start_counts_faa = recon_start_counts_faa
+            self.fractional_periods_active_faa = recon_fractional_periods_active_faa
+            self.reconcile_with_rounded_data_faa(None)
 
 
     @property
@@ -110,6 +147,10 @@ class substance:
     def total_tests_predicted_rolling(self):
         return sum(self.predicted_tests_rolling)+self.reconciliation_rolling
 
+    @property
+    def total_tests_predicted_faa(self):
+        return sum(self.predicted_tests_faa)+self.reconciliation_faa
+
     def print_report_rolling(self, weighted_final_average_pop) -> int:
         from math import ceil
         print('\n########################################')
@@ -134,12 +175,42 @@ class substance:
         over_count = self.total_tests_predicted_rolling - final_ceil
 
         if over_count > 0:
-            print(f'Unfortunate Overcount: {over_count}')
+            print(f'\n*** WARNING: Overcount: {over_count} - roll - {self.name}\n')
         elif over_count < 0:
-            print(f'\n### WARNING: Undercount: {-over_count}\n')
+            print(f'\n*** ERROR:  Undercount: {-over_count} - roll - {self.name}\n')
 
         return over_count
 
+    def print_report_faa(self, weighted_final_average_pop) -> int:
+        from math import ceil
+        print('\n########################################')
+        print(f'################# {self.name.upper()[0:4]} #################')
+        print('########################################')
+        print(f'percent required: {100.0*self.frac}%')
+        print(f'{self.predicted_tests_faa=}')
+        print(f'{self.start_counts_faa=}')
+        print(f'{self.fractional_periods_active_faa=}')
+        for i in range(len(self.predicted_tests_faa)):
+            print(f'{i+1} -> {self.predicted_tests_faa[i]} --- {self.start_counts_faa[i]}')
+
+        print(f'\nnum tests predicted: {sum(self.predicted_tests_faa)}')
+        print(f'reconciliation: {self.reconciliation_faa}')
+
+        print(f'\nTotal tests predicted: {self.total_tests_predicted_faa}')
+
+        final_float = weighted_final_average_pop*self.frac
+        final_ceil = ceil(discretize_float(final_float))
+        print(f'\nFractional number of tests required: {final_float}')
+        print(f'DOT        number tests required: {final_ceil}')
+
+        over_count = self.total_tests_predicted_faa - final_ceil
+
+        if over_count > 0:
+            print(f'\n*** WARNING: Overcount: {over_count} - faa - {self.name}\n')
+        elif over_count < 0:
+            print(f'\n*** ERROR:  Undercount: {-over_count} - faa - {self.name}\n')
+
+        return over_count
 
 class processor:
     def __init__(self, pop: dict, monthly:bool, subst_list:list):
@@ -150,10 +221,11 @@ class processor:
         self.period_ends = get_period_ends(self.period_starts)
 
         self.substances = []
+        num_periods = 12 if monthly else 4
         for s in subst_list:
             print(f'{s=}')
             for k in s:
-                sub = substance(k, s[k])
+                sub = substance(k, s[k], num_periods)
                 self.substances.append(sub)
 
     @property
@@ -179,6 +251,11 @@ class processor:
 
     def num_days(self, period_index: int) -> int:
         return (self.e_date(period_index)-self.s_date(period_index)).days+1
+
+    # TODO: This returns 1.0 if the inception is not in this period,
+    # otherwise it gives the fractional part of the period that the pool is active
+    def fraction_pool_active(self, period_index: int):
+        return 1.0
 
     @property
     def final_avg_pop(self) -> float:
@@ -250,41 +327,48 @@ class processor:
                     s.reconcile_with_current_data_rolling(weighted_avg_pop_recon)
                 s.correct_with_true_average_rolling(weighted_avera_pop)
 
+        print('\n$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+        print('$$$$$$$$$$$$$$$ ROLLING $$$$$$$$$$$$$$$$$$$$$')
+        print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+
         weighted_final_average_pop = self.final_frac_of_year * self.final_avg_pop
         for s in self.substances:
             count_error = s.print_report_rolling(weighted_final_average_pop)
-            if count_error != 0:
-                print(f'Over Error: {count_error}:')
-                for p in self.pop:
-                    if p <= reconcile_date:
-                        continue
-                    print(f'{p} -> {self.pop[p]}')
+            #      if count_error != 0:
+            #          print(f'Over Error: {count_error}:')
+            #          for p in self.pop:
+            #              if p <= reconcile_date:
+            #                  continue
+            #              print(f'{p} -> {self.pop[p]}')
 
     def process_population_faa(self):
-        reconcile_date = date(year=self.year, month=12, day=1)
-        return 0
-'''
         for i in range(self.num_periods):
-            weighted_start_pop = self.period_frac_of_year(i)*self.s_pop(i)
-            final_period = i == self.num_periods-1 and not self.monthly
-
             for s in self.substances:
-                s.make_prediction_faa(weighted_start_pop)
-                if final_period:
-                    weighted_avg_pop_recon = self.period_frac_of_year(i) * \
-                        self.recon_avg_pop(self.s_date(i), reconcile_date, self.e_date(i))
-                    s.reconcile_with_current_data_faa(weighted_avg_pop_recon)
+                s.make_prediction_faa(self.s_pop(i), self.fraction_pool_active(i))
+                if self.monthly and i == self.num_periods-1:
+                    s.reconcile_with_rounded_data_faa(None)
+                    return None
+
+        reconcile_date = date(year=self.year, month=12, day=1)
+        reconcile_pop = self.pop[reconcile_date]
+        for s in self.substances:
+            # if this is quaterly we need to pass in the dec 1 population
+            # and figure that into the calculations
+            s.reconcile_with_rounded_data_faa(reconcile_pop)
+
+        print('\n$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+        print('$$$$$$$$$$$$$$$ FAA $$$$$$$$$$$$$$$$$$$$$$$$$')
+        print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
 
         weighted_final_average_pop = self.final_frac_of_year * self.final_avg_pop
         for s in self.substances:
             count_error = s.print_report_faa(weighted_final_average_pop)
-            if count_error != 0:
-                print(f'Over Error: {count_error}:')
-                for p in self.pop:
-                    if p <= reconcile_date:
-                        continue
-                    print(f'{p} -> {self.pop[p]}')
-'''
+            # if count_error != 0:
+            #     print(f'Over Error: {count_error}:')
+            #     for p in self.pop:
+            #         if p <= reconcile_date:
+            #             continue
+            #         print(f'{p} -> {self.pop[p]}')
 
 
 def main() -> int:
