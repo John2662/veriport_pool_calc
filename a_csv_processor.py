@@ -9,9 +9,7 @@ import argparse
 from substance import discretize_float
 from file_io import load_population_from_natural_file
 from file_io import load_population_from_vp_file
-
-ROLLING_AVERAGE = True
-
+from file_io import vp_to_natural
 
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -139,9 +137,9 @@ class substance:
         from math import ceil
         best_current_truth = weighted_avg_pop_recon * self.frac
         last_predicted = self.predicted_tests_rolling[-1]
-        if best_current_truth > last_predicted:
-            self.reconciliation_rolling = ceil(discretize_float(best_current_truth)) - last_predicted
-            #self.reconciliation_rolling = best_current_truth - last_predicted
+        estimated_undercount = best_current_truth - last_predicted - sum(self.overcount_error_rolling)
+        if estimated_undercount > 0:
+            self.reconciliation_rolling = ceil(discretize_float(estimated_undercount))
 
     @property
     def total_tests_predicted_rolling(self):
@@ -296,9 +294,6 @@ class processor:
             s += timedelta(days=1)
         return float(pop)/float(day_count)
 
-    def recon_frac_of_year(self, s: date, e:date) -> float:
-        return float((e-s).days + 1) / float(self.days_in_year)
-
     def print_period_stats(self):
         print('period stats:')
         for i in range(self.num_periods):
@@ -379,6 +374,10 @@ def main() -> int:
     print(f'load {filename}')
     if vp:
         pop = load_population_from_vp_file(filename)
+        nat_file = filename[:-4]
+        nat_file += '_nat.csv'
+        print(f'{nat_file=}')
+        #vp_to_natural(filename, nat_file)
     else:
         pop = load_population_from_natural_file(filename)
 

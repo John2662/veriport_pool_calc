@@ -148,9 +148,9 @@ def natural_to_vp(filename: str) -> str:
     return new_file
 
 
-def vp_to_natural(filename: str) -> None:
+def vp_to_natural(filename: str, nat_file: str = None) -> None:
     pop = load_population_from_vp_file(filename)
-    new_file = f'n_{filename}'
+    new_file = f'n_{filename}' if nat_file is None else nat_file
     write_population_to_natural_file(pop, new_file)
     return new_file
 
