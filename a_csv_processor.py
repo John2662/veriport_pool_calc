@@ -91,7 +91,11 @@ class substance:
     # we still need to figure out how to reconcile a quaterly with a december update
     def reconcile_with_rounded_data_faa(self, start_count: int) -> None:
         if start_count is None:
-            average_size = float(sum(self.start_counts_faa)) / float(sum(self.fractional_periods_active_faa))
+            average_size = 0.0
+            for i in range(len(self.start_counts_faa)):
+                average_size += float(self.start_counts_faa[i]) * self.fractional_periods_active_faa[i]
+            average_size /= self.num_periods
+
             tests_for_calendar_year = round(average_size * self.frac)
             self.reconcile_with_rounded_data_faa = sum(self.predicted_tests_faa) - tests_for_calendar_year
         else:
@@ -101,7 +105,7 @@ class substance:
             # make it all add up
 
             recon_predicted_tests_faa = deepcopy(self.predicted_tests_faa)
-            recon_predicted_tests_faa.append(round(start_count*self.frac/float(self.num_periods)/3.0))
+            recon_predicted_tests_faa.append(0)
 
             recon_start_counts_faa = deepcopy(self.start_counts_faa)
             recon_start_counts_faa.append(start_count)
@@ -250,10 +254,17 @@ class processor:
     def num_days(self, period_index: int) -> int:
         return (self.e_date(period_index)-self.s_date(period_index)).days+1
 
+    # This is just an approximation for now!
+    def num_total_days_in_period(self, period_index: int) -> int:
+        if self.monthly:
+            return 30
+        return 91
+
     # TODO: This returns 1.0 if the inception is not in this period,
     # otherwise it gives the fractional part of the period that the pool is active
     def fraction_pool_active(self, period_index: int):
-        return 1.0
+        return float((self.e_date(period_index) - self.s_date(period_index)).days) /  \
+            float(self.num_total_days_in_period(period_index))
 
     @property
     def final_avg_pop(self) -> float:
