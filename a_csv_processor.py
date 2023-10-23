@@ -51,7 +51,6 @@ def get_period_starts(inception: date, monthly: bool) -> list[date]:
             if p_start <= inception:
                 continue
             period_start_list.append(p_start)
-    print(period_start_list)
     return period_start_list
 
 def get_period_ends(period_starts: list[date]) -> list[date]:
@@ -78,12 +77,34 @@ class Processor:
         self.substances_r = []
         num_periods = 12 if monthly else 4
         for s in subst_list:
-            print(f'{s=}')
             for name in s:
                 fraction = s[name]
                 self.substances_f.append(SubstanceData_f(name, fraction, num_periods))
                 self.substances_r.append(SubstanceData_r(name, fraction, num_periods))
 
+    def set_guesses(self, guesses: dict, faa: bool)-> None:
+        num_to_do = 3
+        if faa:
+            for g in guesses:
+                existing_g = guesses[g][0:num_to_do]
+                print(f'{existing_g=}')
+                for s in self.substances_f:
+                    if s.name == g:
+                        for val in existing_g:
+                            s.predicted_tests.append(val+2)
+                for s in self.substances_f:
+                    print(f'  FAA: {s.name} -> {s.predicted_tests=}')
+
+        else:
+            for g in guesses:
+                existing_g = guesses[g][0:num_to_do]
+                print(f'{existing_g=}')
+                for s in self.substances_r:
+                    if s.name == g:
+                        for val in existing_g:
+                            s.predicted_tests.append(val+2)
+                for s in self.substances_r:
+                    print(f' ROLL: {s.name} -> {s.predicted_tests=}')
 
     @property
     def year(self) -> int:
@@ -200,11 +221,19 @@ class Processor:
         for s in self.substances_f:
             s.print_report(weighted_final_average_pop)
 
-    def process_substances_f(self):
+    def process_substances_f(self, print_me: bool = False) -> dict:
         for i in range(self.num_periods):
             self.process_period_f(i)
         self.finish_recon_f()
-        self.print_results_f()
+
+        predictions = {}
+        for s in self.substances_f:
+            predictions[s.name] = s.predicted_tests
+
+        if print_me:
+            self.print_results_f()
+        return predictions
+
 
     def process_period_r(self, period_index: int) -> None:
         start_date = self.period_starts[period_index]
@@ -233,11 +262,18 @@ class Processor:
         for s in self.substances_r:
             s.print_report(weighted_final_average_pop)
 
-    def process_substances_r(self):
+    def process_substances_r(self, print_me: bool = False) -> dict:
         for i in range(self.num_periods):
             self.process_period_r(i)
             self.finish_period_r(i)
-        self.print_results_r()
+
+        predictions = {}
+        for s in self.substances_r:
+            predictions[s.name] = s.predicted_tests
+
+        if print_me:
+            self.print_results_r()
+        return predictions
 
 def main() -> int:
     args = get_args()
@@ -261,9 +297,36 @@ def main() -> int:
         {'alcohol': .1},
     ]
     process = Processor(pop, monthly, substances)
-    process.process_substances_r()
-    process.process_substances_f()
+    r_predictions = process.process_substances_r(True)
+    f_predictions = process.process_substances_f(True)
 
+    for name in r_predictions:
+        print(f'{name[0:4]} -> {r_predictions[name]=}')
+    for name in r_predictions:
+        print(f'{name[0:4]} -> {f_predictions[name]=}')
+
+    process2 = Processor(pop, monthly, substances)
+    process2.set_guesses(r_predictions, False)
+    process2.set_guesses(f_predictions, True)
+
+    #print('ROLL')
+    #for s in process2.substances_r:
+    #    print(f'->{s.predicted_tests=}')
+    #print('FAA')
+    #for s in process2.substances_f:
+    #    print(f'->{s.predicted_tests=}')
+
+    r_predictions_2 = process2.process_substances_r(True)
+    f_predictions_2 = process2.process_substances_f(True)
+
+    print('ROLL')
+    for name in r_predictions_2:
+        print(f'old: {name[0:4]} -> {r_predictions[name]} = {sum(r_predictions[name])}')
+        print(f'new: {name[0:4]} -> {r_predictions_2[name]} = {sum(r_predictions_2[name])}')
+    print('FAA')
+    for name in f_predictions_2:
+        print(f'old: {name[0:4]} -> {f_predictions[name]} = {sum(f_predictions[name])}')
+        print(f'new: {name[0:4]} -> {f_predictions_2[name]} = {sum(f_predictions_2[name])}')
 
 if __name__ == "__main__":
     main()
