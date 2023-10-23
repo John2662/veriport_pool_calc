@@ -84,65 +84,6 @@ class Processor:
                 self.substances_f.append(SubstanceData_f(name, fraction, num_periods))
                 self.substances_r.append(SubstanceData_r(name, fraction, num_periods))
 
-    def process_period_f(self, period_index: int) -> None:
-        start_date = self.period_starts[period_index]
-        start_pop = self.pop[start_date]
-        fractional_period_pool_active = self.fraction_pool_active(period_index)
-        for s in self.substances_f:
-            s.make_predictions(period_index, start_pop, fractional_period_pool_active)
-
-    def finish_faa_recon(self):
-        reconcile_date = date(year=self.year, month=12, day=1)
-        if reconcile_date > self.inception:
-            reconcile_pop = self.pop[reconcile_date]
-            for s in self.substances_f:
-                # if this is quaterly we need to pass in the dec 1 population
-                # and figure that into the calculations
-                s.reconcile_with_rounded_data(reconcile_pop)
-
-    def complete_period_r(self, period_index: int, s: SubstanceData_r) -> None:
-        reconcile_date = date(year=self.year, month=12, day=1)
-        final_period = period_index == self.num_periods-1 and not self.monthly
-        period_fraction_of_year = self.period_frac_of_year(period_index)
-        if final_period and reconcile_date > self.inception:
-            weighted_avg_pop_recon = self.period_frac_of_year(period_index) * \
-                self.recon_avg_pop(self.s_date(period_index), reconcile_date, self.e_date(period_index))
-            s.reconcile_with_current_data(weighted_avg_pop_recon)
-        average_pop = self.avg_pop(period_index)
-        s.correct_with_true_average(period_index, average_pop, period_fraction_of_year)
-
-    def process_period_r(self, period_index: int) -> None:
-        start_date = self.period_starts[period_index]
-        start_pop = self.pop[start_date]
-        period_fraction_of_year = self.period_frac_of_year(period_index)
-        for s in self.substances_r:
-            s.make_predictions(period_index, start_pop, period_fraction_of_year)
-            self.complete_period_r(period_index, s)
-
-    def print_results_f(self):
-        weighted_final_average_pop = self.final_frac_of_year * self.final_avg_pop
-        print('\n$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
-        print('$$$$$$$$$$$$$$$ FAA $$$$$$$$$$$$$$$$$$$$$$$$$')
-        print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
-        for s in self.substances_f:
-            s.print_report(weighted_final_average_pop)
-
-    def print_results_r(self):
-        weighted_final_average_pop = self.final_frac_of_year * self.final_avg_pop
-        print('\n$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
-        print('$$$$$$$$$$$$$$$ ROLLING $$$$$$$$$$$$$$$$$$$$$')
-        print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
-        for s in self.substances_r:
-            s.print_report(weighted_final_average_pop)
-
-    def process_substances(self):
-        for i in range(self.num_periods):
-            self.process_period_f(i)
-            self.process_period_r(i)
-        self.finish_faa_recon()
-
-        self.print_results_r()
-        self.print_results_f()
 
     @property
     def year(self) -> int:
@@ -231,6 +172,72 @@ class Processor:
         for sub in self.substances:
             print(f'{sub.name} -> {sub.frac}')
 
+    #   ####################################################
+    #   ############ SUBSTANCE CALCULATIONS ################
+    #   ####################################################
+
+    def process_period_f(self, period_index: int) -> None:
+        start_date = self.period_starts[period_index]
+        start_pop = self.pop[start_date]
+        fractional_period_pool_active = self.fraction_pool_active(period_index)
+        for s in self.substances_f:
+            s.make_predictions(period_index, start_pop, fractional_period_pool_active)
+
+    def finish_recon_f(self):
+        reconcile_date = date(year=self.year, month=12, day=1)
+        if reconcile_date > self.inception:
+            reconcile_pop = self.pop[reconcile_date]
+            for s in self.substances_f:
+                # if this is quaterly we need to pass in the dec 1 population
+                # and figure that into the calculations
+                s.reconcile_with_rounded_data(reconcile_pop)
+
+    def print_results_f(self):
+        weighted_final_average_pop = self.final_frac_of_year * self.final_avg_pop
+        print('\n$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+        print('$$$$$$$$$$$$$$$ FAA $$$$$$$$$$$$$$$$$$$$$$$$$')
+        print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+        for s in self.substances_f:
+            s.print_report(weighted_final_average_pop)
+
+    def process_substances_f(self):
+        for i in range(self.num_periods):
+            self.process_period_f(i)
+        self.finish_recon_f()
+        self.print_results_f()
+
+    def process_period_r(self, period_index: int) -> None:
+        start_date = self.period_starts[period_index]
+        start_pop = self.pop[start_date]
+        period_fraction_of_year = self.period_frac_of_year(period_index)
+        for s in self.substances_r:
+            s.make_predictions(period_index, start_pop, period_fraction_of_year)
+
+    def finish_period_r(self, period_index: int)-> None:
+        reconcile_date = date(year=self.year, month=12, day=1)
+        final_period = period_index == self.num_periods-1 and not self.monthly
+        period_fraction_of_year = self.period_frac_of_year(period_index)
+        for s in self.substances_r:
+            if final_period and reconcile_date > self.inception:
+                weighted_avg_pop_recon = self.period_frac_of_year(period_index) * \
+                    self.recon_avg_pop(self.s_date(period_index), reconcile_date, self.e_date(period_index))
+                s.reconcile_with_current_data(weighted_avg_pop_recon)
+            average_pop = self.avg_pop(period_index)
+            s.correct_with_true_average(period_index, average_pop, period_fraction_of_year)
+
+    def print_results_r(self):
+        weighted_final_average_pop = self.final_frac_of_year * self.final_avg_pop
+        print('\n$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+        print('$$$$$$$$$$$$$$$ ROLLING $$$$$$$$$$$$$$$$$$$$$')
+        print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+        for s in self.substances_r:
+            s.print_report(weighted_final_average_pop)
+
+    def process_substances_r(self):
+        for i in range(self.num_periods):
+            self.process_period_r(i)
+            self.finish_period_r(i)
+        self.print_results_r()
 
 def main() -> int:
     args = get_args()
@@ -254,7 +261,9 @@ def main() -> int:
         {'alcohol': .1},
     ]
     process = Processor(pop, monthly, substances)
-    process.process_substances()
+    process.process_substances_r()
+    process.process_substances_f()
+
 
 if __name__ == "__main__":
     main()
