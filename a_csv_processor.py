@@ -11,6 +11,9 @@ from file_io import load_population_from_natural_file
 from file_io import load_population_from_vp_file
 from file_io import vp_to_natural
 
+from substance_processor_f import SubstanceData_f
+from substance_processor_r import SubstanceData_r
+
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description='Arguments: file path to write to, vp_format'
@@ -64,23 +67,26 @@ def get_period_ends(period_starts: list[date]) -> list[date]:
     period_ends.append(date(year=year,month=12,day=31))
     return period_ends
 
-class substance:
+class SubstanceData:
     def __init__(self, name: str, frac: float, num_periods: int):
         self.name = name
         self.frac = float(frac)
         self.num_periods = int(num_periods)
 
-        # Rolling average data
         self.predicted_tests_rolling = []
+        self.predicted_tests_faa = []
+
+        self.reconciliation_rolling = 0.0
+        self.reconciliation_faa = 0.0
+
+
+        # Rolling average data
         self.truth_rolling = []
         self.overcount_error_rolling = []
-        self.reconciliation_rolling = 0.0
 
         # FAA calculation data
-        self.predicted_tests_faa = []
         self.start_counts_faa = []
         self.fractional_periods_active_faa = []
-        self.reconciliation_faa = 0.0
 
     def make_prediction_faa(self, start_count, fractional_period_pool_active):
         apriori_estimate = start_count*self.frac/float(self.num_periods)
@@ -216,7 +222,7 @@ class substance:
 
         return over_count
 
-class processor:
+class Processor:
     def __init__(self, pop: dict, monthly:bool, subst_list:list):
         self.pop = pop
         self.monthly = monthly
@@ -225,12 +231,61 @@ class processor:
         self.period_ends = get_period_ends(self.period_starts)
 
         self.substances = []
+        self.substances_f = []
+        self.substances_r = []
         num_periods = 12 if monthly else 4
         for s in subst_list:
             print(f'{s=}')
-            for k in s:
-                sub = substance(k, s[k], num_periods)
-                self.substances.append(sub)
+            for name in s:
+                fraction = s[name]
+                self.substances.append(SubstanceData(name, fraction, num_periods))
+                self.substances_f.append(SubstanceData_f(name, fraction, num_periods))
+                self.substances_r.append(SubstanceData_r(name, fraction, num_periods))
+
+    def process_new_substances(self):
+        reconcile_date = date(year=self.year, month=12, day=1)
+        for i in range(self.num_periods):
+            final_period = i == self.num_periods-1 and not self.monthly
+            start_date = self.period_starts[i]
+            start_pop = self.pop[start_date]
+
+            fractional_period_pool_active = self.fraction_pool_active(i)
+            for s in self.substances_f:
+                s.new_make_predictions(i, start_pop, fractional_period_pool_active)
+
+            period_fraction_of_year = self.period_frac_of_year(i)
+            for s in self.substances_r:
+                s.new_make_predictions(i, start_pop, period_fraction_of_year)
+
+                if final_period and reconcile_date > self.inception:
+                    weighted_avg_pop_recon = self.period_frac_of_year(i) * \
+                        self.recon_avg_pop(self.s_date(i), reconcile_date, self.e_date(i))
+                    s.reconcile_with_current_data(weighted_avg_pop_recon)
+
+                average_pop = self.avg_pop(i)
+                s.new_correct_with_true_average(i, average_pop, period_fraction_of_year)
+
+
+        if reconcile_date > self.inception:
+            reconcile_pop = self.pop[reconcile_date]
+            for s in self.substances_f:
+                # if this is quaterly we need to pass in the dec 1 population
+                # and figure that into the calculations
+                s.reconcile_with_rounded_data(reconcile_pop)
+
+        weighted_final_average_pop = self.final_frac_of_year * self.final_avg_pop
+        print('\n$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+        print('$$$$$$$$$$$$$$$ ROLLING $$$$$$$$$$$$$$$$$$$$$')
+        print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+        for s in self.substances_r:
+            s.print_report(weighted_final_average_pop)
+
+        print('\n$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+        print('$$$$$$$$$$$$$$$ FAA $$$$$$$$$$$$$$$$$$$$$$$$$')
+        print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+        for s in self.substances_f:
+            s.print_report(weighted_final_average_pop)
+
 
     @property
     def year(self) -> int:
@@ -350,7 +405,6 @@ class processor:
             #              print(f'{p} -> {self.pop[p]}')
 
     def process_population_faa(self):
-        print('hello')
         for i in range(self.num_periods):
             for s in self.substances:
                 s.make_prediction_faa(self.s_pop(i), self.fraction_pool_active(i))
@@ -402,9 +456,11 @@ def main() -> int:
         {'drug': .25},
         {'alcohol': .1},
     ]
-    process = processor(pop, monthly, substances)
+    process = Processor(pop, monthly, substances)
     process.process_population_rolling_avg()
     process.process_population_faa()
+    print('\n************* DONE *****************')
+    process.process_new_substances()
 
 if __name__ == "__main__":
     main()
