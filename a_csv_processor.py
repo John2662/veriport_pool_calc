@@ -11,6 +11,7 @@ from file_io import load_population_from_vp_file
 from file_io import vp_to_natural
 
 from substance_processor import SubstanceData_f, SubstanceData_r
+NUM_GUESSES_TO_SET_FOR_TEST = 3
 
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -82,29 +83,21 @@ class Processor:
                 self.substances_f.append(SubstanceData_f(name, fraction, num_periods))
                 self.substances_r.append(SubstanceData_r(name, fraction, num_periods))
 
-    def set_guesses(self, guesses: dict, faa: bool)-> None:
-        num_to_do = 3
-        if faa:
-            for g in guesses:
-                existing_g = guesses[g][0:num_to_do]
-                print(f'{existing_g=}')
-                for s in self.substances_f:
-                    if s.name == g:
-                        for val in existing_g:
-                            s.predicted_tests.append(val+2)
-                for s in self.substances_f:
-                    print(f'  FAA: {s.name} -> {s.predicted_tests=}')
+    def set_guesses_r(self, guesses: dict)-> None:
+        for g in guesses:
+            existing_g = guesses[g][0:NUM_GUESSES_TO_SET_FOR_TEST]
+            for s in self.substances_r:
+                if s.name == g:
+                    for val in existing_g:
+                        s.predicted_tests.append(val+2)
 
-        else:
-            for g in guesses:
-                existing_g = guesses[g][0:num_to_do]
-                print(f'{existing_g=}')
-                for s in self.substances_r:
-                    if s.name == g:
-                        for val in existing_g:
-                            s.predicted_tests.append(val+2)
-                for s in self.substances_r:
-                    print(f' ROLL: {s.name} -> {s.predicted_tests=}')
+    def set_guesses_f(self, guesses: dict)-> None:
+        for g in guesses:
+            existing_g = guesses[g][0:NUM_GUESSES_TO_SET_FOR_TEST]
+            for s in self.substances_f:
+                if s.name == g:
+                    for val in existing_g:
+                        s.predicted_tests.append(val+2)
 
     @property
     def year(self) -> int:
