@@ -90,14 +90,16 @@ class substance:
 
     # we still need to figure out how to reconcile a quaterly with a december update
     def reconcile_with_rounded_data_faa(self, start_count: int) -> None:
+        from math import ceil
         if start_count is None:
             average_size = 0.0
             for i in range(len(self.start_counts_faa)):
                 average_size += float(self.start_counts_faa[i]) * self.fractional_periods_active_faa[i]
             average_size /= self.num_periods
 
-            tests_for_calendar_year = round(average_size * self.frac)
-            self.reconcile_with_rounded_data_faa = sum(self.predicted_tests_faa) - tests_for_calendar_year
+            tests_for_calendar_year = ceil(discretize_float(average_size * self.frac))
+            self.reconciliation_faa = tests_for_calendar_year - sum(self.predicted_tests_faa)
+
         else:
             from copy import deepcopy
             # if we get a start_count for Dec 1, then  this was quarterly, and we need to fix things up
@@ -193,7 +195,7 @@ class substance:
         print(f'{self.start_counts_faa=}')
         print(f'{self.fractional_periods_active_faa=}')
         for i in range(len(self.predicted_tests_faa)):
-            print(f'{i+1} -> {self.predicted_tests_faa[i]} --- {self.start_counts_faa[i]}')
+            print(f'{i+1} -> predicted: {self.predicted_tests_faa[i]}  --- start: {self.start_counts_faa[i]}')
 
         print(f'\nnum tests predicted: {sum(self.predicted_tests_faa)}')
         print(f'reconciliation: {self.reconciliation_faa}')
@@ -348,12 +350,13 @@ class processor:
             #              print(f'{p} -> {self.pop[p]}')
 
     def process_population_faa(self):
+        print('hello')
         for i in range(self.num_periods):
             for s in self.substances:
                 s.make_prediction_faa(self.s_pop(i), self.fraction_pool_active(i))
-                if self.monthly and i == self.num_periods-1:
-                    s.reconcile_with_rounded_data_faa(None)
-                    return None
+                # if self.monthly and i == self.num_periods-1:
+                #     s.reconcile_with_rounded_data_faa(None)
+                #     return None
 
         reconcile_date = date(year=self.year, month=12, day=1)
         if reconcile_date > self.inception:
@@ -396,7 +399,7 @@ def main() -> int:
     monthly = args.m != 'false'
 
     substances = [
-        {'drug': .5},
+        {'drug': .25},
         {'alcohol': .1},
     ]
     process = processor(pop, monthly, substances)
