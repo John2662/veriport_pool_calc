@@ -22,9 +22,12 @@ class SubstanceData_r:
         weighted_start_pop = period_fraction_of_year * start_count
         apriori_estimate = weighted_start_pop *self.frac
         account_for = min(apriori_estimate, self.previous_cummulative_overcount_error)
-        pred = ceil(discretize_float(apriori_estimate - account_for))
+        # don't let any prediction be < min_allowed
+        min_allowed_pred = 0
+        pred = max(min_allowed_pred, ceil(discretize_float(apriori_estimate - account_for)))
         if period_index < len(self.predicted_tests):
-            print(f'WARNING: at period {period_index}: {pred} -> {self.predicted_tests[period_index]}')
+            print(f'WARNING: {self.name} R: at period {period_index}: stores: {self.predicted_tests[period_index]}, ignore {pred}')
+            print(f'         {self.predicted_tests=}')
             return None
         self.predicted_tests.append(pred)
 
@@ -91,11 +94,14 @@ class SubstanceData_f:
         self.fractional_periods_active = []
 
     def make_predictions(self, period_index: int, start_count: int, fractional_period_pool_active: float) -> None:
-        pred = start_count*self.frac/float(self.num_periods)
+        # don't let any prediction be < min_allowed
+        min_allowed_pred = 0
+        pred = max(min_allowed_pred, start_count*self.frac/float(self.num_periods))
         self.start_counts.append(start_count)
         self.fractional_periods_active.append(fractional_period_pool_active)
         if period_index < len(self.predicted_tests):
-            print(f'WARNING: at period {period_index}: {pred} -> {self.predicted_tests[period_index]}')
+            print(f'WARNING: {self.name} F: at period {period_index}: stores: {self.predicted_tests[period_index]}, ignore {pred}')
+            print(f'         {self.predicted_tests=}')
             return None
         self.predicted_tests.append(round(pred))
 
@@ -109,7 +115,8 @@ class SubstanceData_f:
             average_size /= self.num_periods
 
             tests_for_calendar_year = ceil(discretize_float(average_size * self.frac))
-            self.reconciliation = tests_for_calendar_year - sum(self.predicted_tests)
+            # don't let the reconcilliation be negative
+            self.reconciliation = max(0, tests_for_calendar_year - sum(self.predicted_tests))
 
         else:
             from copy import deepcopy
