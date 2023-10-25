@@ -1,4 +1,11 @@
-from substance import discretize_float
+EPSILON = 0.0000000001
+
+def discretize_float(v: float, epsilon: float = EPSILON) -> float:
+    sign = -1 if v < 0 else 1
+    abs_v = abs(v)
+    if abs_v - int(abs_v) < epsilon:
+        return sign * int(abs_v)
+    return v
 
 class SubstanceData_r:
     def __init__(self, name: str, frac: float, num_periods: int):
