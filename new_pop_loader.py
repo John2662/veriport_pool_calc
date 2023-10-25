@@ -1,46 +1,16 @@
-
-from calendar import isleap
 from datetime import date, timedelta
 
 from substance_processor import SubstanceData_f, SubstanceData_r
 NUM_GUESSES_TO_SET_FOR_TEST = 3
-
-def get_period_starts(inception: date, monthly: bool) -> list[date]:
-    year = inception.year
-    period_start_list = [inception]
-    if monthly:
-        for month in range(12):
-            p_start = date(year=year, month=month+1, day=1)
-            if p_start <= inception:
-                continue
-            period_start_list.append(p_start)
-    else:
-        for quarter in range(4):
-            p_start = date(year=year, month=(quarter*3)+1, day=1)
-            if p_start <= inception:
-                continue
-            period_start_list.append(p_start)
-    return period_start_list
-
-def get_period_ends(period_starts: list[date]) -> list[date]:
-    year = period_starts[0].year
-    period_ends = []
-    for i, p in enumerate(period_starts):
-        if i == 0:
-            continue
-        end= p-timedelta(days=1)
-        period_ends.append(end)
-    period_ends.append(date(year=year,month=12,day=31))
-    return period_ends
 
 class Processor:
     def __init__(self, pop: dict, monthly:bool, subst_list:list):
         self.pop = pop
         self.monthly = monthly
         self.inception = next(iter(pop))
-        self.period_starts = get_period_starts(self.inception, monthly)
-        self.period_ends = get_period_ends(self.period_starts)
         self.final_date_loaded = max(pop.keys())
+        self.period_starts = Processor.get_period_starts(self.inception, monthly)
+        self.period_ends = Processor.get_period_ends(self.period_starts)
 
         self.substances = []
         self.substances_f = []
@@ -52,8 +22,38 @@ class Processor:
                 self.substances_f.append(SubstanceData_f(name, fraction, num_periods))
                 self.substances_r.append(SubstanceData_r(name, fraction, num_periods))
 
+    @staticmethod
+    def get_period_starts(inception: date, monthly: bool) -> list[date]:
+        year = inception.year
+        period_start_list = [inception]
+        if monthly:
+            for month in range(12):
+                p_start = date(year=year, month=month+1, day=1)
+                if p_start <= inception:
+                    continue
+                period_start_list.append(p_start)
+        else:
+            for quarter in range(4):
+                p_start = date(year=year, month=(quarter*3)+1, day=1)
+                if p_start <= inception:
+                    continue
+                period_start_list.append(p_start)
+        return period_start_list
+
+    @staticmethod
+    def get_period_ends(period_starts: list[date]) -> list[date]:
+        year = period_starts[0].year
+        period_ends = []
+        for i, p in enumerate(period_starts):
+            if i == 0:
+                continue
+            end= p-timedelta(days=1)
+            period_ends.append(end)
+        period_ends.append(date(year=year,month=12,day=31))
+        return period_ends
+
     @property
-    def periods_fully_loaded(self) -> int:
+    def num_fully_loaded_periods(self) -> int:
         for period_index in reversed(range(len(self.period_ends))):
             if self.period_ends[period_index] <= self.final_date_loaded:
                 return period_index + 1
@@ -83,8 +83,15 @@ class Processor:
         return self.inception.year
 
     @property
+    def is_leap_count(self) -> int:
+        from calendar import isleap
+        if isleap(self.inception.year):
+            return 1
+        return 0
+
+    @property
     def days_in_year(self):
-        return 366 if isleap(self.inception.year) else 365
+        return 365 + self.is_leap_count
 
     @property
     def num_periods(self) -> int:
@@ -102,11 +109,12 @@ class Processor:
     def num_days(self, period_index: int) -> int:
         return (self.e_date(period_index)-self.s_date(period_index)).days+1
 
-    # This is just an approximation for now!
     def num_total_days_in_period(self, period_index: int) -> int:
+        feb = 28+self.is_leap_count
+        day_count = [31, feb, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 ]
         if self.monthly:
-            return 30
-        return 91
+            return day_count[period_index]
+        return sum(day_count[3*period_index: 3*(period_index+1)])
 
     # TODO: This returns 1.0 if the inception is not in this period,
     # otherwise it gives the fractional part of the period that the pool is active
@@ -205,7 +213,6 @@ class Processor:
         if print_me:
             self.print_results_f()
         return predictions
-
 
     def process_period_r(self, period_index: int) -> None:
         start_date = self.period_starts[period_index]
