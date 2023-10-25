@@ -2,7 +2,7 @@
 from calendar import isleap
 from datetime import date, timedelta
 
-from new_substance_processor import SubstanceData_f, SubstanceData_r
+from substance_processor import SubstanceData_f, SubstanceData_r
 NUM_GUESSES_TO_SET_FOR_TEST = 3
 
 def get_period_starts(inception: date, monthly: bool) -> list[date]:
@@ -40,6 +40,7 @@ class Processor:
         self.inception = next(iter(pop))
         self.period_starts = get_period_starts(self.inception, monthly)
         self.period_ends = get_period_ends(self.period_starts)
+        self.final_date_loaded = max(pop.keys())
 
         self.substances = []
         self.substances_f = []
@@ -50,6 +51,16 @@ class Processor:
                 fraction = s[name]
                 self.substances_f.append(SubstanceData_f(name, fraction, num_periods))
                 self.substances_r.append(SubstanceData_r(name, fraction, num_periods))
+
+    @property
+    def periods_fully_loaded(self) -> int:
+        for period_index in reversed(range(len(self.period_ends))):
+            if self.period_ends[period_index] <= self.final_date_loaded:
+                return period_index + 1
+
+            if self.period_starts[period_index] <= self.final_date_loaded:
+                return period_index
+        return 0
 
     def set_guesses_r(self, guesses: dict)-> None:
         for g in guesses:
