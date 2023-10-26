@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from substance_processor import SubstanceData_f, SubstanceData_r
+from .substance_processor import SubstanceData_f, SubstanceData_r
 NUM_GUESSES_TO_SET_FOR_TEST = 3
 
 class Processor:

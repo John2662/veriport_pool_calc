@@ -20,6 +20,13 @@ class SubstanceData_r:
         self.truth = []
         self.overcount_error = []
 
+    def __str__(self) -> str:
+        return f'{self.name}, {self.frac}, {self.num_periods}\n{self.predicted_tests}\n{self.reconciliation}\n{self.truth}\n{self.overcount_error}'
+
+    def toJson(self) -> str:
+        import json
+        return json.dumps(self.__dict__)
+
     @property
     def previous_cummulative_overcount_error(self) -> float:
         return sum(self.overcount_error) if len(self.overcount_error) > 0 else 0.0
@@ -99,6 +106,13 @@ class SubstanceData_f:
         # FAA calculation data
         self.start_counts = []
         self.fractional_periods_active = []
+
+    def __str__(self) -> str:
+        return f'{self.name}, {self.frac}, {self.num_periods}\n{self.predicted_tests}\n{self.reconciliation}\n{self.start_counts}\n{self.fractional_periods_active}'
+
+    def toJson(self) -> str:
+        import json
+        return json.dumps(self.__dict__)
 
     def make_predictions(self, period_index: int, start_count: int, fractional_period_pool_active: float) -> None:
         # don't let any prediction be < min_allowed
@@ -181,3 +195,32 @@ class SubstanceData_f:
             print(f'\n*** ERROR:  Undercount: {-over_count} - faa - {self.name}\n')
 
         return over_count
+
+
+def fromJson_r(json_str: str) -> SubstanceData_r:
+    import json
+    j = json.loads(json_str)
+    predicted_tests = j.pop("predicted_tests")
+    reconciliation = j.pop("reconciliation")
+    truth = j.pop("truth")
+    overcount_error = j.pop("overcount_error")
+    subst = SubstanceData_r(**j)
+    subst.predicted_tests = predicted_tests
+    subst.reconciliation = reconciliation
+    subst.truth = truth
+    subst.overcount_error = overcount_error
+    return subst
+
+def fromJson_f(json_str: str) -> SubstanceData_f:
+    import json
+    j = json.loads(json_str)
+    predicted_tests = j.pop("predicted_tests")
+    reconciliation = j.pop("reconciliation")
+    start_counts = j.pop("start_counts")
+    fractions_periods_active = j.pop("fractions_periods_active")
+    subst = SubstanceData_f(**j)
+    subst.predicted_tests = predicted_tests
+    subst.reconciliation = reconciliation
+    subst.start_counts = start_counts
+    subst.fractional_periods_active = fractions_periods_active
+    return subst
