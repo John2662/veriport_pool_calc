@@ -1,3 +1,8 @@
+# Copyright (C) Colibri Software, Inc - All Rights Reserved
+# Unauthorized copying of this file, via any medium is strictly prohibited
+# Proprietary and confidential
+# Written by John Read <john.read@colibri-software.com>, October 2023
+
 EPSILON = 0.0000000001
 
 def discretize_float(v: float, epsilon: float = EPSILON) -> float:

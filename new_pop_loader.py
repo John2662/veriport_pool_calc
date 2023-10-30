@@ -1,6 +1,11 @@
+# Copyright (C) Colibri Software, Inc - All Rights Reserved
+# Unauthorized copying of this file, via any medium is strictly prohibited
+# Proprietary and confidential
+# Written by John Read <john.read@colibri-software.com>, October 2023
+
 from datetime import date, timedelta
 
-from .substance_processor import SubstanceData_f, SubstanceData_r
+from .substance_processor import SubstanceData_f, SubstanceData_r, discretize_float
 NUM_GUESSES_TO_SET_FOR_TEST = 3
 
 class Processor:
@@ -12,7 +17,7 @@ class Processor:
         self.period_starts = Processor.get_period_starts(self.inception, monthly)
         self.period_ends = Processor.get_period_ends(self.period_starts)
 
-        self.substances = []
+        # self.substances = []
         self.substances_f = []
         self.substances_r = []
         num_periods = 12 if monthly else 4
@@ -79,6 +84,10 @@ class Processor:
                         s.predicted_tests.append(val+2)
 
     @property
+    def dec_31(self) -> date:
+        return date(year=self.inception.year, month=12, day=31)
+
+    @property
     def year(self) -> int:
         return self.inception.year
 
@@ -122,8 +131,7 @@ class Processor:
         return float((self.e_date(period_index) - self.s_date(period_index)).days) /  \
             float(self.num_total_days_in_period(period_index))
 
-    @property
-    def final_avg_pop(self) -> float:
+    def final_avg_pop(self, full_year: bool = False) -> float:
         day_count = 0
         pop = 0
         s = self.period_starts[0]
@@ -132,6 +140,9 @@ class Processor:
             pop += self.pop[s]
             day_count += 1
             s += timedelta(days=1)
+        if full_year:
+            return float(pop)/float(self.days_in_year)
+
         return float(pop)/float(day_count)
 
     @property
@@ -253,3 +264,87 @@ class Processor:
         if print_me:
             self.print_results_r()
         return predictions
+
+    def current_DOT_estimate(self) -> dict:
+        from math import ceil
+        results = {}
+        results['inception'] = str(self.inception)
+        results['through'] = str(self.final_date_loaded)
+        avg_pop = 0
+        s = self.inception
+        last_valid_pop = 0
+        while s <= self.dec_31:
+            if s in self.pop.keys():
+                last_valid_pop = self.pop[s]
+            avg_pop += last_valid_pop
+            s += timedelta(days=1)
+        avg_pop = float(avg_pop) / float(self.days_in_year)
+        results['drug_tests'] = ceil(discretize_float(avg_pop * self.substances_r[0].frac))
+        results['alcohol_tests'] = ceil(discretize_float(avg_pop * self.substances_r[1].frac))
+        return results
+
+    def r_estimate(self):
+        results = {}
+        results['inception'] = str(self.inception)
+        results['through'] = str(self.final_date_loaded)
+        results['drug_tests'] = sum(self.substances_r[0].predicted_tests)+self.substances_r[0].reconciliation
+        results['alcohol_tests'] = sum(self.substances_r[1].predicted_tests)+self.substances_r[1].reconciliation
+        return results
+
+    def f_estimate(self):
+        results = {}
+        results['inception'] = str(self.inception)
+        results['through'] = str(self.final_date_loaded)
+        results['drug_tests'] = sum(self.substances_f[0].predicted_tests)+self.substances_f[0].reconciliation
+        results['alcohol_tests'] = sum(self.substances_f[1].predicted_tests)+self.substances_f[1].reconciliation
+        return results
+
+    def process_loaded_data(self):
+        self.process_substances_r(False)
+        self.process_substances_f(False)
+
+    def generate_csv_report(self) -> list[str]:
+        # print period by period what the substances are generating
+        array = [f'monthly: {self.monthly}']
+        array.append(f'inception: {str(self.inception)}')
+        array.append(f'final date: {str(self.final_date_loaded)}')
+        dr_frac = self.substances_r[0].frac
+        al_frac = self.substances_r[1].frac
+
+        array.append(f'substance: {self.substances_r[0].name}, fraction:, {dr_frac}')
+        array.append(f'substance: {self.substances_r[1].name}, fraction:, {al_frac}')
+        avg_pop = self.final_avg_pop(full_year=True)
+        array.append(f'average pool size:, {avg_pop}')
+        array.append(f'minimal drug tests:, {avg_pop*dr_frac}')
+        array.append(f'minimal alco tests:, {avg_pop*al_frac}')
+
+        array.append(f'')
+        array.append(f'Size data:')
+        array.append(f'')
+
+
+
+        for period_index in range(len(self.period_starts)):
+            s = self.period_starts[period_index]
+            e = self.period_ends[period_index]
+            array.append(f',,,period: {period_index}, from: {str(s)}, to: {e}')
+            for d in self.pop:
+                # while d < s:
+                #     continue
+                # if d > e:
+                #     break
+                if d >= s and d <= e:
+                    array.append(f'{d},{self.pop[d]}')
+
+            array.append('')
+            array.append(f',,,substance,predicted,truth,overcount,cummulative predicted')
+            for subst in self.substances_r:
+                s = f',,,{subst.name},{subst.predicted_tests[period_index]},'
+                s += f'{subst.truth[period_index]},'
+                s += f'{subst.overcount_error[period_index]},'
+                s += f'{sum(subst.predicted_tests[0:period_index+1])+subst.reconciliation},'
+                array.append(s)
+            array.append('')
+
+        return array
+
