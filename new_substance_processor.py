@@ -3,6 +3,7 @@
 # Proprietary and confidential
 # Written by John Read <john.read@colibri-software.com>, October 2023
 
+from datetime import date
 EPSILON = 0.0000000001
 
 def discretize_float(v: float, epsilon: float = EPSILON) -> float:
@@ -19,7 +20,7 @@ class SubstanceData_r:
         self.num_periods = int(num_periods)
 
         self.predicted_tests = []
-        self.reconciliation = 0.0
+        self.reconciliation = {}
 
         # Rolling average data
         self.truth = []
@@ -57,13 +58,13 @@ class SubstanceData_r:
         self.overcount_error.append(oc_error)
 
 
-    def reconcile_with_current_data(self, weighted_avg_pop_recon):
+    def reconcile_with_current_data(self, weighted_avg_pop_recon: float, d: date):
         from math import ceil
         best_current_truth = weighted_avg_pop_recon * self.frac
         last_predicted = self.predicted_tests[-1]
         estimated_undercount = best_current_truth - last_predicted - sum(self.overcount_error)
         if estimated_undercount > 0:
-            self.reconciliation = ceil(discretize_float(estimated_undercount))
+            self.reconciliation[d] = ceil(discretize_float(estimated_undercount))
 
     @property
     def total_tests_predicted(self):

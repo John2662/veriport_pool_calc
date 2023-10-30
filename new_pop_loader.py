@@ -232,15 +232,27 @@ class Processor:
         for s in self.substances_r:
             s.make_predictions(period_index, start_pop, period_fraction_of_year)
 
+    def perform_reconciliation(self, period_index: int, dates: list[date]) -> None:
+        for d in dates:
+            if d <= self.inception:
+                continue
+            weighted_avg_pop_recon = self.period_frac_of_year(period_index) * \
+                    self.recon_avg_pop(self.s_date(period_index), d, self.e_date(period_index))
+            for s in self.substances_r:
+                s.reconcile_with_current_data(weighted_avg_pop_recon, d)
+
+
     def finish_period_r(self, period_index: int)-> None:
-        reconcile_date = date(year=self.year, month=12, day=1)
+        rd_1 = date(year=self.year, month=12, day=1)
+        rd_2 = date(year=self.year, month=12, day=15)
+        rd_3 = date(year=self.year, month=12, day=22)
+        rd_4 = date(year=self.year, month=12, day=29)
         final_period = period_index == self.num_periods-1 and not self.monthly
+        if final_period:
+            self.perform_reconciliation(period_index, [rd_1, rd_2, rd_3, rd_4])
+
         period_fraction_of_year = self.period_frac_of_year(period_index)
         for s in self.substances_r:
-            if final_period and reconcile_date > self.inception:
-                weighted_avg_pop_recon = self.period_frac_of_year(period_index) * \
-                    self.recon_avg_pop(self.s_date(period_index), reconcile_date, self.e_date(period_index))
-                s.reconcile_with_current_data(weighted_avg_pop_recon)
             average_pop = self.avg_pop(period_index)
             s.correct_with_true_average(period_index, average_pop, period_fraction_of_year)
 
@@ -287,8 +299,10 @@ class Processor:
         results = {}
         results['inception'] = str(self.inception)
         results['through'] = str(self.final_date_loaded)
-        results['drug_tests'] = sum(self.substances_r[0].predicted_tests)+self.substances_r[0].reconciliation
-        results['alcohol_tests'] = sum(self.substances_r[1].predicted_tests)+self.substances_r[1].reconciliation
+        dr_reconciliation = sum(self.substances_r[0].reconciliation.values())
+        al_reconciliation = sum(self.substances_r[1].reconciliation.values())
+        results['drug_tests'] = sum(self.substances_r[0].predicted_tests)+float(dr_reconciliation)
+        results['alcohol_tests'] = sum(self.substances_r[1].predicted_tests)+float(al_reconciliation)
         return results
 
     def f_estimate(self):
@@ -342,7 +356,8 @@ class Processor:
                 s = f',,,{subst.name},{subst.predicted_tests[period_index]},'
                 s += f'{subst.truth[period_index]},'
                 s += f'{subst.overcount_error[period_index]},'
-                s += f'{sum(subst.predicted_tests[0:period_index+1])+subst.reconciliation},'
+                recon = sum(subst.reconciliation.values())
+                s += f'{sum(subst.predicted_tests[0:period_index+1])+recon},'
                 array.append(s)
             array.append('')
 
