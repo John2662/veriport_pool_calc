@@ -17,15 +17,16 @@ class Processor:
         self.period_starts = Processor.get_period_starts(self.inception, monthly)
         self.period_ends = Processor.get_period_ends(self.period_starts)
 
-        # self.substances = []
         self.substances_f = []
         self.substances_r = []
         num_periods = 12 if monthly else 4
         for s in subst_list:
-            for name in s:
-                fraction = s[name]
-                self.substances_f.append(SubstanceData_f(name, fraction, num_periods))
-                self.substances_r.append(SubstanceData_r(name, fraction, num_periods))
+            name = s['name'] if 'name' in s else 'unknown'
+            fraction = float(s['fraction']) if 'fraction' in s else .5
+            min_num_tests = float(s['min_tests']) if 'min_tests' in s else 0
+            min_num_tests_non_neg = max(0, min_num_tests)
+            self.substances_f.append(SubstanceData_f(name, fraction, num_periods, min_num_tests_non_neg))
+            self.substances_r.append(SubstanceData_r(name, fraction, num_periods, min_num_tests_non_neg))
 
     @staticmethod
     def get_period_starts(inception: date, monthly: bool) -> list[date]:
@@ -243,14 +244,6 @@ class Processor:
 
 
     def finish_period_r(self, period_index: int)-> None:
-        rd_1 = date(year=self.year, month=12, day=1)
-        rd_2 = date(year=self.year, month=12, day=15)
-        rd_3 = date(year=self.year, month=12, day=22)
-        rd_4 = date(year=self.year, month=12, day=29)
-        final_period = period_index == self.num_periods-1 and not self.monthly
-        if final_period:
-            self.perform_reconciliation(period_index, [rd_1, rd_2, rd_3, rd_4])
-
         period_fraction_of_year = self.period_frac_of_year(period_index)
         for s in self.substances_r:
             average_pop = self.avg_pop(period_index)
@@ -267,6 +260,17 @@ class Processor:
     def process_substances_r(self, print_me: bool = False) -> dict:
         for i in range(self.num_periods):
             self.process_period_r(i)
+
+            final_period = i == self.num_periods-1
+            if final_period:
+                rds = []
+                if not self.monthly:
+                    rds.append(date(year=self.year, month=12, day=1))
+                rds.append(date(year=self.year, month=12, day=15))
+                rds.append(date(year=self.year, month=12, day=22))
+                rds.append(date(year=self.year, month=12, day=29))
+                self.perform_reconciliation(i, rds)
+
             self.finish_period_r(i)
 
         predictions = {}
@@ -301,8 +305,8 @@ class Processor:
         results['through'] = str(self.final_date_loaded)
         dr_reconciliation = sum(self.substances_r[0].reconciliation.values())
         al_reconciliation = sum(self.substances_r[1].reconciliation.values())
-        results['drug_tests'] = sum(self.substances_r[0].predicted_tests)+float(dr_reconciliation)
-        results['alcohol_tests'] = sum(self.substances_r[1].predicted_tests)+float(al_reconciliation)
+        results['drug_tests'] = int(sum(self.substances_r[0].predicted_tests)+dr_reconciliation)
+        results['alcohol_tests'] = int(sum(self.substances_r[1].predicted_tests)+al_reconciliation)
         return results
 
     def f_estimate(self):

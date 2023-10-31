@@ -14,10 +14,11 @@ def discretize_float(v: float, epsilon: float = EPSILON) -> float:
     return v
 
 class SubstanceData_r:
-    def __init__(self, name: str, frac: float, num_periods: int):
+    def __init__(self, name: str, frac: float, num_periods: int, min_tests_per_period: int = 0):
         self.name = name
         self.frac = float(frac)
         self.num_periods = int(num_periods)
+        self.min_number_tests_per_period = min_tests_per_period
 
         self.predicted_tests = []
         self.reconciliation = {}
@@ -43,8 +44,7 @@ class SubstanceData_r:
         apriori_estimate = weighted_start_pop *self.frac
         account_for = min(apriori_estimate, self.previous_cummulative_overcount_error)
         # don't let any prediction be < min_allowed
-        min_allowed_pred = 0
-        pred = max(min_allowed_pred, ceil(discretize_float(apriori_estimate - account_for)))
+        pred = max(self.min_number_tests_per_period, ceil(discretize_float(apriori_estimate - account_for)))
         if period_index < len(self.predicted_tests):
             print(f'WARNING: {self.name} R: at period {period_index}: stores: {self.predicted_tests[period_index]}, ignore {pred}')
             print(f'         {self.predicted_tests=}')
@@ -101,10 +101,11 @@ class SubstanceData_r:
         return over_count
 
 class SubstanceData_f:
-    def __init__(self, name: str, frac: float, num_periods: int):
+    def __init__(self, name: str, frac: float, num_periods: int, min_tests_per_period: int = 0):
         self.name = name
         self.frac = float(frac)
         self.num_periods = int(num_periods)
+        self.min_number_tests_per_period = min_tests_per_period
 
         self.predicted_tests = []
         self.reconciliation = 0.0
