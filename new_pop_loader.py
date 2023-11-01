@@ -5,8 +5,8 @@
 
 from datetime import date, timedelta
 
-from .substance_processor import SubstanceData_f, SubstanceData_r, discretize_float
-NUM_GUESSES_TO_SET_FOR_TEST = 3
+# from .substance_processor import SubstanceData_f
+from .substance_processor import SubstanceData_r, discretize_float, fromJson_r
 
 class Processor:
     def __init__(self, pop: dict, monthly:bool, subst_list:list):
@@ -17,7 +17,7 @@ class Processor:
         self.period_starts = Processor.get_period_starts(self.inception, monthly)
         self.period_ends = Processor.get_period_ends(self.period_starts)
 
-        self.substances_f = []
+        # self.substances_f = []
         self.substances_r = []
         num_periods = 12 if monthly else 4
         for s in subst_list:
@@ -25,8 +25,8 @@ class Processor:
             fraction = float(s['fraction']) if 'fraction' in s else .5
             min_num_tests = float(s['min_tests']) if 'min_tests' in s else 0
             min_num_tests_non_neg = max(0, min_num_tests)
-            self.substances_f.append(SubstanceData_f(name, fraction, num_periods, min_num_tests_non_neg))
-            self.substances_r.append(SubstanceData_r(name, fraction, num_periods, min_num_tests_non_neg))
+            # self.substances_f.append(SubstanceData_f(name, fraction, num_periods, min_num_tests_non_neg))
+            self.substances_r.append(SubstanceData_r(name, fraction, min_num_tests_non_neg))
 
     @staticmethod
     def get_period_starts(inception: date, monthly: bool) -> list[date]:
@@ -68,7 +68,33 @@ class Processor:
                 return period_index
         return 0
 
+    # This will get just those dates that are period_start dates
+    # and it will also ensure that there are none missing
+    def trim_to_period_starts(self, precal: dict) -> list[int]:
+        precal_as_list = []
+        for d in self.period_starts:
+            if d in precal:
+                precal_as_list.append(precal[d])
+            else:
+                return precal_as_list
+        return precal_as_list
+
+    def load_substance_json_from_db(self, dr_json: str, al_json: str) -> None:
+        self.substances_r[0] = fromJson_r(dr_json)
+        self.substances_r[1] = fromJson_r(al_json)
+
+    def fetch_substance_json_for_db(self) -> tuple:
+        return (self.substances_r[0].toJson(), self.substances_r[1].toJson())
+
+    # return False if this is attempting to over write values already stored
+    # takes a dict precal[date] -> test
+    def set_precalculated(self, substance_type: int, precal: dict)-> bool:
+        precal_as_list = self.trim_to_period_starts(precal)
+        return self.substances_r[substance_type].set_precalulated(precal_as_list)
+
+    # Not really needed. Just used in testing if this approach works
     def set_guesses_r(self, guesses: dict)-> None:
+        NUM_GUESSES_TO_SET_FOR_TEST = 3
         for g in guesses:
             existing_g = guesses[g][0:NUM_GUESSES_TO_SET_FOR_TEST]
             for s in self.substances_r:
@@ -76,13 +102,13 @@ class Processor:
                     for val in existing_g:
                         s.predicted_tests.append(val+2)
 
-    def set_guesses_f(self, guesses: dict)-> None:
-        for g in guesses:
-            existing_g = guesses[g][0:NUM_GUESSES_TO_SET_FOR_TEST]
-            for s in self.substances_f:
-                if s.name == g:
-                    for val in existing_g:
-                        s.predicted_tests.append(val+2)
+    # def set_guesses_f(self, guesses: dict)-> None:
+    #     for g in guesses:
+    #         existing_g = guesses[g][0:NUM_GUESSES_TO_SET_FOR_TEST]
+    #         for s in self.substances_f:
+    #             if s.name == g:
+    #                 for val in existing_g:
+    #                     s.predicted_tests.append(val+2)
 
     @property
     def dec_31(self) -> date:
@@ -126,8 +152,6 @@ class Processor:
             return day_count[period_index]
         return sum(day_count[3*period_index: 3*(period_index+1)])
 
-    # TODO: This returns 1.0 if the inception is not in this period,
-    # otherwise it gives the fractional part of the period that the pool is active
     def fraction_pool_active(self, period_index: int):
         return float((self.e_date(period_index) - self.s_date(period_index)).days) /  \
             float(self.num_total_days_in_period(period_index))
@@ -183,48 +207,48 @@ class Processor:
             print(f' p {i+1} -> start pop = {self.s_pop(i)},  avg pop = {self.avg_pop(i)} ')
 
         for sub in self.substances:
-            print(f'{sub.name} -> {sub.frac}')
+            print(f'{sub.name} -> {sub.fraction}')
 
     #   ####################################################
     #   ############ SUBSTANCE CALCULATIONS ################
     #   ####################################################
 
-    def process_period_f(self, period_index: int) -> None:
-        start_date = self.period_starts[period_index]
-        start_pop = self.pop[start_date]
-        fractional_period_pool_active = self.fraction_pool_active(period_index)
-        for s in self.substances_f:
-            s.make_predictions(period_index, start_pop, fractional_period_pool_active)
+    # def process_period_f(self, period_index: int) -> None:
+    #     start_date = self.period_starts[period_index]
+    #     start_pop = self.pop[start_date]
+    #     fractional_period_pool_active = self.fraction_pool_active(period_index)
+    #     for s in self.substances_f:
+    #         s.make_predictions(period_index, start_pop, fractional_period_pool_active)
 
-    def finish_recon_f(self):
-        reconcile_date = date(year=self.year, month=12, day=1)
-        if reconcile_date > self.inception:
-            reconcile_pop = self.pop[reconcile_date]
-            for s in self.substances_f:
-                # if this is quaterly we need to pass in the dec 1 population
-                # and figure that into the calculations
-                s.reconcile_with_rounded_data(reconcile_pop)
+    # def finish_recon_f(self):
+    #     reconcile_date = date(year=self.year, month=12, day=1)
+    #     if reconcile_date > self.inception:
+    #         reconcile_pop = self.pop[reconcile_date]
+    #         for s in self.substances_f:
+    #             # if this is quaterly we need to pass in the dec 1 population
+    #             # and figure that into the calculations
+    #             s.reconcile_with_rounded_data(reconcile_pop)
 
-    def print_results_f(self):
-        weighted_final_average_pop = self.final_frac_of_year * self.final_avg_pop
-        print('\n$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
-        print('$$$$$$$$$$$$$$$ FAA $$$$$$$$$$$$$$$$$$$$$$$$$')
-        print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
-        for s in self.substances_f:
-            s.print_report(weighted_final_average_pop)
+    # def print_results_f(self):
+    #     weighted_final_average_pop = self.final_frac_of_year * self.final_avg_pop
+    #     print('\n$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+    #     print('$$$$$$$$$$$$$$$ FAA $$$$$$$$$$$$$$$$$$$$$$$$$')
+    #     print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
+    #     for s in self.substances_f:
+    #         s.print_report(weighted_final_average_pop)
 
-    def process_substances_f(self, print_me: bool = False) -> dict:
-        for i in range(self.num_periods):
-            self.process_period_f(i)
-        self.finish_recon_f()
+    # def process_substances_f(self, print_me: bool = False) -> dict:
+    #     for i in range(self.num_periods):
+    #         self.process_period_f(i)
+    #     self.finish_recon_f()
 
-        predictions = {}
-        for s in self.substances_f:
-            predictions[s.name] = s.predicted_tests
+    #     predictions = {}
+    #     for s in self.substances_f:
+    #         predictions[s.name] = s.predicted_tests
 
-        if print_me:
-            self.print_results_f()
-        return predictions
+    #     if print_me:
+    #         self.print_results_f()
+    #     return predictions
 
     def process_period_r(self, period_index: int) -> None:
         start_date = self.period_starts[period_index]
@@ -241,7 +265,6 @@ class Processor:
                     self.recon_avg_pop(self.s_date(period_index), d, self.e_date(period_index))
             for s in self.substances_r:
                 s.reconcile_with_current_data(weighted_avg_pop_recon, d)
-
 
     def finish_period_r(self, period_index: int)-> None:
         period_fraction_of_year = self.period_frac_of_year(period_index)
@@ -295,8 +318,8 @@ class Processor:
             avg_pop += last_valid_pop
             s += timedelta(days=1)
         avg_pop = float(avg_pop) / float(self.days_in_year)
-        results['drug_tests'] = ceil(discretize_float(avg_pop * self.substances_r[0].frac))
-        results['alcohol_tests'] = ceil(discretize_float(avg_pop * self.substances_r[1].frac))
+        results['drug_tests'] = ceil(discretize_float(avg_pop * self.substances_r[0].fraction))
+        results['alcohol_tests'] = ceil(discretize_float(avg_pop * self.substances_r[1].fraction))
         return results
 
     def r_estimate(self):
@@ -309,25 +332,25 @@ class Processor:
         results['alcohol_tests'] = int(sum(self.substances_r[1].predicted_tests)+al_reconciliation)
         return results
 
-    def f_estimate(self):
-        results = {}
-        results['inception'] = str(self.inception)
-        results['through'] = str(self.final_date_loaded)
-        results['drug_tests'] = sum(self.substances_f[0].predicted_tests)+self.substances_f[0].reconciliation
-        results['alcohol_tests'] = sum(self.substances_f[1].predicted_tests)+self.substances_f[1].reconciliation
-        return results
+    # def f_estimate(self):
+    #     results = {}
+    #     results['inception'] = str(self.inception)
+    #     results['through'] = str(self.final_date_loaded)
+    #     results['drug_tests'] = sum(self.substances_f[0].predicted_tests)+self.substances_f[0].reconciliation
+    #     results['alcohol_tests'] = sum(self.substances_f[1].predicted_tests)+self.substances_f[1].reconciliation
+    #     return results
 
     def process_loaded_data(self):
         self.process_substances_r(False)
-        self.process_substances_f(False)
+        # self.process_substances_f(False)
 
     def generate_csv_report(self) -> list[str]:
         # print period by period what the substances are generating
         array = [f'monthly: {self.monthly}']
         array.append(f'inception: {str(self.inception)}')
         array.append(f'final date: {str(self.final_date_loaded)}')
-        dr_frac = self.substances_r[0].frac
-        al_frac = self.substances_r[1].frac
+        dr_frac = self.substances_r[0].fraction
+        al_frac = self.substances_r[1].fraction
 
         array.append(f'substance: {self.substances_r[0].name}, fraction:, {dr_frac}')
         array.append(f'substance: {self.substances_r[1].name}, fraction:, {al_frac}')
