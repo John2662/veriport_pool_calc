@@ -33,6 +33,17 @@ class SubstanceData_r:
         import json
         return json.dumps(self.__dict__)
 
+    def get_as_dict(self):
+        return self.__dict__
+
+    def get_most_recent_required_tests(self) -> int:
+        if len(self.predicted_tests) == 0:
+            return -1
+        if len(self.reconciliation) == 0:
+            return self.predicted_tests[-1]
+        max_recon_date = max(self.reconciliation.keys())
+        return self.reconciliation[max_recon_date]
+
     @property
     def previous_cummulative_overcount_error(self) -> float:
         return sum(self.overcount_error) if len(self.overcount_error) > 0 else 0.0
@@ -59,8 +70,10 @@ class SubstanceData_r:
     def reconcile_with_current_data(self, weighted_avg_pop_recon: float, d: date):
         from math import ceil
         best_current_truth = weighted_avg_pop_recon * self.fraction
-        last_predicted = self.predicted_tests[-1]
-        estimated_undercount = best_current_truth - last_predicted - sum(self.overcount_error)
+        # THIS AND CHANGE IN Processor IMPROVES THE RECONCILIATION
+        # last_predicted = self.predicted_tests[-1]
+        #estimated_undercount = best_current_truth - last_predicted - sum(self.overcount_error)
+        estimated_undercount = best_current_truth - sum(self.predicted_tests) - sum(self.reconciliation.values())
         if estimated_undercount > 0:
             self.reconciliation[d] = ceil(discretize_float(estimated_undercount))
 
@@ -106,29 +119,23 @@ class SubstanceData_r:
 
         return over_count
 
-
-def load_arrays_from_json(json_str: str) -> str:
-    import json
-    j = json.loads(json_str)
-    predicted_tests = j.pop("predicted_tests", [])
-    reconciliation = j.pop("reconciliation", {})
-    truth = j.pop("truth", [])
-    overcount_error = j.pop("overcount_error", [])
-
-
-def fromJson_r(json_str: str) -> SubstanceData_r:
-    import json
-    j = json.loads(json_str)
-    predicted_tests = j.pop("predicted_tests", [])
-    reconciliation = j.pop("reconciliation", {})
-    truth = j.pop("truth", [])
-    overcount_error = j.pop("overcount_error", [])
-    subst = SubstanceData_r(**j)
+def fromJsonDict_r(json_dict: dict) -> SubstanceData_r:
+    predicted_tests = json_dict.pop("predicted_tests", [])
+    reconciliation = json_dict.pop("reconciliation", {})
+    truth = json_dict.pop("truth", [])
+    overcount_error = json_dict.pop("overcount_error", [])
+    subst = SubstanceData_r(**json_dict)
     subst.predicted_tests = predicted_tests
     subst.reconciliation = reconciliation
     subst.truth = truth
     subst.overcount_error = overcount_error
     return subst
+
+
+def fromJsonStr_r(json_str: str) -> SubstanceData_r:
+    import json
+    json_dict = json.loads(json_str)
+    return fromJsonDict_r(json_dict)
 
 
 # class SubstanceData_f:

@@ -28,6 +28,25 @@ class Processor:
             # self.substances_f.append(SubstanceData_f(name, fraction, num_periods, min_num_tests_non_neg))
             self.substances_r.append(SubstanceData_r(name, fraction, min_num_tests_non_neg))
 
+    def pprint_pop(self):
+        s = ''
+        for d in self.pop:
+            s += f'{str(d)} -> {self.pop[d]}\n'
+        return s
+
+    def __str__(self) -> str:
+        s = f'{self.pprint_pop()} \n'
+        s += f'{self.monthly=}\n'
+        s += f'{str(self.inception)=}\n'
+        s += f'{str(self.final_date_loaded)=}\n'
+        s += f'{self.period_starts=}\n'
+        s += f'{self.period_ends=}\n'
+        s += 'DRUGS:\n'
+        s += f'{self.substances_r[0]}\n'
+        s += 'ALCOHOL:\n'
+        s += f'{self.substances_r[1]}\n'
+        return s
+
     @staticmethod
     def get_period_starts(inception: date, monthly: bool) -> list[date]:
         year = inception.year
@@ -68,6 +87,12 @@ class Processor:
                 return period_index
         return 0
 
+    def get_period_index_from_start_date(self,  start_date: date) -> int:
+        for period_index, d in enumerate(self.period_starts):
+            if d == start_date:
+                return period_index
+        return -1
+
     # This will get just those dates that are period_start dates
     # and it will also ensure that there are none missing
     def trim_to_period_starts(self, precal: dict) -> list[int]:
@@ -79,9 +104,9 @@ class Processor:
                 return precal_as_list
         return precal_as_list
 
-    def load_substance_json_from_db(self, dr_json: str, al_json: str) -> None:
-        self.substances_r[0] = fromJson_r(dr_json)
-        self.substances_r[1] = fromJson_r(al_json)
+    def load_substance_json_from_db(self, dr_json: dict, al_json: dict) -> None:
+        self.substances_r[0] = fromJsonDict_r(dr_json)
+        self.substances_r[1] = fromJsonDict_r(al_json)
 
     def fetch_substance_json_for_db(self) -> tuple:
         return (self.substances_r[0].toJson(), self.substances_r[1].toJson())
@@ -91,6 +116,51 @@ class Processor:
     def set_precalculated(self, substance_type: int, precal: dict)-> bool:
         precal_as_list = self.trim_to_period_starts(precal)
         return self.substances_r[substance_type].set_precalulated(precal_as_list)
+
+    def set_precalculated_from_random_samples(self, precal: dict)-> bool:
+        drug = {}
+        alcohol = {}
+        for s_date in precal:
+            print(f"{precal[s_date][0]['dr']=}")
+            drug[s_date] = precal[s_date][0]['dr']
+            alcohol[s_date] = precal[s_date][0]['al']
+
+        dr_list = self.trim_to_period_starts(drug)
+        al_list = self.trim_to_period_starts(alcohol)
+
+        return self.substances_r[0].set_precalculated(dr_list) and \
+            self.substances_r[1].set_precalculated(al_list)
+
+    # This will take the data that has been stored in the RandomSamples
+    # and compare it with the in the substances.
+    # There should be no difference
+    def compare_precalculated_from_random_samples(self, precal: dict)-> tuple:
+        drug = {}
+        alcohol = {}
+        for s_date in precal:
+            print(f"{precal[s_date][0]['dr']=}")
+            drug[s_date] = precal[s_date][0]['dr']
+            alcohol[s_date] = precal[s_date][0]['al']
+
+        dr_list = self.trim_to_period_starts(drug)
+        al_list = self.trim_to_period_starts(alcohol)
+
+        dr_error = []
+        al_error = []
+
+        for period_index, dr in enumerate(dr_list):
+            if period_index >= len(self.substance_r[0].predicted_tests):
+                dr_error.append(1000000*(abs(dr)+1))
+            else:
+                dr_error.append(dr-self.substance_r[0].predicted_tests[period_index])
+
+        for period_index, al in enumerate(al_list):
+            if period_index >= len(self.substance_r[1].predicted_tests):
+                al_error.append(1000000*(abs(al)+1))
+            else:
+                al_error.append(al-self.substance_r[1].predicted_tests[period_index])
+
+        return (dr_error, al_error)
 
     # Not really needed. Just used in testing if this approach works
     def set_guesses_r(self, guesses: dict)-> None:
@@ -262,7 +332,9 @@ class Processor:
             if d <= self.inception:
                 continue
             weighted_avg_pop_recon = self.period_frac_of_year(period_index) * \
-                    self.recon_avg_pop(self.s_date(period_index), d, self.e_date(period_index))
+                    self.recon_avg_pop(self.s_date(0), d, self.e_date(period_index))
+                    # THIS AND CHANGE IN Substance IMPROVES THE RECONCILIATION
+                    #self.recon_avg_pop(self.s_date(period_index), d, self.e_date(period_index))
             for s in self.substances_r:
                 s.reconcile_with_current_data(weighted_avg_pop_recon, d)
 
@@ -303,6 +375,26 @@ class Processor:
         if print_me:
             self.print_results_r()
         return predictions
+
+    def process_current_period(self, period_index: int, reconciliation_date: date = None) -> tuple:
+        if period_index > 0 and period_index < self.num_periods:
+            self.finish_period_r(period_index-1)
+
+        if period_index < self.num_periods:
+            # make estimates for the next period
+            self.process_period_r(period_index)
+        elif reconciliation_date is not None:
+            self.perform_reconciliation([reconciliation_date])
+        else:
+            self.finish_period_r(period_index-1)
+
+        return (self.substances_r[0].get_as_dict(), self.substance_r[1].get_as_dict())
+
+    def get_most_recent_required_tests(self, subst: int) -> int:
+        if subst == 0:
+            return self.substances_r[0].get_most_recent_required_tests()
+        return self.substances_r[1].get_most_recent_required_tests()
+
 
     def current_DOT_estimate(self) -> dict:
         from math import ceil
@@ -380,6 +472,8 @@ class Processor:
             array.append('')
             array.append(f',,,substance,predicted,truth,overcount,cummulative predicted')
             for subst in self.substances_r:
+                if period_index >= len(subst.predicted_tests):
+                    continue
                 s = f',,,{subst.name},{subst.predicted_tests[period_index]},'
                 s += f'{subst.truth[period_index]},'
                 s += f'{subst.overcount_error[period_index]},'
